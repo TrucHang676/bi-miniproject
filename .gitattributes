@@ -9,3 +9,6 @@
 *.xlsx binary
 *.png  binary
 *.jpg  binary
+
+# Dữ liệu gốc: giữ nguyên từng byte (LF như bản Kaggle) trên mọi máy
+data/raw/*.csv -text

@@ -7,10 +7,9 @@ dbt/profiles.yml
 ai/.streamlit/secrets.toml
 # Mage: io_config.yaml ĐƯỢC commit nhưng phải đọc mật khẩu qua {{ env_var('...') }}, không ghi thẳng mật khẩu
 
-# ===== Dữ liệu (tải lại từ Kaggle theo docs/dataset.md, tạo batch bằng scripts/) =====
-data/raw/*
+# ===== Dữ liệu =====
+# data/raw/ ĐƯỢC commit (9 CSV gốc Olist, ~121 MB) để cả nhóm khỏi tải lại; batch sinh lại bằng scripts/ nên không commit
 data/batches/*
-!data/raw/.gitkeep
 !data/batches/.gitkeep
 
 # ===== Database (SQL Server chạy Docker) & volume =====
