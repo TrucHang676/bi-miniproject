@@ -1,0 +1,11 @@
+# Chuẩn hóa xuống dòng giữa Windows / macOS: lưu LF trong repo
+* text=auto
+*.sh text eol=lf
+
+# File nhị phân – không so sánh / không đổi xuống dòng
+*.pbix binary
+*.pdf  binary
+*.docx binary
+*.xlsx binary
+*.png  binary
+*.jpg  binary

@@ -1,0 +1,73 @@
+# ===== Bí mật / cấu hình cá nhân =====
+# Chỉ commit file mẫu (.env.example, profiles.yml.example); file thật chứa mật khẩu SQL Server / API key LLM
+.env
+.env.*
+!.env.example
+dbt/profiles.yml
+ai/.streamlit/secrets.toml
+# Mage: io_config.yaml ĐƯỢC commit nhưng phải đọc mật khẩu qua {{ env_var('...') }}, không ghi thẳng mật khẩu
+
+# ===== Dữ liệu (tải lại từ Kaggle theo docs/dataset.md, tạo batch bằng scripts/) =====
+data/raw/*
+data/batches/*
+!data/raw/.gitkeep
+!data/batches/.gitkeep
+
+# ===== Database (SQL Server chạy Docker) & volume =====
+mage_data/
+mssql/
+mssql_data/
+*.mdf
+*.ldf
+*.ndf
+*.bak
+
+# ===== Mage =====
+mage/**/.variables/
+mage/**/.cache/
+mage/**/.file_versions/
+mage/**/*.log
+
+# ===== dbt =====
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+*.egg-info/
+
+# ===== Báo cáo nháp (soạn trên Google Docs/OneDrive; repo chỉ chứa bản PDF cuối) =====
+docs/report/*.docx
+
+# ===== Power BI / Office (file tạm khi đang mở) =====
+~$*
+*.pbix.lock
+.pbi/localSettings.json
+.pbi/cache.abf
+
+# ===== Video demo (nặng, chỉ lưu link trong docs/demo) =====
+*.mp4
+*.mov
+*.mkv
+
+# ===== Log / file tạm =====
+*.log
+*.tmp
+
+# ===== Claude Code (cấu hình cá nhân trên máy) =====
+.claude/settings.local.json
+CLAUDE.local.md
+
+# ===== Hệ điều hành / IDE =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
