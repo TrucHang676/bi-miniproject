@@ -70,3 +70,7 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# ===== docs =====
+# File nguồn sơ đồ draw.io (chỉ commit ảnh xuất ra, VD .png/.svg)
+docs/images/olist_relational_schema.drawio
