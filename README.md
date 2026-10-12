@@ -22,7 +22,7 @@
 ![Kiến trúc](docs/images/architecture.png)
 
 ```
-Kaggle CSV → Mage.ai (staging) → dbt (dwh: Star Schema) → Power BI
+Kaggle CSV → Mage.ai (staging) → dbt (dds: Star Schema) → Power BI
                                                         ↘ AI (LLM) → Summary / Giải thích
 ```
 

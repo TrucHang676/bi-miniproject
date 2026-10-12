@@ -16,7 +16,7 @@
 |--------|----------|--------------|
 | `staging` | Dữ liệu thô nạp từ nguồn | Mage.ai |
 | `etl_log` | Nhật ký chạy pipeline | `sql/` + Mage.ai |
-| `dwh` | Bảng Dimension & Fact | dbt |
+| `dds` | Dimensional Data Store: bảng Dimension & Fact | dbt |
 
 ## 5. Bảng Dimension
 
@@ -51,6 +51,6 @@
 
 ## 8. Ánh xạ nguồn → đích (Source-to-Target Mapping)
 
-| Cột nguồn (staging) | Phép biến đổi | Cột đích (dwh) |
+| Cột nguồn (staging) | Phép biến đổi | Cột đích (dds) |
 |---------------------|---------------|----------------|
 |                     |               |                |

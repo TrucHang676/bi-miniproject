@@ -77,7 +77,7 @@ Các cột "trông giống khóa" nhưng **không** unique: `order_reviews.revie
 **Số liệu chứng minh:** dòng mồ côi / dòng kiểm tra – 6 FK bắt buộc: **0** cho tất cả. FK mềm: category 13 / 32.341, zip khách 278 / 99.441, zip người bán 7 / 3.095.
 
 **Rủi ro**
-- Không tạo FK constraint vật lý trên bảng `staging` (Mage nạp từng bảng, thứ tự có thể đổi khi chạy lại) – FK chỉ kiểm tra bằng dbt test và đặt constraint ở tầng `dwh` nếu cần.
+- Không tạo FK constraint vật lý trên bảng `staging` (Mage nạp từng bảng, thứ tự có thể đổi khi chạy lại) – FK chỉ kiểm tra bằng dbt test và đặt constraint ở tầng `dds` nếu cần.
 - Nếu D3 thay đổi (VD nạp `products` theo tháng) thì FK `order_items.product_id` có thể tạm mồ côi giữa các batch.
 
 ## D3. Phân loại bảng
