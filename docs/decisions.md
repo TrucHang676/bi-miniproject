@@ -1,6 +1,6 @@
 # Quyết định thiết kế: khóa & nạp incremental (BS-5)
 
-> Ngày chốt: 10/10/2026 · DB: SQL Server · Căn cứ: [data_profiling.md](data_profiling.md) và kết quả chạy `py scripts/check_keys.py`
+> Ngày chốt: 10/10/2026 · DB: PostgreSQL 17 (đổi từ SQL Server ngày 14/10/2026) · Căn cứ: [data_profiling.md](data_profiling.md) và kết quả chạy `py scripts/check_keys.py`
 > (mọi số liệu dưới đây lấy từ script này, chạy trên 9 file gốc trong `data/raw/`).
 > Mỗi quyết định gồm: **Quyết định / Lý do / Số liệu chứng minh / Rủi ro**.
 
@@ -248,7 +248,7 @@ Tổng từng cột = đúng số dòng file gốc; số dòng con không gán �
 3. **Đơn được gửi ở batch T** nếu: (a) là đơn **mới** (watermark D4), hoặc (b) là đơn cũ có **ảnh chụp tại cutoff T khác ảnh chụp tại cutoff T-1** (có mốc mới rơi vào tháng T). Batch `2018-09+` gửi mọi đơn có trạng thái gốc khác ảnh chụp cuối 2018-08.
 4. **Review** được gửi ở batch chứa `review_answer_timestamp`; nếu batch đó sớm hơn batch đầu tiên của đơn thì dời về batch đầu tiên của đơn (= batch muộn hơn trong hai batch). Review chỉ INSERT, không cập nhật.
 5. `order_items`, `order_payments`, `customers`: không mô phỏng, gửi 1 lần ở batch đầu tiên của đơn (D5).
-6. Mỗi dòng trong file batch có cột `batch_id`; staging lưu thêm `_batch_id`, `_loaded_at` của lần nạp gần nhất. `etl_log` ghi **số dòng INSERT và số dòng UPDATE** riêng cho từng bảng (lấy từ `OUTPUT $action` của MERGE).
+6. Mỗi dòng trong file batch có cột `batch_id`; staging lưu thêm `_batch_id`, `_loaded_at` của lần nạp gần nhất. `etl_log` ghi **số dòng INSERT và số dòng UPDATE** riêng cho từng bảng (lấy từ `RETURNING merge_action()` của MERGE – có từ PostgreSQL 17).
 
 **Ví dụ** – đơn `82a35d13f3b95427d47aa11e4afde83b` (mua 27/01/2018, giao vận chuyển 30/01, khách nhận 20/02, trả lời review 3★ ngày 23/02):
 
@@ -272,7 +272,7 @@ Tổng từng cột = đúng số dòng file gốc; số dòng con không gán �
 - **Trạng thái trung gian là suy diễn**: nguồn không có ngày chuyển sang `invoiced` / `processing` nên đơn đi `approved` → `shipped` sẽ bỏ qua 2 trạng thái này; đơn `canceled` (625) / `unavailable` (609) hiện trạng thái hủy ngay từ batch đầu vì không có ngày hủy. Báo cáo và video phải nói rõ đây là **dữ liệu mô phỏng**.
 - **Mốc ngày sai thứ tự** sinh chuỗi trạng thái lạ: 1.359 đơn giao vận chuyển trước khi duyệt → có thể có ảnh chụp `shipped` với `approved_at` NULL; 8 đơn `delivered` thiếu ngày nhận sẽ ở `shipped` tới batch đối soát. Các đơn này đã được gắn cờ ngày không hợp lệ (data_profiling.md vấn đề #7).
 - **Kiểm tra bắt buộc sau batch cuối**: staging phải khớp file gốc (số dòng từng bảng và giá trị từng cột của `orders`) – đặt trong `sql/checks/`. Nếu lệch là script chia batch hoặc MERGE có lỗi.
-- **dbt phải xử lý cập nhật**: fact dựng từ staging đã được cập nhật tại chỗ. Cách an toàn nhất là materialize `table` (dựng lại mỗi lần chạy); nếu dùng `incremental` phải có `unique_key` và chiến lược cập nhật mà `dbt-sqlserver` hỗ trợ.
+- **dbt phải xử lý cập nhật**: fact dựng từ staging đã được cập nhật tại chỗ. Cách an toàn nhất là materialize `table` (dựng lại mỗi lần chạy); nếu dùng `incremental` phải có `unique_key` và chiến lược cập nhật phù hợp (`dbt-postgres` hỗ trợ `merge` và `delete+insert`).
 - Ảnh chụp giữa kỳ làm KPI tháng gần nhất "chưa đầy đủ" (VD tỉ lệ giao trễ chỉ tính trên đơn đã giao). Ngoài thực tế cũng vậy, nhưng phải giải thích khi demo.
 
 ---
@@ -283,3 +283,4 @@ Tổng từng cột = đúng số dòng file gốc; số dòng con không gán �
 |---|---|---|
 | 10/10/2026 | Có mô phỏng cập nhật trạng thái không? | **Có – phương án B** (D8) |
 | 10/10/2026 | Nạp `products` / `sellers` theo lần xuất hiện đầu tiên? | **Không** – giữ nạp 1 lần ở Full Load (D3) |
+| 14/10/2026 | Giữ SQL Server hay đổi sang PostgreSQL? | **Đổi sang PostgreSQL 17** – dùng lại được Mage + Postgres của demo lớp, `dbt-postgres` là adapter chính thức của dbt Labs, nhẹ hơn khi chạy Docker. Các quyết định D1–D8 giữ nguyên (MERGE có trong Postgres từ bản 15, `RETURNING merge_action()` và `WHEN NOT MATCHED BY SOURCE` từ bản 17) |

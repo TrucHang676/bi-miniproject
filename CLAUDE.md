@@ -14,7 +14,7 @@ Xây dựng hệ thống BI hoàn chỉnh trên một dataset Kaggle:
 |---|---|
 | **Mage.ai** | Pipeline nạp CSV → `staging`; kiểm tra cấu trúc & chất lượng cơ bản; **Full Load + Incremental Load** (mô phỏng batch vì dữ liệu tĩnh); ghi log trạng thái, số dòng, lỗi; chạy lại được |
 | **dbt** | Làm sạch, chuẩn hóa, tích hợp; **dbt tests**; phụ thuộc model rõ ràng; **dbt docs** |
-| **Data Warehouse** | Xác định quy trình nghiệp vụ, **grain**, fact/dim/measures, Star hoặc Snowflake schema; nạp từ staging qua dbt. Đề cho phép SQL Server / Postgres / DuckDB → **nhóm chốt SQL Server** |
+| **Data Warehouse** | Xác định quy trình nghiệp vụ, **grain**, fact/dim/measures, Star hoặc Snowflake schema; nạp từ staging qua dbt. Đề cho phép SQL Server / Postgres / DuckDB → **nhóm chốt PostgreSQL** (đổi từ SQL Server ngày 14/10/2026) |
 | **Power BI** | Semantic model (relationships, DAX measures, hierarchies); tối thiểu 2 dashboard: **Overview (descriptive)** và **Diagnostic** (drill-down/through, yếu tố đóng góp, bằng chứng định lượng) |
 | **Generative AI** | LLM tạo **summary** từ KPI + **giải thích xu hướng/biến động**; kết quả phải dựa trên số liệu đã tính, kiểm chứng được, hạn chế bịa. Khuyến khích hỏi đáp ngôn ngữ tự nhiên |
 
@@ -92,14 +92,14 @@ bi-miniproject/               # Repo chính của nhóm (thư mục chứa file 
 Mỗi thư mục có `README.md` dạng template – khi làm xong phần nào thì điền vào template tương ứng thay vì tạo tài liệu mới.
 
 ## Quy ước
-- DB: **SQL Server** (dbt adapter `dbt-sqlserver`). Mọi SQL, kiểu dữ liệu, ví dụ viết theo cú pháp T-SQL, không dùng cú pháp Postgres.
-- Kiểu dữ liệu: `DATETIME2` cho mốc thời gian, `DATE` cho cột chỉ có ngày, `NVARCHAR` cho cột chữ có thể có dấu (tên thành phố, bình luận review → `NVARCHAR(MAX)`), `CHAR(5)` cho zip, `VARCHAR(32)` cho mã hash, `DECIMAL(10,2)` cho tiền. Chi tiết từng cột: `docs/data_dictionary.md`.
+- DB: **PostgreSQL 17** (dbt adapter `dbt-postgres`). Mọi SQL, kiểu dữ liệu, ví dụ viết theo cú pháp PostgreSQL, không dùng T-SQL. MERGE dùng cú pháp Postgres 17 (`RETURNING merge_action()` để đếm INSERT/UPDATE cho `etl_log`); bỏ dấu tên thành phố bằng extension `unaccent`.
+- Kiểu dữ liệu: `TIMESTAMP` (không múi giờ) cho mốc thời gian, `DATE` cho cột chỉ có ngày, `VARCHAR(n)` cho tên thành phố, `TEXT` cho bình luận review, `CHAR(5)` cho zip, `VARCHAR(32)` cho mã hash, `NUMERIC(10,2)` cho tiền; database tạo với encoding UTF-8. Chi tiết từng cột: `docs/data_dictionary.md`.
 - Schema trong DB: `staging` (Mage nạp), `etl_log` (log pipeline), `dds` (Dimensional Data Store – dbt tạo dim/fact; tên theo cách gọi Stage → DDS của giảng viên, đổi từ `dwh` ngày 12/10/2026).
 - dbt: `stg_` (view, 1 model / 1 bảng nguồn) → `int_` (view/ephemeral) → `dim_` / `fact_` (table/incremental).
 - `dim_date.date_key` dạng int `YYYYMMDD`; dimension dùng surrogate key `<tên>_key`.
 - Bí mật (`.env`, `dbt/profiles.yml`, API key) không commit; chỉ commit `.env.example`.
 
-## Trạng thái hiện tại (cập nhật lần cuối 13/10/2026)
+## Trạng thái hiện tại (cập nhật lần cuối 14/10/2026)
 - [x] Chọn dataset Olist, tải về `data/raw/`.
 - [x] BS-4 profiling: `scripts/profile_olist.py` → `docs/data_profiling.md` (sinh tự động, 23 vấn đề xếp theo mức độ) + `docs/data_dictionary.md` (viết tay).
 - [x] Tạo khung thư mục + `.gitignore` + template `.md`.
@@ -107,12 +107,11 @@ Mỗi thư mục có `README.md` dạng template – khi làm xong phần nào t
 - [x] `docs/business_questions.md` (NhutThanh, 12/10/2026): bối cảnh, đối tượng, khả năng/giới hạn của dữ liệu, Q1–Q6 SMART, K1–K13 + M1–M5, ánh xạ câu hỏi → quy trình, câu hỏi cho AI. **14/10/2026**: đã tính lại toàn bộ cột "Kiểm chứng sơ bộ" từ CSV gốc → dữ liệu đủ trả lời Q1–Q6. Đã sửa: Q5 (11/2017 & 02/2018 trễ do **cả** bàn giao lẫn vận chuyển, chỉ 03/2018 thuần do vận chuyển), M1/M2 trả BLANK ngoài 01–08/2018 (vì 10/2016 có 324 đơn), định nghĩa Q6/M5 rõ hơn (số mới 191/633), ghi chú review gán chung cho mọi người bán trong đơn.
 - [x] `powerbi/README.md`: phác thảo bố cục 3 trang dashboard + trang ẩn drill-through "Chi tiết người bán" (phần semantic model vẫn là template).
 - [ ] Điền `docs/dataset.md`, `docs/dw_design.md` (bước tiếp theo hợp lý: thiết kế DW dựa trên mục 7 của business_questions).
-- [x] Chốt DB: **SQL Server** (10/10/2026); data_dictionary.md và data_profiling.md đã dùng kiểu SQL Server.
-- [ ] Chưa quyết định chạy SQL Server bằng Docker (image `mcr.microsoft.com/mssql/server`) hay cài trực tiếp trên Windows.
+- [x] Chốt DB: **PostgreSQL 17** (14/10/2026, đổi từ SQL Server chốt ngày 10/10 – lý do ở bảng cuối `docs/decisions.md`). Đã chuyển kiểu dữ liệu trong data_dictionary.md, data_profiling.md, decisions.md sang Postgres. ⚠ Báo cáo Word (người dùng tự sửa): tiêu đề mục 5.6 "Tổ chức schema trên SQL Server" → PostgreSQL; nội dung mục 1.4 Công nghệ soạn trong chat trước 14/10 ghi SQL Server → đổi thành PostgreSQL 17 + dbt-postgres khi dán.
 - [x] BS-5 chốt khóa & incremental: `docs/decisions.md` (D1–D7), kiểm chứng bằng `scripts/check_keys.py`. Tóm tắt: watermark `order_purchase_timestamp` theo tháng, nạp bằng MERGE theo PK; Full Load = đơn đến hết 2017-12, Incremental = 2018-01…2018-08 + batch nhỏ 2018-09+; bảng con theo `order_id`, customers theo `customer_id`; products/sellers/translation/geolocation nạp 1 lần; `dim_customer` theo `customer_unique_id` (SCD1); tỉ lệ mua lại tính theo lần mua = 2,34%.
 - [x] Chốt **phương án B** (mô phỏng cập nhật trạng thái, D8 trong `docs/decisions.md`): mỗi batch chỉ chứa thông tin trước cutoff = đầu tháng sau; đơn cũ có mốc mới được gửi lại → MERGE có cả INSERT và UPDATE; review đi theo tháng trả lời; batch cuối `2018-09+` đối soát về trạng thái gốc. Products/sellers giữ nạp 1 lần.
 - [ ] Chưa viết script chia batch (phải theo đúng quy tắc D8) / pipeline Mage – **chưa code, chờ người dùng giao task**.
-- [ ] Chưa có `docker-compose.yml`, chưa init project Mage / dbt.
+- [ ] Chưa có `docker-compose.yml` (dự kiến Postgres 17 + Mage chung một file, lấy `compose.yaml` của demo lớp làm mẫu), chưa init project Mage / dbt.
 - [ ] Chưa chọn LLM cho phần AI; chưa điền thành viên & phân công trong `README.md`.
 - [x] Báo cáo Word (`docs/report/*.docx`, người dùng tự dán): đã soạn nội dung **Chương 1** (Giới thiệu tổng quan: bối cảnh, mục tiêu, phạm vi, công nghệ) và **Chương 2** (Mô tả dataset & bài toán: nguồn/giấy phép, quy mô, data dictionary dạng `bảng (cột, ...)` + mô tả, profiling bản rút gọn, đối tượng sử dụng, câu hỏi Q1–Q10, KPI). ⚠ Bản Chương 2 này soạn **trước** khi chốt `business_questions.md` (nay là Q1–Q6, K1–K13) → cần đối chiếu và sửa lại mục câu hỏi/KPI trong Word. Người dùng muốn nhận nội dung dạng **plain text trong chat** để copy vào Word, không tạo file.
 - [x] Lược đồ quan hệ 9 bảng nguồn: `docs/images/olist_relational_schema.drawio` (style ER: header xám gradient, crow's foot, PK gạch chân, FK in nghiêng; geolocation nối nét đứt vì không có khóa).
@@ -124,5 +123,5 @@ Mỗi thư mục có `README.md` dạng template – khi làm xong phần nào t
 - Windows 11; shell mặc định PowerShell 5.1 (không có `&&`), có Git Bash.
 - Python: gọi bằng **`py`** (Python 3.13, có pandas). Lệnh `python` trỏ tới alias Microsoft Store → không chạy.
 - Docker Desktop (WSL2) phải được mở trước khi chạy container.
-- Bản demo Mage + Postgres của lớp chạy được ở `../../Demo/mage-demo-main` (tính từ thư mục repo) (Mage 0.9.79, Postgres 17, login Mage `admin@admin.com` / `admin`, DB `warehouse` / `labuser` / `labpass123`) → chỉ dùng tham khảo cấu trúc Mage / docker-compose; đồ án dùng SQL Server nên phần database, kết nối Mage (MSSQL) và dbt adapter phải làm lại.
+- Bản demo Mage + Postgres của lớp chạy được ở `../../Demo/mage-demo-main` (tính từ thư mục repo) (Mage 0.9.79, Postgres 17, login Mage `admin@admin.com` / `admin`, DB `warehouse` / `labuser` / `labpass123`) → đồ án cũng dùng Postgres 17 nên dùng làm mẫu trực tiếp cho `compose.yaml` (service `postgres` + `mage`, volume `pgdata`, healthcheck `pg_isready`), kết nối Mage → Postgres và `profiles.yml` của dbt. Đặt tên container/DB/user riêng cho đồ án để không đụng demo; tắt demo trước khi chạy đồ án vì cùng cổng 5432 và 6789.
 - DBeaver: nếu lỗi `invalid value for parameter "TimeZone": "Asia/Saigon"` thì thêm `-Duser.timezone=Asia/Ho_Chi_Minh` vào `%LOCALAPPDATA%\DBeaver\dbeaver.ini`.

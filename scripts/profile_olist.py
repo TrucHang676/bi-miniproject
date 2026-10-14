@@ -538,7 +538,7 @@ def main():
           "KPI doanh thu lấy từ order_items; payment chỉ dùng phân tích phương thức thanh toán.")
     issue(2, "Tên thành phố nhiều cách viết",
           f"{city_variant}; {city_extra}",
-          "Lưu NVARCHAR; chuẩn hóa ở dbt: bỏ dấu (`COLLATE Latin1_General_CI_AI` hoặc TRANSLATE), LOWER, TRIM, gộp khoảng trắng; "
+          "Lưu VARCHAR (Postgres mặc định UTF-8); chuẩn hóa ở dbt: bỏ dấu (extension `unaccent`), LOWER, TRIM, gộp khoảng trắng; "
           "ưu tiên phân tích theo bang.")
     issue(2, "Khách thay đổi địa chỉ giữa các đơn",
           f"{vn(M['cust_multi_zip'])} customer_unique_id có >1 zip",
@@ -556,12 +556,12 @@ def main():
     issue(3, "Tên cột sai chính tả", "`product_name_lenght`, `product_description_lenght`", "Đổi tên ở model stg_products.")
     issue(3, "Bình luận review có xuống dòng bên trong ô",
           f"{vn(P['order_reviews']['review_comment_message'].get('newline', 0))} dòng; file có {vn(sum(1 for _ in open(RAW / TABLES['order_reviews'][0], encoding='utf-8')))} dòng vật lý cho {vn(n_rv)} bản ghi",
-          "Nạp bằng CSV parser chuẩn (pandas, hoặc `BULK INSERT ... WITH (FORMAT = 'CSV', CODEPAGE = '65001')`), "
-          "không đọc theo từng dòng; cột đích NVARCHAR(MAX).")
+          "Nạp bằng CSV parser chuẩn (pandas, hoặc `COPY ... WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')`), "
+          "không đọc theo từng dòng; cột đích TEXT.")
     issue(3, "Cột ngày chỉ chứa phần ngày (giờ = 00:00:00)",
           "; ".join(f"`{c}` ({pct(d['midnight'], d['ok'], 1)})" for c, d in date_only)
           + ". Phần còn lại là 01:00:00 ngày 2017-10-15 – ngày Brazil chuyển giờ mùa hè (không tồn tại mốc 00:00)",
-          "Ép kiểu DATE thay vì DATETIME2; so sánh với ngày dự kiến theo ngày, không theo giờ.")
+          "Ép kiểu DATE thay vì TIMESTAMP; so sánh với ngày dự kiến theo ngày, không theo giờ.")
     issue(3, "Review có ngày bất thường",
           f"Review tạo trước ngày mua: {M['review_before_purchase']}",
           "Gắn cờ, không dùng cho KPI thời gian phản hồi review.")

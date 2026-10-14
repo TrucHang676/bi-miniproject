@@ -6,7 +6,7 @@
 |----------|-----------|---------|
 | Docker Desktop | | |
 | Python | | |
-| dbt-sqlserver | | Adapter dbt cho SQL Server |
+| dbt-postgres | | Adapter dbt cho PostgreSQL |
 | Power BI Desktop | | |
 | DBeaver (tùy chọn) | | Xem dữ liệu |
 
@@ -56,4 +56,5 @@ pip install -r requirements.txt
 
 | Lỗi | Nguyên nhân | Cách khắc phục |
 |-----|-------------|----------------|
-|     |             |                |
+| Power BI báo lỗi chứng chỉ SSL khi kết nối PostgreSQL | Postgres chạy Docker không có chứng chỉ SSL hợp lệ | *File → Options and settings → Data source settings* → chọn nguồn → *Edit Permissions* → bỏ tick **Encrypt connections** |
+| DBeaver báo `invalid value for parameter "TimeZone": "Asia/Saigon"` | Java gửi tên múi giờ cũ mà Postgres không nhận | Thêm dòng `-Duser.timezone=Asia/Ho_Chi_Minh` vào cuối `%LOCALAPPDATA%\DBeaver\dbeaver.ini`, mở lại DBeaver |

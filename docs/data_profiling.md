@@ -1,6 +1,6 @@
 # Khảo sát dữ liệu (Data Profiling) – Olist
 
-> File sinh tự động bởi `scripts/profile_olist.py` lúc 10/10/2026 14:09. **Không sửa tay** – sửa script rồi chạy lại.
+> File sinh tự động bởi `scripts/profile_olist.py` lúc 14/10/2026 10:44. **Không sửa tay** – sửa script rồi chạy lại.
 > Toàn bộ file được đọc dạng chuỗi; ô rỗng = NULL. Số liệu ở đây là dữ liệu gốc, chưa làm sạch.
 
 ## 1. Tổng quan
@@ -383,15 +383,15 @@ Dùng để quyết định chia batch cho Incremental Load. Tháng đánh dấu
 | 8 | Trung bình | Đơn thiếu dữ liệu ở bảng con | Không có item: 775; không có thanh toán: 1; không có review: 768 | Dùng LEFT JOIN; KPI điểm review chỉ tính trên đơn có review; đơn không item không vào fact_order_item. |
 | 9 | Trung bình | Sản phẩm thiếu danh mục / danh mục thiếu bản dịch | 610 sản phẩm không có danh mục; 2 danh mục không có bản dịch (pc_gamer, portateis_cozinha_e_preparadores_de_alimentos) | Gán `unknown`; bổ sung bản dịch bằng dbt seed. |
 | 10 | Trung bình | Tổng thanh toán ≠ tổng tiền hàng + phí ship | 249 / 98.665 đơn lệch > 1 BRL (lãi trả góp, voucher...) | KPI doanh thu lấy từ order_items; payment chỉ dùng phân tích phương thức thanh toán. |
-| 11 | Trung bình | Tên thành phố nhiều cách viết | customers: 6 tên / 11 dòng, sellers: 6 tên / 9 dòng, geolocation: 2.055 tên / 73.920 dòng; ký tự lạ (số, dấu câu): 53 dòng; lỗi encoding: 1 dòng; dấu tổ hợp chưa chuẩn hóa NFC: 1 dòng; khoảng trắng đầu/cuối: 1 dòng | Lưu NVARCHAR; chuẩn hóa ở dbt: bỏ dấu (`COLLATE Latin1_General_CI_AI` hoặc TRANSLATE), LOWER, TRIM, gộp khoảng trắng; ưu tiên phân tích theo bang. |
+| 11 | Trung bình | Tên thành phố nhiều cách viết | customers: 6 tên / 11 dòng, sellers: 6 tên / 9 dòng, geolocation: 2.055 tên / 73.920 dòng; ký tự lạ (số, dấu câu): 53 dòng; lỗi encoding: 1 dòng; dấu tổ hợp chưa chuẩn hóa NFC: 1 dòng; khoảng trắng đầu/cuối: 1 dòng | Lưu VARCHAR (Postgres mặc định UTF-8); chuẩn hóa ở dbt: bỏ dấu (extension `unaccent`), LOWER, TRIM, gộp khoảng trắng; ưu tiên phân tích theo bang. |
 | 12 | Trung bình | Khách thay đổi địa chỉ giữa các đơn | 250 customer_unique_id có >1 zip | Chọn SCD: type 1 (lấy địa chỉ đơn gần nhất) hoặc lưu địa chỉ theo đơn trong fact. |
 | 13 | Trung bình | Zip của khách/người bán không có trong geolocation | customers: 278 dòng; sellers: 7 dòng | LEFT JOIN, tọa độ để NULL; bản đồ vẽ theo bang thay vì điểm. |
 | 14 | Trung bình | Giá trị thanh toán bất thường | payment_value = 0: 9; payment_type = not_defined: 3; installments = 0: 2 | Map `not_defined` → `unknown`; installments 0 → 1; giữ lại nhưng gắn cờ. |
 | 15 | Thấp | Tọa độ ngoài lãnh thổ Brazil | 31 dòng geolocation | Loại khi gom tọa độ theo zip. |
 | 16 | Thấp | Kích thước/khối lượng sản phẩm = 0 hoặc thiếu | = 0: 4 sản phẩm; thiếu: 2 sản phẩm | Đổi 0 → NULL; không dùng cho KPI chính. |
 | 17 | Thấp | Tên cột sai chính tả | `product_name_lenght`, `product_description_lenght` | Đổi tên ở model stg_products. |
-| 18 | Thấp | Bình luận review có xuống dòng bên trong ô | 3.852 dòng; file có 104.720 dòng vật lý cho 99.224 bản ghi | Nạp bằng CSV parser chuẩn (pandas, hoặc `BULK INSERT ... WITH (FORMAT = 'CSV', CODEPAGE = '65001')`), không đọc theo từng dòng; cột đích NVARCHAR(MAX). |
-| 19 | Thấp | Cột ngày chỉ chứa phần ngày (giờ = 00:00:00) | `order_estimated_delivery_date` (100,0%); `review_creation_date` (99,9%). Phần còn lại là 01:00:00 ngày 2017-10-15 – ngày Brazil chuyển giờ mùa hè (không tồn tại mốc 00:00) | Ép kiểu DATE thay vì DATETIME2; so sánh với ngày dự kiến theo ngày, không theo giờ. |
+| 18 | Thấp | Bình luận review có xuống dòng bên trong ô | 3.852 dòng; file có 104.720 dòng vật lý cho 99.224 bản ghi | Nạp bằng CSV parser chuẩn (pandas, hoặc `COPY ... WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')`), không đọc theo từng dòng; cột đích TEXT. |
+| 19 | Thấp | Cột ngày chỉ chứa phần ngày (giờ = 00:00:00) | `order_estimated_delivery_date` (100,0%); `review_creation_date` (99,9%). Phần còn lại là 01:00:00 ngày 2017-10-15 – ngày Brazil chuyển giờ mùa hè (không tồn tại mốc 00:00) | Ép kiểu DATE thay vì TIMESTAMP; so sánh với ngày dự kiến theo ngày, không theo giờ. |
 | 20 | Thấp | Review có ngày bất thường | Review tạo trước ngày mua: 64 | Gắn cờ, không dùng cho KPI thời gian phản hồi review. |
 | 21 | Thấp | Nội dung review có khoảng trắng thừa / giá trị giả-NULL | Khoảng trắng đầu/cuối: 11.449 dòng; giá trị như `?`, `-`, `N/a` thay cho rỗng | TRIM và đổi chuỗi giả-NULL thành NULL ở stg_order_reviews (phục vụ phần AI phân tích bình luận). |
 | 22 | Thấp | `payment_sequential` không liên tục trong đơn | 80 đơn | Không dùng payment_sequential để đếm số lần thanh toán; đếm số dòng. |

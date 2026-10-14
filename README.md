@@ -32,7 +32,7 @@ Kaggle CSV → Mage.ai (staging) → dbt (dds: Star Schema) → Power BI
 |------------|-----------|-----------|
 | Data Ingestion | Mage.ai | |
 | Transformation | dbt | |
-| Data Warehouse | SQL Server | |
+| Data Warehouse | PostgreSQL | 17 |
 | BI | Power BI Desktop | |
 | Generative AI | [Tên LLM / API] | |
 
