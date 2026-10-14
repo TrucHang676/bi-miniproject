@@ -81,7 +81,7 @@ Thẻ KPI: K1 Doanh thu (kèm % so với cùng kỳ), K2 Số đơn, K3 AOV, K4 
 
 | # | Câu hỏi (SMART) | Biểu đồ (1) – hiện tượng | Biểu đồ (2) – giải thích | Measure | Kiểm chứng sơ bộ |
 |---|---|---|---|---|---|
-| Q1 | Trong 01/2017 – 08/2018, doanh thu theo tháng biến động thế nào, doanh thu 01–08/2018 tăng bao nhiêu % so với 01–08/2017, và mức tăng đó đến từ tăng số đơn hay tăng giá trị đơn trung bình? | Line chart: X = tháng 1–12, Legend = năm (2017, 2018), Y = Doanh thu; tooltip % YoY → thấy tháng đỉnh và khoảng cách 2018 so với 2017 | Combo chart: X = tháng (01/2017 – 08/2018), cột = Số đơn, đường = AOV (trục phụ) → thấy thành phần nào kéo doanh thu tăng | K1, K2, K3, M1, M2 | Đỉnh 11/2017. 01–08: doanh thu 3,08 → 7,34 tr BRL (+138%); số đơn 22.562 → 53.530 (+137%); AOV 136,6 → 137,1 BRL (gần như không đổi) → tăng trưởng hoàn toàn nhờ số đơn |
+| Q1 | Trong 01/2017 – 08/2018, doanh thu theo tháng biến động thế nào, doanh thu 01–08/2018 tăng bao nhiêu % so với 01–08/2017, và mức tăng đó đến từ tăng số đơn hay tăng giá trị đơn trung bình? | Line chart: X = tháng 1–12, Legend = năm (2017, 2018), Y = Doanh thu; tooltip % YoY (chỉ có ở 01–08/2018, xem M2) → thấy tháng đỉnh và khoảng cách 2018 so với 2017 | Combo chart: X = tháng (01/2017 – 08/2018), cột = Số đơn, đường = AOV (trục phụ) → thấy thành phần nào kéo doanh thu tăng | K1, K2, K3, M1, M2 | Đỉnh 11/2017. 01–08: doanh thu 3,08 → 7,34 tr BRL (+138%); số đơn 22.562 → 53.530 (+137%); AOV 136,6 → 137,1 BRL (gần như không đổi) → tăng trưởng hoàn toàn nhờ số đơn |
 | Q2 | Trong 01/2017 – 08/2018, 10 danh mục và 5 bang có doanh thu cao nhất là những đâu và chiếm bao nhiêu % tổng doanh thu? | Clustered bar chart: top 10 danh mục theo doanh thu, nhãn % tổng doanh thu | Filled map theo bang (drill Vùng → Bang), màu = doanh thu; click 1 bang → biểu đồ (1) đổi thành top danh mục của bang đó | K1, M3 | Top 10 danh mục = 62% (health_beauty 9,3%, watches_gifts 8,9%, bed_bath_table 7,7%). Top 5 bang = 74% (SP 38,3%, RJ 13,4%, MG 11,7%, RS 5,5%, PR 5,0%) |
 
 ### 5.2. Trang 2 – Giao hàng & trải nghiệm khách hàng (Diagnostic)
@@ -90,8 +90,8 @@ Thẻ KPI: K6 Tỉ lệ giao trễ, K7 Thời gian giao TB, K8 Điểm đánh gi
 
 | # | Câu hỏi (SMART) | Biểu đồ (1) – hiện tượng | Biểu đồ (2) – giải thích | Measure | Kiểm chứng sơ bộ |
 |---|---|---|---|---|---|
-| Q3 | Trong 01/2017 – 08/2018, những tháng nào có tỉ lệ giao trễ vượt ngưỡng 10%, và bang nào có tỉ lệ giao trễ cao nhất? | Line chart: X = tháng, Y = Tỉ lệ giao trễ, constant line 10% | Clustered bar chart: Y = bang (sắp giảm dần), X = Tỉ lệ giao trễ, tô đỏ bang > 10%; click 1 tháng ở (1) → (2) lọc theo tháng đó | K6 | Vượt 10%: 11/2017 (12,4%), 02/2018 (14,1%), 03/2018 (19,0%). Toàn kỳ cao nhất AL 21,5%, MA 17,5%, SE 15,4% |
-| Q4 | Trong 01/2017 – 08/2018, điểm đánh giá TB của đơn giao trễ thấp hơn đơn đúng hạn bao nhiêu sao, và những tháng giao trễ tăng thì điểm đánh giá chung có giảm theo không? | Clustered column chart: X = nhóm số ngày trễ (đúng hạn, 1–3, 4–7, 8–14, > 14), Y = Điểm TB, constant line = điểm TB toàn sàn | Line chart 2 trục: X = tháng, trục trái = Tỉ lệ giao trễ, trục phải = Điểm TB | K6, K8 | Đúng hạn 4,29★ vs trễ 2,27★; trễ 8–14 ngày 1,67★. Theo tháng: tương quan −0,92; 03/2018 trễ cao nhất → điểm thấp nhất (3,81★) |
+| Q3 | Trong 01/2017 – 08/2018, những tháng nào có tỉ lệ giao trễ vượt ngưỡng 10%, và bang nào có tỉ lệ giao trễ cao nhất? | Line chart: X = tháng, Y = Tỉ lệ giao trễ, constant line 10% | Clustered bar chart: Y = bang (sắp giảm dần), X = Tỉ lệ giao trễ, tô đỏ bang > 10%; tooltip số đơn delivered; click 1 tháng ở (1) → (2) lọc theo tháng đó (bang nhỏ chỉ còn vài chục đơn/tháng → tỉ lệ dao động mạnh, đọc kèm số đơn) | K6 | Vượt 10%: 11/2017 (12,4%), 02/2018 (14,1%), 03/2018 (19,0%). Toàn kỳ cao nhất AL 21,5%, MA 17,5%, SE 15,4% |
+| Q4 | Trong 01/2017 – 08/2018, điểm đánh giá TB của đơn giao trễ thấp hơn đơn đúng hạn bao nhiêu sao, và những tháng giao trễ tăng thì điểm đánh giá chung có giảm theo không? | Clustered column chart: X = nhóm số ngày trễ (đúng hạn, 1–3, 4–7, 8–14, > 14), Y = Điểm TB, constant line = điểm TB toàn sàn | Line chart 2 trục: X = tháng, trục trái = Tỉ lệ giao trễ, trục phải = Điểm TB | K6, K8 | Đúng hạn 4,29★ vs trễ 2,27★; theo nhóm: 1–3 ngày 3,29★, 4–7 ngày 2,10★, 8–14 ngày 1,67★, > 14 ngày 1,72★ (từ 8 ngày trở đi điểm chạm đáy, không giảm tiếp). Theo tháng: tương quan −0,92; 03/2018 trễ cao nhất → điểm thấp nhất (3,81★) |
 
 ### 5.3. Trang 3 – Người bán & vận chuyển (Diagnostic)
 
@@ -99,8 +99,8 @@ Thẻ KPI: K10 Số người bán hoạt động, K11 Doanh thu TB mỗi ngườ
 
 | # | Câu hỏi (SMART) | Biểu đồ (1) – hiện tượng | Biểu đồ (2) – giải thích | Measure | Kiểm chứng sơ bộ |
 |---|---|---|---|---|---|
-| Q5 | Trong 01/2017 – 08/2018, người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến (11/2017, 02–03/2018) là do người bán bàn giao chậm hay do thời gian vận chuyển kéo dài? | Clustered column chart: X = người bán bàn giao đúng hạn / trễ, Legend = nội bang / liên bang, Y = Tỉ lệ giao trễ | Line chart 2 trục: X = tháng, trục trái = Tỉ lệ người bán bàn giao trễ, trục phải = Thời gian vận chuyển TB (ngày, từ bàn giao đến khách nhận) | K6, K12, M4 | Bàn giao trễ → ~21% đơn giao trễ; bàn giao đúng hạn → 2,9% (nội bang) / 6,8% (liên bang). 03/2018: bàn giao trễ chỉ 8,4% (bình thường) nhưng vận chuyển 13,0 ngày (04/2018: 8,7) → đột biến do khâu vận chuyển |
-| Q6 | Trong số người bán có từ 30 đơn trở lên (01/2017 – 08/2018), những ai có điểm đánh giá TB < 3,5 hoặc tỉ lệ bàn giao trễ > 10%, và 10 người bán nào trong số đó có doanh thu lớn nhất cần ưu tiên xử lý? | Scatter chart: mỗi điểm = 1 người bán (≥ 30 đơn), X = Tỉ lệ bàn giao trễ, Y = Điểm TB, Size = Doanh thu, 2 constant line (10%, 3,5) chia 4 góc phần tư | Clustered bar chart: top 10 người bán vượt ngưỡng theo doanh thu, tooltip điểm TB và tỉ lệ bàn giao trễ; chuột phải → drill-through trang ẩn "Chi tiết người bán" | K1, K2, K8, K12, M5 | 188 / 630 người bán vượt ít nhất 1 ngưỡng (23 điểm < 3,5; 186 bàn giao trễ > 10%; 21 vi phạm cả hai), chiếm 21,8% doanh thu |
+| Q5 | Trong 01/2017 – 08/2018, người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến (11/2017, 02–03/2018) là do người bán bàn giao chậm hay do thời gian vận chuyển kéo dài? | Clustered column chart: X = người bán bàn giao đúng hạn / trễ, Legend = nội bang / liên bang, Y = Tỉ lệ giao trễ | Line chart 2 trục: X = tháng, trục trái = Tỉ lệ người bán bàn giao trễ, trục phải = Thời gian vận chuyển TB (ngày, từ bàn giao đến khách nhận) | K6, K12, M4 | Bàn giao trễ → 21,0% đơn giao trễ, bàn giao đúng hạn → 5,3% (≈ 4 lần); tách theo tuyến: đúng hạn 2,9% (nội bang) / 6,7% (liên bang). Tháng bình thường (10/2017, 04/2018): bàn giao trễ 6–8%, vận chuyển ~8,5 ngày. **11/2017** (bàn giao trễ 12,8%, vận chuyển 11,1 ngày) và **02/2018** (12,2%, 13,4 ngày) → do **cả hai khâu**; **03/2018** (8,4%, 13,0 ngày) → bàn giao bình thường, đột biến do **khâu vận chuyển** |
+| Q6 | Trong số người bán có từ 30 đơn trở lên (01/2017 – 08/2018), những ai có điểm đánh giá TB < 3,5 hoặc tỉ lệ bàn giao trễ > 10%, và 10 người bán nào trong số đó có doanh thu lớn nhất cần ưu tiên xử lý? | Scatter chart: mỗi điểm = 1 người bán (≥ 30 đơn), X = Tỉ lệ bàn giao trễ, Y = Điểm TB, Size = Doanh thu, 2 constant line (10%, 3,5) chia 4 góc phần tư | Clustered bar chart: top 10 người bán vượt ngưỡng theo doanh thu, tooltip điểm TB và tỉ lệ bàn giao trễ; chuột phải → drill-through trang ẩn "Chi tiết người bán" | K1, K2, K8, K12, M5 | 191 / 633 người bán vượt ít nhất 1 ngưỡng (24 điểm < 3,5; 188 bàn giao trễ > 10%; 21 vi phạm cả hai), chiếm 21,9% doanh thu. Cách tính theo định nghĩa ở M5 |
 
 ## 6. Danh sách KPIs / Measures
 
@@ -118,7 +118,7 @@ Quy ước chung:
 | K2 | Số đơn hàng | 1 | Số đơn hợp lệ | `COUNT(DISTINCT order_id)` | Đơn | So với cùng kỳ |
 | K3 | Giá trị đơn trung bình (AOV) | 1 | Doanh thu bình quân mỗi đơn | K1 / K2 | BRL/đơn | – |
 | K4 | Số khách hàng | 1 | Số khách thực có đơn hợp lệ trong kỳ | `COUNT(DISTINCT customer_unique_id)` | Khách | So với cùng kỳ |
-| K5 | Tỉ lệ khách mua lại | 1 | % khách có từ 2 lần mua trở lên (các đơn cách nhau ≤ 10 phút gộp thành 1 lần mua) | Số khách ≥ 2 lần mua / K4 | % | Thấp (~2–3%) → insight, không đặt mục tiêu |
+| K5 | Tỉ lệ khách mua lại | 1 | % khách có từ 2 lần mua trở lên (các đơn cách nhau ≤ 10 phút gộp thành 1 lần mua) | Số khách ≥ 2 lần mua / K4 | % | Thấp → insight, không đặt mục tiêu. Đơn hợp lệ 01/2017 – 08/2018: 2,26% (toàn bộ dữ liệu: 2,34%, xem decisions.md) |
 | K6 | Tỉ lệ giao trễ | 2 | % đơn đã giao mà khách nhận sau ngày giao dự kiến | Đơn có `DATE(delivered_customer_date) > estimated_delivery_date` / số đơn delivered hợp lệ | % | ≤ 5% tốt; > 10% cảnh báo |
 | K7 | Thời gian giao trung bình | 2 | Số ngày từ lúc đặt đến lúc khách nhận | `AVG(delivered_customer_date − purchase_timestamp)` | Ngày | Càng thấp càng tốt. Tháng 08/2018 bị cắt dữ liệu → không đại diện |
 | K8 | Điểm đánh giá trung bình | 2 | Mức hài lòng trung bình | `AVG(review_score)` (1 dòng/đơn) | Sao (1–5) | ≥ 4,0 tốt; < 3,5 cảnh báo |
@@ -130,16 +130,22 @@ Quy ước chung:
 
 > Lưu ý K12: `delivered_carrier_date` ở cấp **đơn**, còn `shipping_limit_date` ở cấp **dòng hàng**; với 1.278 đơn nhiều người bán,
 > ngày bàn giao là của cả đơn nên kết quả là xấp xỉ. Ghi rõ trong báo cáo.
+>
+> Lưu ý K8 theo người bán (Q6): review gắn với **đơn**, không gắn với người bán → đơn nhiều người bán thì mọi người bán
+> trong đơn nhận chung một điểm. Cũng là giá trị xấp xỉ như K12.
 
 **Measure bổ trợ cho biểu đồ** (không hiển thị trên thẻ):
 
 | Mã | Measure | Công thức | Dùng cho |
 |---|---|---|---|
-| M1 | Doanh thu cùng kỳ | K1 của cùng tháng năm trước (`SAMEPERIODLASTYEAR`) | Q1 |
-| M2 | % tăng trưởng so với cùng kỳ (YoY) | (K1 − M1) / M1 | Q1, thẻ K1 |
+| M1 | Doanh thu cùng kỳ | K1 của cùng tháng năm trước (`SAMEPERIODLASTYEAR`); trả về BLANK nếu kỳ đang xét không nằm trong 01–08/2018 | Q1 |
+| M2 | % tăng trưởng so với cùng kỳ (YoY) | (K1 − M1) / M1; BLANK khi M1 BLANK | Q1, thẻ K1 |
 | M3 | % tổng doanh thu | K1 / K1 toàn bộ (bỏ bộ lọc danh mục/bang) | Q2 |
 | M4 | Thời gian vận chuyển trung bình | `AVG(delivered_customer_date − delivered_carrier_date)` trên đơn delivered hợp lệ (ngày) | Q5 |
-| M5 | Cờ người bán cần xử lý | 1 nếu người bán có ≥ 30 đơn **và** (K8 < 3,5 **hoặc** K12 > 10%), ngược lại 0; dùng làm filter visual | Q6 |
+| M5 | Cờ người bán cần xử lý | 1 nếu người bán có ≥ 30 đơn **và** (K8 < 3,5 **hoặc** K12 > 10%), ngược lại 0; dùng làm filter visual. Số đơn = đơn hợp lệ có hàng của người bán trong kỳ; K8 = TB điểm (1 dòng/đơn) trên các đơn đó; K12 = tỉ lệ bàn giao trễ trên các lượt (đơn, người bán) của người bán trong kỳ | Q6 |
+
+> Lý do chặn M1/M2: tháng 10/2016 có 324 đơn, còn các tháng khác của 2016 gần như không có đơn. `SAMEPERIODLASTYEAR` ghi đè bộ lọc
+> ngày của trang → nếu không chặn, tooltip 10/2017 so với 10/2016 sẽ ra mức tăng hàng nghìn %, các tháng 2017 khác ra BLANK/∞.
 
 ## 7. Ánh xạ câu hỏi → quy trình nghiệp vụ (đầu vào cho thiết kế DW)
 
