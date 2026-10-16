@@ -1,5 +1,5 @@
 # ===== Bí mật / cấu hình cá nhân =====
-# Chỉ commit file mẫu (.env.example, profiles.yml.example); file thật chứa mật khẩu SQL Server / API key LLM
+# Chỉ commit file mẫu (.env.example, profiles.yml.example); file thật chứa mật khẩu PostgreSQL / API key LLM
 .env
 .env.*
 !.env.example
@@ -12,13 +12,12 @@ ai/.streamlit/secrets.toml
 data/batches/*
 !data/batches/.gitkeep
 
-# ===== Database (SQL Server chạy Docker) & volume =====
+# ===== Database (PostgreSQL chạy Docker) & volume =====
 mage_data/
-mssql/
-mssql_data/
-*.mdf
-*.ldf
-*.ndf
+pgdata/
+postgres_data/
+*.dump
+*.backup
 *.bak
 
 # ===== Mage =====
