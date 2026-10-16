@@ -1,7 +1,5 @@
 # Thiết kế Data Warehouse
 
-> Task BS-9 (BS-11 Business process & grain, BS-12 Dimension, BS-13 Fact & Measures) · Chốt 15/10/2026 · DB: **SQL Server**, schema `dds`.
-> Căn cứ: [business_questions.md](business_questions.md) (Q1–Q6, K1–K13, M1–M5), [decisions.md](decisions.md) (D1–D8), [data_profiling.md](data_profiling.md).
 > Sơ đồ: [images/dds_schema.drawio](images/dds_schema.drawio) (3 trang: Dimension, Fact, Lược đồ tổng thể); ảnh xuất ở [images/dds/](images/dds/).
 > Số dòng ghi trong file tính trực tiếp trên 9 CSV gốc theo đúng quy tắc dưới đây; số chính thức lấy từ `dds` sau khi dbt chạy xong batch cuối.
 
