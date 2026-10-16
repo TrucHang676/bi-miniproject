@@ -74,3 +74,7 @@ desktop.ini
 # ===== docs =====
 # File nguồn sơ đồ draw.io (chỉ commit ảnh xuất ra, VD .png/.svg)
 docs/images/olist_relational_schema.drawio
+# Tài liệu môn học / đề bài / báo cáo nháp (chỉ dùng cục bộ, không đưa lên repo)
+docs/slides/
+docs/2627.Yêu cầu.pdf
+docs/03.docx
