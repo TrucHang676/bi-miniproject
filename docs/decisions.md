@@ -8,9 +8,9 @@
 
 | # | Chủ đề | Quyết định ngắn |
 |---|---|---|
-| D1 | Khóa chính | 8 bảng có khóa unique đã kiểm chứng; `order_reviews` dùng khóa ghép (`review_id`, `order_id`); `geolocation` không có khóa |
-| D2 | Khóa ngoại | 6 FK bắt buộc (0 mồ côi), 3 FK mềm (cho phép không khớp, LEFT JOIN) |
-| D3 | Phân loại bảng | Giao dịch (theo tháng): `orders`, `order_items`, `order_payments`, `order_reviews`, `customers`. Tham chiếu (1 lần): `products`, `sellers`, `category_translation`, `geolocation` |
+| D1 | Khóa chính | 8 bảng có khóa unique đã kiểm chứng; `order_reviews` dùng khóa ghép (`review_id`, `order_id`); `geolocation` không có khóa và **không nạp** |
+| D2 | Khóa ngoại | 6 FK bắt buộc (0 mồ côi), 1 FK mềm (cho phép không khớp, LEFT JOIN) |
+| D3 | Phân loại bảng | Giao dịch (theo tháng): `orders`, `order_items`, `order_payments`, `order_reviews`, `customers`. Tham chiếu (1 lần): `products`, `sellers`, `category_translation`. Không nạp: `geolocation` |
 | D4 | Watermark | `orders.order_purchase_timestamp`, cửa sổ theo tháng `[đầu tháng, đầu tháng sau)`; nạp bằng **MERGE theo khóa chính** |
 | D5 | Bảng con | `order_items`, `order_payments`, `customers` đi theo batch **đầu tiên** của đơn; `order_reviews` đi theo tháng khách **trả lời** review |
 | D6 | Ranh giới batch | Full Load = đơn mua đến hết **2017-12**; Incremental = 8 batch **2018-01 … 2018-08** + batch cuối **2018-09+** (đơn mới + đối soát về trạng thái gốc) |
@@ -33,7 +33,7 @@
 | `sellers` | `seller_id` | |
 | `products` | `product_id` | |
 | `category_translation` | `product_category_name` | |
-| `geolocation` | *(không có)* | Ở dbt gom về 1 dòng/zip → khóa `zip_code_prefix` của bảng đã gom |
+| `geolocation` | *(không có)* | **Không nạp** (chốt 16/10/2026 – bảng cuối file) |
 
 **Lý do:** chọn khóa nhỏ nhất vừa unique vừa không NULL trên dữ liệu thật; với bảng con, khóa phải chứa `order_id` để MERGE theo batch (D4, D5).
 
@@ -69,12 +69,11 @@ Các cột "trông giống khóa" nhưng **không** unique: `order_reviews.revie
 | `order_payments.order_id` | `orders.order_id` | Bắt buộc | dbt test `relationships` |
 | `order_reviews.order_id` | `orders.order_id` | Bắt buộc | dbt test `relationships` |
 | `products.product_category_name` | `category_translation.product_category_name` | Mềm | LEFT JOIN; bổ sung 2 bản dịch bằng dbt seed; NULL → `unknown` |
-| `customers.customer_zip_code_prefix` | `geolocation` (đã gom theo zip) | Mềm | LEFT JOIN, tọa độ NULL |
-| `sellers.seller_zip_code_prefix` | `geolocation` (đã gom theo zip) | Mềm | LEFT JOIN, tọa độ NULL |
 
 **Lý do:** FK bắt buộc khớp 100% trên dữ liệu thật nên kiểm tra được bằng test; FK mềm có dòng không khớp từ nguồn nên không thể ép buộc mà không mất dữ liệu.
 
-**Số liệu chứng minh:** dòng mồ côi / dòng kiểm tra – 6 FK bắt buộc: **0** cho tất cả. FK mềm: category 13 / 32.341, zip khách 278 / 99.441, zip người bán 7 / 3.095.
+**Số liệu chứng minh:** dòng mồ côi / dòng kiểm tra – 6 FK bắt buộc: **0** cho tất cả. FK mềm: category 13 / 32.341.
+(Hai FK mềm zip `customers` / `sellers` → `geolocation` – không khớp 278 / 99.441 và 7 / 3.095 – đã bỏ từ 16/10/2026 vì không nạp `geolocation`.)
 
 **Rủi ro**
 - Không tạo FK constraint vật lý trên bảng `staging` (Mage nạp từng bảng, thứ tự có thể đổi khi chạy lại) – FK chỉ kiểm tra bằng dbt test và đặt constraint ở tầng `dds` nếu cần.
@@ -87,16 +86,17 @@ Các cột "trông giống khóa" nhưng **không** unique: `order_reviews.revie
 | Loại | Bảng | Cách nạp |
 |---|---|---|
 | **Giao dịch** | `orders`, `order_items`, `order_payments`, `order_reviews`, `customers` | Full Load phần lịch sử, sau đó Incremental theo tháng mua (D6) |
-| **Tham chiếu / chiều** | `products`, `sellers`, `category_translation`, `geolocation` | Nạp **toàn bộ 1 lần** trong Full Load |
+| **Tham chiếu / chiều** | `products`, `sellers`, `category_translation` | Nạp **toàn bộ 1 lần** trong Full Load |
+| **Không nạp** | `geolocation` | Không câu hỏi nào cần tọa độ (chốt 16/10/2026 – bảng cuối file) |
 
 **Lý do**
 - 4 bảng đầu là sự kiện gắn với một đơn và một thời điểm mua.
 - `customers` xếp vào nhóm giao dịch vì `customer_id` là mã **theo từng đơn** (quan hệ 1–1 với `orders`): nạp toàn bộ một lần sẽ đưa vào staging khách của những đơn chưa xảy ra.
-- 4 bảng tham chiếu không có cột thời gian, nên không có căn cứ để chia theo tháng; nạp trước giúp mọi batch giao dịch luôn thỏa FK.
+- 3 bảng tham chiếu không có cột thời gian, nên không có căn cứ để chia theo tháng; nạp trước giúp mọi batch giao dịch luôn thỏa FK.
 
 **Số liệu chứng minh**
 - `orders.customer_id` → mỗi customer_id có tối đa **1** đơn; 99.441 customer_id = 99.441 đơn.
-- Không bảng tham chiếu nào có cột ngày; `geolocation` 1.000.163 dòng, `category_translation` 71 dòng.
+- Không bảng tham chiếu nào có cột ngày; `category_translation` 71 dòng.
 
 **Rủi ro**
 - *(Đã cân nhắc nạp `products` / `sellers` theo lần bán đầu tiên – thực tế hơn nhưng phức tạp và dễ vướng FK giữa các batch. Nhóm chốt 10/10/2026: **giữ nạp 1 lần**.)*
@@ -284,3 +284,4 @@ Tổng từng cột = đúng số dòng file gốc; số dòng con không gán �
 | 10/10/2026 | Có mô phỏng cập nhật trạng thái không? | **Có – phương án B** (D8) |
 | 10/10/2026 | Nạp `products` / `sellers` theo lần xuất hiện đầu tiên? | **Không** – giữ nạp 1 lần ở Full Load (D3) |
 | 14/10/2026 | Giữ SQL Server hay đổi sang PostgreSQL? | **Đổi sang PostgreSQL 17** – dùng lại được Mage + Postgres của demo lớp, `dbt-postgres` là adapter chính thức của dbt Labs, nhẹ hơn khi chạy Docker. Các quyết định D1–D8 giữ nguyên (MERGE có trong Postgres từ bản 15, `RETURNING merge_action()` và `WHEN NOT MATCHED BY SOURCE` từ bản 17) |
+| 16/10/2026 | Có nạp `geolocation` không? | **Không** – Q1–Q6 chỉ phân tích theo vùng / bang / thành phố lấy từ `customers`, `sellers` (Q5 nội bang / liên bang so bang khách với bang người bán); `dim_geography` không có tọa độ. Bảng nguồn lại bẩn nhất (26% dòng trùng, trung bình 52,6 dòng/zip) mà không phục vụ câu hỏi nào. Staging còn **8 bảng**; file CSV vẫn giữ trong `data/raw/` nếu sau này cần bản đồ điểm |

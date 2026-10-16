@@ -14,7 +14,7 @@ Quan hệ giữa các bảng:
 customers 1──n orders 1──n order_items n──1 products n──1 category_translation
                  │  1──n order_payments        │
                  │  1──n order_reviews         n──1 sellers
-customers.zip / sellers.zip  ··(n──n, không phải khóa)··  geolocation.zip
+customers.zip / sellers.zip  ··(n──n, không phải khóa)··  geolocation.zip   (geolocation: không nạp)
 ```
 
 ---
@@ -125,6 +125,9 @@ customers.zip / sellers.zip  ··(n──n, không phải khóa)··  geolocatio
 
 ## 9. `geolocation` – Tọa độ theo mã bưu chính
 `olist_geolocation_dataset.csv` · 1.000.163 dòng · **Grain:** 1 dòng = 1 điểm tọa độ mẫu của 1 zip · **Không có khóa**
+
+> **Không nạp vào staging** (chốt 16/10/2026 – [decisions.md](decisions.md), bảng cuối file): không câu hỏi nào cần tọa độ, địa lý lấy
+> bang / thành phố từ `customers`, `sellers`. Mô tả dưới đây giữ lại để tham khảo; cột "Kiểu" chỉ là đề xuất nếu sau này cần nạp.
 
 | Cột | Kiểu | Mô tả nghiệp vụ | Ví dụ | Ghi chú chất lượng |
 |---|---|---|---|---|

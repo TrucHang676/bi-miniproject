@@ -1,6 +1,6 @@
 # Thiết kế Data Warehouse
 
-> Sơ đồ: [images/dds_schema.drawio](images/dds_schema.drawio) (3 trang: Dimension, Fact, Lược đồ tổng thể); ảnh xuất ở [images/dds/](images/dds/).
+> Sơ đồ: [images/dds_schema.drawio](images/dds_schema.drawio) (3 trang: `[Seminar] - Dimension`, `[Seminar] - Fact`, `[Seminar] - Lược đồ tổng thể`); ảnh xuất ở [images/dds/](images/dds/).
 > Số dòng ghi trong file tính trực tiếp trên 9 CSV gốc theo đúng quy tắc dưới đây; số chính thức lấy từ `dds` sau khi dbt chạy xong batch cuối.
 
 **Quy ước chung**
@@ -10,7 +10,8 @@
   Không dùng surrogate key riêng cho fact. Vì cột thuộc khóa chính không được NULL, FK thiếu được gán member **`-1` "Không xác định"**.
 - Dimension dùng **surrogate key** `INT` sinh trong dbt, giữ **khóa tự nhiên** (NK) của nguồn. Dimension phi chuẩn hóa (star): phân cấp nằm trong cùng một bảng.
 - Phân cấp viết theo chiều **chi tiết → tổng quát** (drill-down đi ngược lại).
-- Kiểu dữ liệu SQL Server: mã hash `VARCHAR(32)`, văn bản có dấu `NVARCHAR`, tiền `DECIMAL`, mốc thời gian `DATETIME2(0)`, ngày `DATE`, cờ `BIT`.
+- Kiểu dữ liệu PostgreSQL 17 (database encoding UTF-8): mã hash `VARCHAR(32)`, văn bản (kể cả có dấu) `VARCHAR(n)`, tiền `NUMERIC(p,2)`, mốc thời gian `TIMESTAMP` (không múi giờ), ngày `DATE`, cờ `BOOLEAN`, số nguyên nhỏ `SMALLINT`.
+  So với bản thiết kế SQL Server ban đầu: `NVARCHAR` → `VARCHAR` (UTF-8 đã giữ đủ dấu), `TINYINT` → `SMALLINT` (Postgres không có `TINYINT`), `DATETIME2(0)` → `TIMESTAMP`, `DECIMAL` → `NUMERIC`, `BIT` → `BOOLEAN`.
 
 ## 1. Quy trình nghiệp vụ (Business Process)
 
@@ -50,7 +51,7 @@ Mỗi quy trình có câu hỏi nghiệp vụ hỏi tới thì lập **một b�
 - Gắn người bán vào grain vì Q6 cần điểm đánh giá trung bình **của từng người bán**: đánh giá của đơn nhiều người bán được tính cho mọi người bán của đơn đó. 99.224 đánh giá → 100.568 dòng.
 - `review_id` không duy nhất (789 mã dùng chung cho nhiều đơn) nên khóa giữ cả `review_id` và `order_id`.
 - 759 dòng thuộc đơn không có sản phẩm → `seller_key = -1` (Không xác định).
-- 547 đơn có hơn 1 đánh giá (202 đơn khác điểm) → cờ `is_latest_review` = 1 cho đánh giá trả lời muộn nhất của mỗi đơn (98.673 đơn), dùng cho KPI "1 điểm / đơn" (K8, K9).
+- 547 đơn có hơn 1 đánh giá (202 đơn khác điểm) → cờ `is_latest_review` = `TRUE` cho đánh giá trả lời muộn nhất của mỗi đơn (98.673 đơn), dùng cho KPI "1 điểm / đơn" (K8, K9).
 - Hai vai trò ngày: `purchase_date_key` (so sánh theo tháng mua cùng `fact_delivery` ở Q4) và `answer_date_key` (ngày sự kiện đánh giá xảy ra).
 
 ## 3. Sơ đồ lược đồ (Galaxy Schema)
@@ -94,8 +95,8 @@ Mỗi quy trình có câu hỏi nghiệp vụ hỏi tới thì lập **một b�
 ![dim_date](images/dds/dim_date.png)
 
 - Sinh bằng dbt (không có nguồn), liên tục **01/01/2016 → 31/12/2018**: phủ ngày mua (04/09/2016 → 17/10/2018), ngày trả lời đánh giá (đến 29/10/2018) và ngày giao dự kiến (đến 12/11/2018).
-- `date_key` = `YYYYMMDD`. `year_month` = `YYYYMM` làm khóa duy nhất cho cấp Tháng (tránh gộp tháng 1 của các năm khác nhau). `day_of_week` theo ISO (1 = Thứ Hai … 7 = Chủ nhật), không phụ thuộc `DATEFIRST`.
-- `is_analysis_period` = 1 với 01/2017 – 08/2018 (phạm vi phân tích xu hướng, 99,6% số đơn).
+- `date_key` = `YYYYMMDD`. `year_month` = `YYYYMM` làm khóa duy nhất cho cấp Tháng (tránh gộp tháng 1 của các năm khác nhau). `day_of_week` theo ISO (1 = Thứ Hai … 7 = Chủ nhật) = `EXTRACT(ISODOW FROM full_date)`, không dùng `DOW` (0 = Chủ nhật).
+- `is_analysis_period` = `TRUE` với 01/2017 – 08/2018 (phạm vi phân tích xu hướng, 99,6% số đơn).
 - Là **role-playing dimension**: ngày đặt hàng (cả 3 fact) và ngày trả lời đánh giá (`fact_review`).
 
 ### `dim_customer`
@@ -185,6 +186,7 @@ Dimension gom các **thuộc tính suy ra** của một lượt giao hàng (busi
 | `late_days` | Measure (cấp đơn) | `DATE(delivered_customer_date) − estimated_delivery_date` (ngày, âm = giao sớm) |
 
 Mỗi measure chỉ tính khi đủ 2 mốc và đúng thứ tự thời gian (VD 23 đơn khách nhận trước ngày bàn giao → `transit_days` = NULL); ngược lại để NULL.
+Trong PostgreSQL, `timestamp − timestamp` trả về `INTERVAL` → đổi ra số ngày bằng `EXTRACT(EPOCH FROM (b − a)) / 86400` rồi ép `NUMERIC(6,2)` (`handover_delay_days`, `transit_days`, `delivery_days`); `late_days` là `date − date` nên ra số nguyên (`SMALLINT`).
 
 ### `fact_review`
 
@@ -201,7 +203,7 @@ Mỗi measure chỉ tính khi đủ 2 mốc và đúng thứ tự thời gian (V
 | `delivery_status_key` | PK, FK → `dim_delivery_status` | Trạng thái giao hàng của lượt (đơn, người bán) được đánh giá |
 | `review_creation_date`, `review_answer_timestamp` | Thuộc tính | Ngày gửi khảo sát, thời điểm trả lời |
 | `has_comment` | Thuộc tính | Có tiêu đề hoặc nội dung bình luận (sau TRIM, bỏ giá trị giả-NULL) |
-| `is_latest_review` | Thuộc tính | 1 = đánh giá trả lời muộn nhất của đơn |
+| `is_latest_review` | Thuộc tính | `TRUE` = đánh giá trả lời muộn nhất của đơn |
 | `review_score` | Measure | Điểm 1–5 sao |
 
 ## 7. Measures
@@ -214,7 +216,7 @@ Mỗi measure chỉ tính khi đủ 2 mốc và đúng thứ tự thời gian (V
 | `unit_price` | `fact_sales` | `order_items.price` | AVG có trọng số = `SUM(revenue) / SUM(quantity)` | Non-additive |
 | `handover_delay_days` | `fact_delivery` | `orders`, `order_items` | AVG; đếm số lượt > 0 | Additive |
 | `transit_days`, `delivery_days`, `late_days` | `fact_delivery` | `orders` | AVG theo **đơn riêng biệt** | Semi-additive: cộng được theo thời gian, khu vực…, **không** cộng qua các người bán của cùng một đơn |
-| `review_score` | `fact_review` | `order_reviews.review_score` | AVG trên `is_latest_review = 1`, 1 điểm / đơn | Non-additive |
+| `review_score` | `fact_review` | `order_reviews.review_score` | AVG trên `is_latest_review = TRUE`, 1 điểm / đơn | Non-additive |
 
 **Ánh xạ KPI → DW** (DAX chi tiết ở `powerbi/measures.dax`):
 
@@ -227,8 +229,8 @@ Mỗi measure chỉ tính khi đủ 2 mốc và đúng thứ tự thời gian (V
 | K5 Tỉ lệ mua lại | Số khách có ≥ 2 giá trị `purchase_seq` khác nhau trong kỳ / K4 |
 | K6 Tỉ lệ giao trễ | Số `order_id` có `delivery_result = 'Trễ hạn'` / số `order_id` có `delivery_result ∈ {Đúng hạn, Trễ hạn}` |
 | K7 Thời gian giao TB | `delivery_days` trung bình theo đơn riêng biệt |
-| K8 Điểm đánh giá TB | `review_score` trung bình, `is_latest_review = 1`, 1 dòng / đơn |
-| K9 Tỉ lệ đánh giá tiêu cực | Số đơn có `review_score ≤ 2` / số đơn có đánh giá (`is_latest_review = 1`) |
+| K8 Điểm đánh giá TB | `review_score` trung bình, `is_latest_review = TRUE`, 1 dòng / đơn |
+| K9 Tỉ lệ đánh giá tiêu cực | Số đơn có `review_score ≤ 2` / số đơn có đánh giá (`is_latest_review = TRUE`) |
 | K10 Người bán hoạt động | `DISTINCTCOUNT(fact_sales.seller_key)` |
 | K11 Doanh thu TB / người bán | K1 / K10 |
 | K12 Tỉ lệ bàn giao trễ | Số dòng `fact_delivery` có `handover_status = 'Trễ hạn'` / số dòng có `handover_status ∈ {Đúng hạn, Trễ hạn}` (đúng grain đơn – người bán) |
@@ -254,7 +256,7 @@ Kiểm chứng sơ bộ trên CSV gốc với các quy tắc trên: doanh thu 01
 | *(không có nguồn)* | Tích Descartes các giá trị hợp lệ của 4 thuộc tính; suy `delivery_result` từ `delay_bucket` | `dim_delivery_status.*` |
 | `order_items` GROUP BY (`order_id`, `product_id`, `seller_id`) | `COUNT(*)` → `quantity`; `MAX(price)` → `unit_price`; `SUM(price)` → `revenue`; `SUM(freight_value)` → `freight_value` | `fact_sales` measures |
 | `orders.order_status` | Lọc bỏ `canceled`, `unavailable` | (điều kiện của `fact_sales`) |
-| `orders.order_purchase_timestamp` | `CONVERT(INT, FORMAT(…, 'yyyyMMdd'))` | `*.purchase_date_key` |
+| `orders.order_purchase_timestamp` | `TO_CHAR(…, 'YYYYMMDD')::INT` | `*.purchase_date_key` |
 | `orders.customer_id` → `customers.customer_unique_id` | Lookup SK | `*.customer_key` |
 | `customers.customer_state`, `customer_city` của đơn | Lookup (bang, thành phố đã chuẩn hóa) | `*.geography_key` |
 | `order_items.product_id`, `seller_id` | Lookup SK; không khớp → `-1` | `*.product_key`, `*.seller_key` |
@@ -262,4 +264,4 @@ Kiểm chứng sơ bộ trên CSV gốc với các quy tắc trên: doanh thu 01
 | `order_items` GROUP BY (`order_id`, `seller_id`) + `orders`, `customers`, `sellers` | `MAX(shipping_limit_date)`; giữ các mốc của đơn; tính 4 measure ngày | `fact_delivery.*` |
 | `orders.order_status`, mốc bàn giao, bang khách – bang người bán, `late_days` | Quy tắc mục 5 (`dim_delivery_status`) → lookup | `fact_delivery.delivery_status_key`, `fact_review.delivery_status_key` |
 | `order_reviews.*` LEFT JOIN (`order_id`, `seller_id`) DISTINCT của `order_items` | Không có người bán → `-1`; TRIM bình luận, đổi giá trị giả-NULL thành NULL | `fact_review.*` |
-| `order_reviews.review_answer_timestamp` | → `answer_date_key`; `ROW_NUMBER()` theo `order_id` giảm dần thời điểm trả lời = 1 → `is_latest_review` | `fact_review.answer_date_key`, `is_latest_review` |
+| `order_reviews.review_answer_timestamp` | → `answer_date_key`; `ROW_NUMBER()` theo `order_id` giảm dần thời điểm trả lời; số thứ tự = 1 → `is_latest_review = TRUE` | `fact_review.answer_date_key`, `is_latest_review` |
