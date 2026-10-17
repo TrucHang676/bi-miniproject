@@ -13,6 +13,33 @@
 | `dim_date` | Năm → Quý → Tháng → Ngày |
 |           |           |
 
+### Cột sắp xếp (Sort by column)
+Cột chữ mặc định sắp theo bảng chữ cái → cần một cột số làm thứ tự: chọn cột chữ → *Column tools* → *Sort by column* → chọn cột số, rồi ẩn cột số khỏi report view.
+
+| Bảng | Cột hiển thị | Sắp theo | Cột sắp xếp lấy từ |
+|---|---|---|---|
+| `dim_delivery_status` | `delay_bucket` | `delay_bucket_order` | Cột tính toán DAX bên dưới – **không có trong `dds`** (quyết định 17/10/2026, `docs/decisions.md`) |
+| `dim_date` | `month_name` | `month` | Có sẵn trong `dds` |
+| `dim_date` | `day_name` | `day_of_week` | Có sẵn trong `dds` |
+
+```dax
+delay_bucket_order =
+SWITCH (
+    dim_delivery_status[delay_bucket],
+    "Đúng hạn",       1,
+    "Trễ 1–3 ngày",   2,
+    "Trễ 4–7 ngày",   3,
+    "Trễ 8–14 ngày",  4,
+    "Trễ > 14 ngày",  5,
+    "Chưa giao",      6,
+    "Không xác định", 7,
+    99    // tên nhóm không khớp → dồn về cuối để dễ phát hiện
+)
+```
+
+> Chuỗi trong `SWITCH` phải giống **từng ký tự** giá trị dbt sinh ra (dấu `–` là gạch ngang dài, không phải `-`). Đổi tên nhóm ở dbt thì sửa cả ở đây.
+> Kiểm tra nhanh: tạo bảng gồm `delay_bucket` + `delay_bucket_order` – không dòng nào được ra 99.
+
 ### Measures (DAX)
 > Toàn bộ DAX được sao lưu trong `measures.dax`.
 

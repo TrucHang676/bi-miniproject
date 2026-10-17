@@ -244,6 +244,8 @@ Kiểm chứng sơ bộ trên CSV gốc với các quy tắc trên: doanh thu 01
 
 ## 8. Ánh xạ nguồn → đích (Source-to-Target Mapping)
 
+> Bảng dưới tóm tắt theo bảng; ánh xạ chi tiết từng cột xem [source_to_target_mapping.md](source_to_target_mapping.md).
+
 | Cột nguồn (staging) | Phép biến đổi | Cột đích (dds) |
 |---|---|---|
 | *(không có nguồn)* | Sinh dãy ngày 2016-01-01 → 2018-12-31; tách ngày/tháng/quý/năm, tên thứ, tên tháng | `dim_date.*` |

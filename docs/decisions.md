@@ -107,7 +107,9 @@ Các cột "trông giống khóa" nhưng **không** unique: `order_reviews.revie
 
 **Quyết định**
 1. Watermark = `orders.order_purchase_timestamp`. Một batch = các đơn có `order_purchase_timestamp >= đầu tháng` **và** `< đầu tháng sau` (khoảng nửa mở).
-2. Ghi vào `etl_log` cho mỗi lần chạy: `batch_id`, `watermark_from`, `watermark_to`, số dòng từng bảng, trạng thái, lỗi.
+2. Ghi vào `etl_log` cho mỗi lần chạy: `batch_id`, `lset`, `cet`, `started_at`, `finished_at`, số dòng từng bảng, trạng thái, lỗi.
+   Tên cột theo Bài 4: **LSET** (Last Successful Extraction Time) = đầu khoảng, **CET** (Current Extraction Time) = cuối khoảng; batch lấy các đơn trong `[LSET, CET)`, chạy thành công thì CET thành LSET của lần sau. Vì dữ liệu tĩnh, CET là **mốc cắt của batch** (D8) chứ không phải giờ chạy thật.
+   Giờ chạy thật ghi riêng ở `started_at`, `finished_at` (lần chạy bắt đầu / kết thúc lúc nào, mất bao lâu) – dùng cho dashboard theo dõi ETL ở Seminar 3.
 3. Mọi bảng giao dịch nạp vào staging bằng **`MERGE` theo khóa chính (D1)**, không dùng `INSERT` thuần → chạy lại cùng batch không sinh trùng; batch sau gửi lại đơn cũ thì đơn đó được **cập nhật**. MERGE **không xóa** dòng vắng mặt trong batch (không dùng `WHEN NOT MATCHED BY SOURCE ... DELETE`), vì mỗi batch chỉ là một phần dữ liệu.
 4. Watermark quyết định đơn **mới** thuộc batch nào. Nội dung batch theo **phương án B (D8)**: chỉ chứa thông tin đã biết đến cuối tháng; đơn cũ có thay đổi trong tháng được gửi lại.
 
@@ -115,7 +117,7 @@ Các cột "trông giống khóa" nhưng **không** unique: `order_reviews.revie
 - Là cột thời gian duy nhất **không NULL** ở mọi đơn và xảy ra **đầu tiên** trong vòng đời đơn – mỗi đơn rơi vào đúng 1 batch, không bao giờ đổi batch.
 - Nguồn **không có** cột `updated_at` / `last_modified` nào, nên không có watermark kiểu "thay đổi gần nhất".
 - Cột khác đều có NULL: `order_approved_at` 160, `order_delivered_carrier_date` 1.783, `order_delivered_customer_date` 2.965 → đơn chưa giao sẽ không thuộc batch nào.
-- Cắt theo khoảng nửa mở `[from, to)` thay vì "`> giá trị lớn nhất đã nạp`": 556 mốc thời gian dùng chung bởi 1.122 đơn, so sánh `>` trên timestamp có nguy cơ bỏ sót đơn trùng giây nếu batch bị cắt giữa chừng.
+- Cắt theo khoảng nửa mở `[LSET, CET)` thay vì "`> giá trị lớn nhất đã nạp`": 556 mốc thời gian dùng chung bởi 1.122 đơn, so sánh `>` trên timestamp có nguy cơ bỏ sót đơn trùng giây nếu batch bị cắt giữa chừng.
 
 **Số liệu chứng minh – điểm yếu: dữ liệu đến muộn so với cuối batch** (% đơn / review có mốc xảy ra **sau** ngày cuối của tháng batch):
 
@@ -285,3 +287,8 @@ Tổng từng cột = đúng số dòng file gốc; số dòng con không gán �
 | 10/10/2026 | Nạp `products` / `sellers` theo lần xuất hiện đầu tiên? | **Không** – giữ nạp 1 lần ở Full Load (D3) |
 | 14/10/2026 | Giữ SQL Server hay đổi sang PostgreSQL? | **Đổi sang PostgreSQL 17** – dùng lại được Mage + Postgres của demo lớp, `dbt-postgres` là adapter chính thức của dbt Labs, nhẹ hơn khi chạy Docker. Các quyết định D1–D8 giữ nguyên (MERGE có trong Postgres từ bản 15, `RETURNING merge_action()` và `WHEN NOT MATCHED BY SOURCE` từ bản 17) |
 | 16/10/2026 | Có nạp `geolocation` không? | **Không** – Q1–Q6 chỉ phân tích theo vùng / bang / thành phố lấy từ `customers`, `sellers` (Q5 nội bang / liên bang so bang khách với bang người bán); `dim_geography` không có tọa độ. Bảng nguồn lại bẩn nhất (26% dòng trùng, trung bình 52,6 dòng/zip) mà không phục vụ câu hỏi nào. Staging còn **8 bảng**; file CSV vẫn giữ trong `data/raw/` nếu sau này cần bản đồ điểm |
+| 17/10/2026 | Có giữ cột `dim_delivery_status.delay_bucket_order` (thứ tự hiển thị nhóm trễ) trong `dds` không? | **Không** – cột chỉ phục vụ hiển thị, không thuộc khóa, không KPI nào dùng. Thứ tự nhóm trễ (Đúng hạn → Trễ 1–3 ngày → … → Không xác định) tạo bằng cột tính toán DAX trong Power BI rồi đặt *Sort by column* cho `delay_bucket` (xem `powerbi/README.md`). Đánh đổi: đổi tên nhóm trong dbt thì phải sửa cả DAX |
+| 17/10/2026 | Đặt tên cột khoảng nạp trong `etl_log` thế nào? | **`lset`, `cet`** (thay `watermark_from`, `watermark_to` ở D4) cho khớp thuật ngữ Bài 4. Viết thường vì PostgreSQL tự hạ chữ hoa của tên không đặt trong ngoặc kép |
+| 17/10/2026 | `etl_log` có ghi giờ chạy thật không? | **Có** – thêm `started_at`, `finished_at`. `lset`, `cet` là thời gian **mô phỏng** của dữ liệu (phát lại lịch sử 2016–2018, D4/D8), dùng giờ thật làm LSET/CET thì lần đầu lấy hết dữ liệu, các lần sau lấy 0 dòng → không có Incremental. Giờ thật vẫn cần để biết pipeline chạy lúc nào, mất bao lâu |
+| 17/10/2026 | Có đưa cột kỹ thuật của staging (`_batch_id`, `_loaded_at` – D8) vào `dds` không? | **Không** – Q1–Q6 và KPI không dùng; theo dõi từng batch đã có `etl_log`; `fact_delivery` dựng lại toàn bộ mỗi lần chạy nên `_loaded_at` không mang thông tin; fact gộp nhiều bảng staging có `_batch_id` khác nhau. `_loaded_at` giữ ở `staging`, làm vai trò cột "last_updated" nếu sau này nạp `staging` → `dds` gia tăng theo LSET/CET (Bài 4) – khi đó LSET/CET đọc từ metadata, `dds` vẫn không cần cột này |
+| 17/10/2026 | Đổi tên cột sai chính tả `product_name_lenght`, `product_description_lenght` ở lớp nào? | **Ở model dbt `stg_products`** (→ `product_name_length`, `product_description_length`). Schema `staging` do Mage nạp giữ nguyên tên như CSV: Mage chỉ lo nạp + kiểm tra cấu trúc (làm sạch / chuẩn hóa là việc của dbt theo đề bài), và đối soát `staging` với file gốc sau batch cuối (D8) không phải ánh xạ tên. Sửa ở model dbt đầu tiên nên mọi model phía sau chỉ thấy tên đúng; `dim_product` đổi tiếp thành `name_length`, `description_length` |
