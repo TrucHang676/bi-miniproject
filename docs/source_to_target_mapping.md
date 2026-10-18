@@ -10,14 +10,13 @@
 
 ### Việc cần làm
 
-1. Đọc các tài liệu tham khảo bên dưới, nắm grain và quy tắc của từng bảng.
+1. Đọc các tài liệu tham khảo bên dưới, nắm grain và quy tắc của từng bảng. Đặc biệt đọc **bảng "Quyết định đã chốt sau thảo luận" cuối `decisions.md`** (các dòng 17–18/10/2026 quyết định trực tiếp cách ánh xạ: bỏ `delay_bucket_order`, đổi tên `*_lenght` ở `stg_products`, chuẩn hóa thành phố, "đơn gần nhất" của khách, `is_latest_review`, cột kỹ thuật của staging).
 2. Điền **mục 1 – Quy tắc dùng chung**: quy tắc nào lặp lại ở nhiều bảng thì chỉ viết một lần ở đây, các bảng sau dẫn chiếu lại (VD: "chuẩn hóa theo R1").
 3. Với từng bảng ở **mục 2** (dimension) và **mục 3** (fact):
    - Điền phần **thông tin chung**: model dbt, bảng nguồn, điều kiện lọc / JOIN / GROUP BY để ra đúng grain, cách nạp.
    - Điền **bảng từng cột**. Cột đích và kiểu đã chép sẵn từ sơ đồ [images/dds_schema.drawio](images/dds_schema.drawio), chỉ cần điền 4 cột còn lại.
 4. Điền **mục 4**: các cột nguồn không đưa vào `dds` và lý do.
-5. Chốt các **điểm còn mở** bên dưới, ghi kết luận vào **mục 5**.
-6. Báo nhóm review. Xong thì xóa mục hướng dẫn này và đổi trạng thái ở đầu file.
+5. Báo nhóm review. Xong thì xóa mục hướng dẫn này và đổi trạng thái ở đầu file.
 
 ### Phạm vi
 
@@ -31,7 +30,7 @@
 |---|---|
 | [dw_design.md](dw_design.md) | Grain từng fact (mục 2), quy tắc từng dimension (mục 5, đặc biệt bảng quy tắc của `dim_delivery_status`), mô tả cột fact (mục 6), measures (mục 7), bản tóm tắt ánh xạ (mục 8) |
 | [data_dictionary.md](data_dictionary.md) | Tên, kiểu và lỗi chất lượng của từng cột nguồn |
-| [decisions.md](decisions.md) | D7 (khách hàng theo `customer_unique_id`, gộp các đơn cách nhau ≤ 10 phút thành 1 lần mua), D8 (mốc chưa xảy ra tại cutoff = NULL, đơn cũ được cập nhật ở batch sau) |
+| [decisions.md](decisions.md) | D7 (khách hàng theo `customer_unique_id`, gộp các đơn cách nhau ≤ 10 phút thành 1 lần mua), D8 (mốc chưa xảy ra tại cutoff = NULL, đơn cũ được cập nhật ở batch sau); bảng "Quyết định đã chốt sau thảo luận" ở cuối file |
 | [business_questions.md](business_questions.md) | Định nghĩa "đơn hợp lệ", cách tính KPI |
 | [images/dds_schema.drawio](images/dds_schema.drawio) | Danh sách cột đích và kiểu (đã chép vào các bảng dưới) |
 
@@ -52,23 +51,11 @@
 | `dim_product.weight_class` | VARCHAR(20) | `products.product_weight_g` | `CASE`: < 500 g → `< 0,5 kg`; … ; ≥ 10.000 g → `≥ 10 kg` | 0 hoặc NULL → `Không rõ` | Cột suy ra; các nhóm theo dw_design mục 5 |
 | `fact_delivery.handover_delay_days` | NUMERIC(6,2) | `orders.order_delivered_carrier_date`, `order_items.shipping_limit_date` | `EXTRACT(EPOCH FROM (carrier − limit)) / 86400`, ép `NUMERIC(6,2)` | Thiếu 1 trong 2 mốc → NULL; mốc sai thứ tự: theo dw_design mục 6 | Dương = bàn giao trễ; `shipping_limit_date` lấy `MAX` theo (đơn, người bán) |
 
-### Điểm còn mở cần chốt khi làm
-
-Tài liệu hiện tại chưa nói rõ hoặc chưa thống nhất ở các điểm dưới đây. Khi làm, đề xuất cách xử lý, hỏi người liên quan, rồi ghi kết luận vào mục 5.
-
-1. ~~**`dim_delivery_status.delay_bucket_order`** có trên sơ đồ nhưng `dw_design.md` mục 5 chưa mô tả~~ → **Đã chốt 17/10/2026**: bỏ cột này khỏi `dds` (đã xóa trên sơ đồ); thứ tự nhóm trễ tạo trong Power BI ([powerbi/README.md](../powerbi/README.md)). Không cần ánh xạ.
-2. ~~**Đổi tên `product_name_lenght`, `product_description_lenght` ở lớp nào**~~ → **Đã chốt 17/10/2026**: Mage giữ tên gốc trong schema `staging`; model dbt `stg_products` đổi thành `product_name_length`, `product_description_length`; `dim_product` lấy tiếp thành `name_length`, `description_length`.
-3. **Quy tắc chuẩn hóa tên thành phố** phải dùng chung cho `dim_geography`, `dim_customer`, `dim_seller` và bước lookup `geography_key` trong fact; lệch nhau là lookup trượt. `seller_city` bẩn hơn `customer_city` (có dấu, ghép bang `.../sp`, dấu ngoặc – data_dictionary mục 6) nên quy tắc phải xử lý được các trường hợp này.
-4. **`dim_customer` lấy thành phố / bang theo "đơn gần nhất"**: gần nhất trong mọi đơn hay chỉ trong các đơn hợp lệ?
-5. **`is_latest_review`**: nếu một đơn có 2 review trả lời cùng thời điểm thì chọn review nào? Cần một quy tắc phá hòa để `ROW_NUMBER()` cho cùng kết quả ở mọi lần chạy.
-6. ~~**Cột kỹ thuật của staging** (`_batch_id`, `_loaded_at` – D8): có đưa vào `dds` không?~~ → **Đã chốt 17/10/2026**: không đưa (lý do ở bảng cuối `decisions.md`); đã ghi vào mục 4.
-
 ### Tiêu chí hoàn thành
 
 - [ ] Cả 9 bảng điền đủ thông tin chung và mọi ô trong bảng từng cột; không còn dòng nào ghi kiểu `bảng.*`.
 - [ ] Mọi cột trên sơ đồ đều có trong file này (sơ đồ đổi cột thì cập nhật theo).
 - [ ] Mục 1 có đủ quy tắc dùng chung, các bảng dẫn chiếu đúng mã quy tắc.
-- [ ] 6 điểm còn mở đã có kết luận ở mục 5.
 - [ ] Đã báo nhóm review.
 
 ---
@@ -77,7 +64,7 @@ Tài liệu hiện tại chưa nói rõ hoặc chưa thống nhất ở các đi
 
 | Mã | Quy tắc | Mô tả / biểu thức | Dùng ở |
 |---|---|---|---|
-| R1 | Chuẩn hóa tên thành phố | | |
+| R1 | Chuẩn hóa tên thành phố | Macro dbt `normalize_city(city, state)` (cần extension `unaccent`), chạy lần lượt:<br>**B1** `unaccent(lower(trim(city)))` – `São Paulo` → `sao paulo`<br>**B2** cắt từ ký tự `/`, `\` hoặc `,` đầu tiên trở đi – `maua/sao paulo` → `maua`<br>**B3** bỏ phần trong ngoặc – `arraial d'ajuda (porto seguro)` → `arraial d'ajuda`<br>**B4** `-` → khoảng trắng – `mogi-mirim` → `mogi mirim`<br>**B5** gộp nhiều khoảng trắng thành một, `trim`<br>**B6** bỏ mã bang **của chính dòng** nếu nằm ở cuối – `sao paulo - sp` → `sao paulo`<br>**B7** trả NULL nếu chỉ còn mã bang, có `@` hoặc toàn chữ số (`sp`, email, `04482255`); ở dimension hiển thị "Không xác định".<br>**Không** gán NULL cho giá trị trùng *tên* bang: `sao paulo`, `rio de janeiro`, `goias`, `tocantins` là thành phố có thật.<br>Kiểm chứng trên CSV gốc: khách 4.309 tổ hợp (bang, thành phố), 0 NULL – giống quy tắc cũ; người bán 636 → 610, 7 dòng "Không xác định"; 77 dòng người bán còn gõ sai / viết tắt / lệch bang giữ nguyên (tùy chọn: seed `city_corrections.csv` nếu cần hiển thị đẹp ở trang chi tiết người bán) | `dim_geography`, `dim_customer`, `dim_seller`, lookup `geography_key` trong 3 fact |
 | R2 | Sinh surrogate key và member `-1` "Không xác định" | | |
 | R3 | Đổi ngày → `date_key` (`YYYYMMDD`) | | |
 | R4 | Đơn hợp lệ | | |
@@ -257,7 +244,7 @@ Tài liệu hiện tại chưa nói rõ hoặc chưa thống nhất ở các đi
 - **Model dbt:**
 - **Nguồn:**
 - **Lọc / JOIN / gộp:**
-- **Cách nạp:**
+- **Cách nạp:** materialized `table` – dựng lại toàn bộ mỗi lần chạy (đã chốt 18/10/2026: `is_latest_review` của review cũ phải đổi khi review mới đến ở batch sau; `delivery_status_key` thuộc khóa đổi theo batch)
 
 | Cột đích | Kiểu | Nguồn | Biến đổi | NULL / lỗi | Ghi chú |
 |---|---|---|---|---|---|
@@ -283,14 +270,3 @@ Tài liệu hiện tại chưa nói rõ hoặc chưa thống nhất ở các đi
 | `_batch_id`, `_loaded_at` (mọi bảng) | Cột kỹ thuật của lần nạp gần nhất (D8): theo dõi batch đã có `etl_log`, KPI không dùng ([decisions.md](decisions.md), 17/10/2026) |
 | | |
 | | |
-
-## 5. Kết luận các điểm còn mở
-
-| # | Điểm | Kết luận | Người chốt · ngày |
-|---|---|---|---|
-| 1 | Ý nghĩa và cách tính `delay_bucket_order` | Bỏ khỏi `dds`. Thứ tự hiển thị của `delay_bucket` tạo bằng cột tính toán DAX trong Power BI + *Sort by column* ([powerbi/README.md](../powerbi/README.md)) | Trúc Hằng · 17/10/2026 |
-| 2 | Đổi tên cột `*_lenght` ở lớp nào | Ở model dbt `stg_products` (`*_lenght` → `*_length`). Schema `staging` do Mage nạp giữ tên gốc để đối soát với CSV; `dim_product` đổi tiếp thành `name_length`, `description_length` | Trúc Hằng · 17/10/2026 |
-| 3 | Quy tắc chuẩn hóa tên thành phố dùng chung | | |
-| 4 | "Đơn gần nhất" của `dim_customer` tính trên đơn nào | | |
-| 5 | Quy tắc phá hòa cho `is_latest_review` | | |
-| 6 | Cột kỹ thuật `_batch_id`, `_loaded_at` có vào `dds` không | Không – dừng ở `staging`; theo dõi batch dùng `etl_log`, LSET/CET lưu ở metadata | Trúc Hằng · 17/10/2026 |

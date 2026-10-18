@@ -51,8 +51,9 @@ Mỗi quy trình có câu hỏi nghiệp vụ hỏi tới thì lập **một b�
 - Gắn người bán vào grain vì Q6 cần điểm đánh giá trung bình **của từng người bán**: đánh giá của đơn nhiều người bán được tính cho mọi người bán của đơn đó. 99.224 đánh giá → 100.568 dòng.
 - `review_id` không duy nhất (789 mã dùng chung cho nhiều đơn) nên khóa giữ cả `review_id` và `order_id`.
 - 759 dòng thuộc đơn không có sản phẩm → `seller_key = -1` (Không xác định).
-- 547 đơn có hơn 1 đánh giá (202 đơn khác điểm) → cờ `is_latest_review` = `TRUE` cho đánh giá trả lời muộn nhất của mỗi đơn (98.673 đơn), dùng cho KPI "1 điểm / đơn" (K8, K9).
+- 547 đơn có hơn 1 đánh giá (202 đơn khác điểm) → cờ `is_latest_review` = `TRUE` cho đánh giá trả lời muộn nhất của mỗi đơn (98.673 đơn), dùng cho KPI "1 điểm / đơn" (K8, K9). Thứ tự xét: `review_answer_timestamp DESC, review_creation_date DESC, review_id DESC` – hiện không đơn nào trùng thời điểm trả lời, `review_id` đứng cuối để mọi lần chạy cho cùng kết quả.
 - Hai vai trò ngày: `purchase_date_key` (so sánh theo tháng mua cùng `fact_delivery` ở Q4) và `answer_date_key` (ngày sự kiện đánh giá xảy ra).
+- Materialized `table` (dựng lại toàn bộ mỗi lần chạy) như `fact_delivery`: `delivery_status_key` thuộc khóa và đổi theo batch; 88 đơn có các đánh giá trả lời ở tháng khác nhau nên đến ở batch khác nhau (D8) – khi đánh giá mới đến, `is_latest_review` của đánh giá cũ phải đổi `TRUE` → `FALSE`.
 
 ## 3. Sơ đồ lược đồ (Galaxy Schema)
 
@@ -104,8 +105,9 @@ Mỗi quy trình có câu hỏi nghiệp vụ hỏi tới thì lập **một b�
 ![dim_customer](images/dds/dim_customer.png)
 
 - Khóa tự nhiên `customer_unique_id` (khách thực), **không** dùng `customer_id` (mã theo đơn – mỗi mã đúng 1 đơn, dựng theo mã này thì tỉ lệ mua lại luôn 0%) – D7.
-- SCD **Type 1**: thành phố / bang / vùng lấy theo đơn **gần nhất** của khách. Chỉ 250 khách (0,26%) đổi mã bưu chính, 39 khách đổi bang; vị trí *tại thời điểm mua* vẫn giữ trong fact qua `dim_geography`.
-- `purchase_count` = số **lần mua** hợp lệ (các đơn cách nhau ≤ 10 phút gộp thành 1 lần, D7); `customer_type` = "Mua một lần" / "Mua lại"; `first_purchase_date`.
+- SCD **Type 1**: thành phố / bang / vùng lấy theo đơn **gần nhất** của khách, xét **mọi đơn** kể cả đơn hủy (sắp `order_purchase_timestamp DESC, order_id DESC`). Chỉ 250 khách (0,26%) đổi mã bưu chính, 39 khách đổi bang; vị trí *tại thời điểm mua* vẫn giữ trong fact qua `dim_geography`.
+- `purchase_count` = số **lần mua** hợp lệ (các đơn cách nhau ≤ 10 phút gộp thành 1 lần, D7); `customer_type` = "Mua một lần" / "Mua lại" / "Chưa có đơn hợp lệ"; `first_purchase_date`.
+- 1.113 khách **không có đơn hợp lệ nào** (chỉ có đơn hủy / hết hàng / không có sản phẩm) vẫn nằm trong dimension vì xuất hiện ở `fact_delivery`, `fact_review`: `purchase_count = 0`, `customer_type` = "Chưa có đơn hợp lệ", `first_purchase_date` = NULL.
 - Khi incremental, dbt MERGE theo `customer_unique_id`: khách cũ giữ nguyên `customer_key`, cập nhật thuộc tính; khách mới nhận khóa mới.
 
 ### `dim_geography`
@@ -113,7 +115,7 @@ Mỗi quy trình có câu hỏi nghiệp vụ hỏi tới thì lập **một b�
 ![dim_geography](images/dds/dim_geography.png)
 
 - Vai trò **nơi nhận hàng của đơn** (lấy từ dòng `customers` của chính đơn đó).
-- Grain thành phố – bang, không theo mã bưu chính vì 33 mã bưu chính gắn với hơn 1 bang. Tên thành phố chuẩn hóa: bỏ dấu, chữ thường, `-` → khoảng trắng, gộp khoảng trắng (4.310 → 4.309 tổ hợp).
+- Grain thành phố – bang, không theo mã bưu chính vì 33 mã bưu chính gắn với hơn 1 bang. Tên thành phố chuẩn hóa bằng macro dùng chung `normalize_city` (7 bước – quy tắc R1 trong [source_to_target_mapping.md](source_to_target_mapping.md)); với dữ liệu khách, kết quả tương đương bỏ dấu, chữ thường, `-` → khoảng trắng, gộp khoảng trắng (4.310 → 4.309 tổ hợp).
 - `state_name`, `region` lấy từ dbt seed bang → vùng (5 vùng: Norte, Nordeste, Centro-Oeste, Sudeste, Sul).
 
 ### `dim_product`
@@ -130,6 +132,7 @@ Mỗi quy trình có câu hỏi nghiệp vụ hỏi tới thì lập **một b�
 ![dim_seller](images/dds/dim_seller.png)
 
 - Vị trí người bán cố định (1 dòng / người bán ở nguồn) nên đặt thẳng trong dimension (star), không tách bảng địa lý riêng.
+- Thành phố chuẩn hóa bằng cùng macro `normalize_city` với `dim_geography`: 636 → 610 tổ hợp (bang, thành phố); 7 dòng không phải tên thành phố (`sp`, email, chuỗi số) → "Không xác định". 77 dòng (2,5%) còn gõ sai, viết tắt, tên khu phố hoặc lệch bang được giữ nguyên – không câu hỏi nào phân tích theo thành phố người bán (Q5 so theo bang).
 - Member `-1` dùng cho 759 dòng đánh giá của đơn không có sản phẩm.
 - KPI *số người bán hoạt động* (K10) đếm trên fact, **không** đếm số dòng của bảng này (41,5% người bán chỉ bán lần đầu sau Full Load – D3).
 
@@ -266,4 +269,4 @@ Kiểm chứng sơ bộ trên CSV gốc với các quy tắc trên: doanh thu 01
 | `order_items` GROUP BY (`order_id`, `seller_id`) + `orders`, `customers`, `sellers` | `MAX(shipping_limit_date)`; giữ các mốc của đơn; tính 4 measure ngày | `fact_delivery.*` |
 | `orders.order_status`, mốc bàn giao, bang khách – bang người bán, `late_days` | Quy tắc mục 5 (`dim_delivery_status`) → lookup | `fact_delivery.delivery_status_key`, `fact_review.delivery_status_key` |
 | `order_reviews.*` LEFT JOIN (`order_id`, `seller_id`) DISTINCT của `order_items` | Không có người bán → `-1`; TRIM bình luận, đổi giá trị giả-NULL thành NULL | `fact_review.*` |
-| `order_reviews.review_answer_timestamp` | → `answer_date_key`; `ROW_NUMBER()` theo `order_id` giảm dần thời điểm trả lời; số thứ tự = 1 → `is_latest_review = TRUE` | `fact_review.answer_date_key`, `is_latest_review` |
+| `order_reviews.review_answer_timestamp` | → `answer_date_key`; `ROW_NUMBER()` theo `order_id`, sắp `review_answer_timestamp DESC, review_creation_date DESC, review_id DESC`; số thứ tự = 1 → `is_latest_review = TRUE` | `fact_review.answer_date_key`, `is_latest_review` |
