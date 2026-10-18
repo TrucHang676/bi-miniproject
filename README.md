@@ -30,8 +30,8 @@ Kaggle CSV → Mage.ai (staging) → dbt (dds: Star Schema) → Power BI
 
 | Thành phần | Công nghệ | Phiên bản |
 |------------|-----------|-----------|
-| Data Ingestion | Mage.ai | |
-| Transformation | dbt | |
+| Data Ingestion | Mage.ai (Docker) | 0.9.79 |
+| Transformation | dbt-core + dbt-postgres (trong container Mage) | 1.8.7 / 1.8.2 |
 | Data Warehouse | PostgreSQL | 17 |
 | BI | Power BI Desktop | |
 | Generative AI | [Tên LLM / API] | |
@@ -53,9 +53,9 @@ bi-miniproject/
 ## 6. Hướng dẫn chạy nhanh
 Xem chi tiết tại [docs/setup_guide.md](docs/setup_guide.md).
 
-1. [Bước 1]
-2. [Bước 2]
-3. [Bước 3]
+1. Copy `.env.example` thành `.env`, đổi mật khẩu.
+2. Mở Docker Desktop, chạy `docker compose up -d --build` tại thư mục gốc repo.
+3. Mở Mage tại http://localhost:6789 (`admin@admin.com` / `admin`); DB: `localhost:5432`, database `olist_dw`.
 
 ## 7. Sản phẩm nộp
 

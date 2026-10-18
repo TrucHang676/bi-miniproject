@@ -1,0 +1,43 @@
+# Môi trường chạy đồ án BI - Nhóm 3
+#   postgres : PostgreSQL 17 - Data Warehouse (schema staging, etl_log, dds)
+#   mage     : Mage 0.9.79 - pipeline ETL, có sẵn dbt-postgres
+# Bật: docker compose up -d --build    Tắt: docker compose down
+# Thông tin DB đọc từ file .env (copy từ .env.example)
+name: bi-miniproject
+
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: olist-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"                         # Windows (DBeaver, Power BI) vào bằng localhost:5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data     # dữ liệu DB cất trong volume, tắt container không mất
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mage:
+    build: ./docker                         # dựng image từ docker/Dockerfile
+    container_name: olist-mage
+    depends_on:
+      postgres:
+        condition: service_healthy          # đợi Postgres sẵn sàng rồi mới bật Mage
+    env_file:
+      - .env                                # Mage đọc POSTGRES_* để kết nối DB
+    environment:
+      USER_CODE_PATH: /home/src/mage/olist_etl   # project Mage nằm ở mage/olist_etl
+    ports:
+      - "6789:6789"                         # giao diện Mage: http://localhost:6789
+    volumes:
+      - .:/home/src                         # cả repo -> /home/src: Mage thấy data/, dbt/, sql/
+
+volumes:
+  pgdata:

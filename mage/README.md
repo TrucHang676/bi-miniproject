@@ -1,6 +1,7 @@
 # Mage.ai – Data Ingestion
 
-> Thư mục project Mage (sẽ được tạo khi khởi động Mage, ví dụ `mage/bi_project/`).
+> Project Mage nằm ở `mage/olist_etl/` (Mage 0.9.79 chạy trong container `olist-mage` – cách bật: [docs/setup_guide.md](../docs/setup_guide.md)).
+> Kết nối Postgres khai báo trong `olist_etl/io_config.yaml`, đọc giá trị từ `.env` qua `{{ env_var('...') }}`.
 
 ## Pipelines
 

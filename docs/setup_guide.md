@@ -1,60 +1,273 @@
 # Hướng dẫn cài đặt & chạy hệ thống
 
-## 1. Yêu cầu phần mềm
+> Dành cho thành viên nhóm và người chấm muốn dựng lại hệ thống trên máy mình.
+> Không cần biết trước Docker – làm lần lượt từ mục 3, mỗi bước đều có "kết quả đúng" để tự kiểm tra.
+> Toàn bộ lệnh chạy trong terminal (PowerShell hoặc Git Bash) **tại thư mục gốc repo** `bi-miniproject/`.
 
-| Phần mềm | Phiên bản | Ghi chú |
-|----------|-----------|---------|
-| Docker Desktop | | |
-| Python | | |
-| dbt-postgres | | Adapter dbt cho PostgreSQL |
-| Power BI Desktop | | |
-| DBeaver (tùy chọn) | | Xem dữ liệu |
+## 1. Tổng quan môi trường
 
-## 2. Chuẩn bị
-1. Clone / giải nén project.
-2. Tải dataset theo [dataset.md](dataset.md), đặt vào `data/raw/`.
-3. Tạo file `.env` (thông tin kết nối database, API key của LLM).
+Cả hệ thống (trừ Power BI) chạy trong **Docker**, nên **không cần cài PostgreSQL, Mage, dbt hay Python lên Windows**.
 
-## 3. Khởi tạo Data Warehouse
+```
+Máy Windows                                   Docker Desktop
+───────────────────────                       ──────────────────────────────────────────
+VS Code ── sửa file trong repo ────────────►  olist-mage    Mage 0.9.79 + dbt 1.8.7
+                                                 │  thấy cả repo tại /home/src
+Trình duyệt ── http://localhost:6789 ───────►    │
+                                                 │  gọi DB bằng tên "postgres", cổng 5432
+DBeaver / Power BI ── localhost:5432 ───────►  olist-postgres  PostgreSQL 17
+                                                    dữ liệu cất trong volume bi-miniproject_pgdata
+```
+
+Ba khái niệm cần nắm:
+
+| Khái niệm | Ví dụ đời thường | Trong đồ án |
+|---|---|---|
+| **Image** | Khuôn bánh – công thức đóng gói sẵn phần mềm | `postgres:17`, `bi-miniproject-mage` (dựng từ `docker/Dockerfile`) |
+| **Container** | Cái bánh đổ ra từ khuôn – phần mềm đang chạy | `olist-postgres`, `olist-mage` |
+| **Volume** | Tủ lạnh riêng – cất dữ liệu, tắt/xóa container vẫn còn | `bi-miniproject_pgdata` (dữ liệu PostgreSQL) |
+
+Các file cấu hình môi trường:
+
+| File | Vai trò | Commit? |
+|---|---|---|
+| `compose.yaml` | "Thực đơn": cần 2 container nào, mở cổng nào, cất dữ liệu ở đâu | ✅ |
+| `docker/Dockerfile` | Dựng image Mage cho đồ án (ghim Mage 0.9.79, dbt-postgres 1.8.2) | ✅ |
+| `.env.example` | Mẫu thông tin kết nối DB – copy thành `.env` | ✅ |
+| `.env` | Thông tin kết nối DB thật (có mật khẩu) – mỗi người tự tạo | ❌ (bị `.gitignore` chặn) |
+| `mage/olist_etl/io_config.yaml` | Cách Mage kết nối Postgres – đọc giá trị từ `.env`, không chứa mật khẩu | ✅ |
+
+## 2. Yêu cầu phần mềm
+
+**Cài trên Windows:**
+
+| Phần mềm | Phiên bản nhóm dùng | Ghi chú |
+|----------|---------------------|---------|
+| Docker Desktop (WSL2) | Docker 29.8, Compose v5.5 | Bản mới hơn vẫn được. Cần ~10 GB ổ trống cho image |
+| Git | bất kỳ | Để clone repo |
+| DBeaver (tùy chọn) | bất kỳ | Xem dữ liệu trong DB |
+| Power BI Desktop | bản mới | Dùng ở Seminar 2 |
+| Python + pandas (tùy chọn) | 3.10 trở lên | Chỉ để chạy script phụ trợ trong `scripts/` (profiling, chia batch) |
+
+**Có sẵn trong container – không cài tay:**
+
+| Thành phần | Phiên bản | Nằm ở |
+|---|---|---|
+| PostgreSQL | 17 (17.11) | `olist-postgres` |
+| Mage.ai | 0.9.79 | `olist-mage` |
+| dbt-core / dbt-postgres | 1.8.7 / 1.8.2 | `olist-mage` |
+
+> Vì sao ghim Mage 0.9.79 thay vì `latest`? `latest` trên Docker Hub thay đổi theo thời gian – mỗi máy tải về một lúc sẽ ra bản khác nhau và dễ lỗi khó đoán. 0.9.79 là bản demo của lớp đã chạy được.
+
+## 3. Cài đặt lần đầu
+
+### 3.1. Lấy code
+
+```powershell
+git clone https://github.com/TrucHang676/bi-miniproject.git
+cd bi-miniproject
+```
+
+Dữ liệu gốc Olist (9 file CSV) **đã có sẵn** trong `data/raw/` – không cần tải từ Kaggle.
+
+### 3.2. Tạo file `.env`
+
+Copy file mẫu thành file thật:
+
+```powershell
+Copy-Item .env.example .env      # PowerShell
+# hoặc: cp .env.example .env     # Git Bash / macOS
+```
+
+Mở `.env`, đổi `change_me` thành mật khẩu tùy ý (nhớ lại để dùng cho DBeaver / Power BI):
+
+```env
+POSTGRES_DB=olist_dw          # tên database
+POSTGRES_USER=olist_user      # user đăng nhập
+POSTGRES_PASSWORD=change_me   # ← đổi chỗ này
+POSTGRES_HOST=postgres        # giữ nguyên
+POSTGRES_PORT=5432            # giữ nguyên
+```
+
+> **Vì sao `POSTGRES_HOST=postgres` chứ không phải `localhost`?** Bên trong Docker, các container gọi nhau bằng **tên service** trong `compose.yaml` (giống gọi tên phòng trong cùng một nhà). Biến này dành cho Mage. Còn từ Windows (DBeaver, Power BI) thì vẫn kết nối bằng `localhost`.
+
+⚠ Đặt mật khẩu **trước** lần chạy đầu tiên. Postgres chỉ đọc 3 biến `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` **lúc tạo database lần đầu** – đổi sau đó sẽ không có tác dụng (cách xử lý ở mục 7).
+
+### 3.3. Mở Docker Desktop
+
+1. Mở **Docker Desktop**, đợi góc dưới bên trái hiện **Engine running**.
+2. Đảm bảo không có chương trình nào khác đang chiếm cổng **5432** (PostgreSQL) và **6789** (Mage). Hay gặp nhất là bản **demo Mage của lớp** – tắt nó đi (chỉ tắt, không mất dữ liệu demo):
+
+   ```powershell
+   docker ps                              # xem container nào đang chạy
+   docker stop lab-postgres lab-mage      # nếu thấy container của demo lớp
+   ```
+
+### 3.4. Bật hệ thống
+
+```powershell
+docker compose up -d --build
+```
+
+| Phần lệnh | Ý nghĩa |
+|---|---|
+| `up` | Tạo và bật các container ghi trong `compose.yaml` |
+| `-d` | Chạy nền – terminal được trả lại ngay, đóng terminal container vẫn chạy |
+| `--build` | Dựng image Mage từ `docker/Dockerfile` trước khi bật |
+
+⏳ Lần đầu Docker phải tải image Mage (vài GB) – có thể mất 5–20 phút tùy mạng. Những lần sau bật chỉ mất vài giây.
+
+### 3.5. Kiểm tra container đã chạy
+
+```powershell
+docker compose ps
+```
+
+Kết quả đúng:
+
+| NAME | STATUS |
+|---|---|
+| `olist-mage` | `Up ...` |
+| `olist-postgres` | `Up ... (healthy)` |
+
+Nếu Postgres đang `(health: starting)` thì đợi ~10 giây rồi chạy lại lệnh. Mage chỉ bật sau khi Postgres `healthy`.
+
+Xem Mage khởi động xong chưa:
+
+```powershell
+docker compose logs -f mage
+```
+
+Đợi đến khi thấy dòng **`Mage is running at http://localhost:6789 and serving project /home/src/mage/olist_etl`**, rồi bấm **Ctrl + C** để thoát màn hình log (container vẫn chạy).
+
+> Sau đó log sẽ lặp mãi các dòng `Scheduler status: running` / `Active pipeline runs: []` – đây là bộ hẹn giờ của Mage báo "vẫn chạy, chưa có pipeline nào cần chạy", **không phải lỗi**.
+
+## 4. Kiểm tra kết nối
+
+Làm cả 3 mục dưới đây để chắc môi trường đã thông suốt: **Mage ↔ Postgres**, **Windows ↔ Postgres**, **dbt**.
+
+### 4.1. Giao diện Mage
+
+1. Mở trình duyệt: **http://localhost:6789**
+2. Đăng nhập bằng tài khoản mặc định của Mage:
+   - Email: `admin@admin.com`
+   - Password: `admin`
+3. Kết quả đúng: góc trên bên trái hiện **`olist_etl`** và phiên bản **v0.9.79**. (Nếu thấy `lab_project` là đang vào nhầm Mage của demo lớp.)
+
+⚠ **Không bấm nút vàng `Update`** ở góc trên – nhóm đã ghim bản 0.9.79.
+
+### 4.2. Mage → Postgres (tùy chọn)
+
+Muốn tự kiểm tra Mage đọc được DB:
+
+1. **Pipelines** → **+ New** → **Standard (batch)** → đặt tên `test_connection` → **Create**.
+2. **Data loader** → **Python** → **PostgreSQL**.
+3. Trong code của block, sửa dòng `query = 'your PostgreSQL query'` thành:
+
+   ```python
+   query = 'SELECT version(), current_database(), current_user'
+   ```
+
+4. Bấm ▶ (hoặc **Ctrl + Enter**). Kết quả đúng: bảng 1 dòng có **PostgreSQL 17.x**.
+5. Thử xong **xóa pipeline này** (không commit): xóa thư mục `mage/olist_etl/pipelines/test_connection/` và file block vừa tạo trong `mage/olist_etl/data_loaders/`.
+
+> Hai cột `current_database`, `current_user` hiện `********` là **bình thường**: Mage tự che mọi giá trị trùng với biến môi trường bí mật trong `.env` (8 dấu sao = `olist_dw`, 10 dấu sao = `olist_user`).
+
+### 4.3. Windows → Postgres bằng DBeaver
+
+1. DBeaver → 🔌+ **New Database Connection** → **PostgreSQL** → **Next**.
+2. Điền:
+
+   | Ô | Giá trị |
+   |---|---|
+   | Host | `localhost` |
+   | Port | `5432` |
+   | Database | `olist_dw` |
+   | Username | `olist_user` |
+   | Password | mật khẩu trong `.env` |
+
+3. **Test Connection** (lần đầu DBeaver hỏi tải driver → **Download**). Kết quả đúng: **Connected**, server **PostgreSQL 17.x**.
+4. **Finish**. Nên đổi tên kết nối thành `olist_dw (Docker)` cho dễ phân biệt.
+
+Mở `olist_dw` → **Schemas**: lúc mới dựng chỉ có `public` (trống). Các schema `staging`, `etl_log`, `dds` xuất hiện sau khi chạy script khởi tạo (mục 5).
+
+### 4.4. dbt
+
+dbt nằm sẵn trong container Mage – chạy bằng `docker compose exec mage ...` ("thò tay vào hộp `mage` để dùng đồ trong đó"):
+
+```powershell
+docker compose exec mage dbt --version
+```
+
+Kết quả đúng: `Core: installed: 1.8.7` và trong *Plugins* có `postgres: 1.8.2`. Các dòng `Update available` / `Not compatible` (mysql, mariadb, …) **bỏ qua** – đồ án chỉ dùng plugin postgres.
+
+## 5. Khởi tạo Data Warehouse
+
+> *(Điền khi xong BS-18 – script tạo schema `staging`, `etl_log`, `dds` và bảng log.)*
+
 ```bash
 # [Lệnh chạy các file trong sql/ theo thứ tự 00 → 01 → 02]
 ```
 
-## 4. Chạy Data Ingestion (Mage.ai)
-```bash
-# [Lệnh khởi động Mage]
-```
+## 6. Chạy pipeline
+
+### 6.1. Data Ingestion (Mage.ai)
+
+> *(Điền khi có pipeline.)*
+
 - Mở Mage tại: `http://localhost:6789`
 - **Full Load:** chạy pipeline `[tên]`
 - **Incremental Load:** chạy pipeline `[tên]` với biến `[tên biến]`
 - Kiểm tra log: `SELECT * FROM etl_log.[tên bảng] ORDER BY ...;`
 
-## 5. Chạy Transformation (dbt)
+### 6.2. Transformation (dbt)
+
+> *(Điền khi khởi tạo project dbt.)* dbt chạy **bên trong container Mage** (mục 4.4), project dbt nằm ở `dbt/` của repo, trong container là `/home/src/dbt`.
+
 ```bash
-cd dbt
-dbt deps
-dbt seed
-dbt run
-dbt test
-dbt docs generate
-dbt docs serve
+# docker compose exec mage dbt [deps | seed | run | test | docs generate] ...
 ```
 
-## 6. Mở Power BI
+### 6.3. Power BI
+
 1. Mở `powerbi/[tên].pbix`.
-2. Cập nhật kết nối: [server, database].
+2. Kết nối PostgreSQL: Server `localhost`, Database `olist_dw`, user/mật khẩu như `.env` (nếu báo lỗi SSL xem mục 8).
 3. Nhấn **Refresh**.
 
-## 7. Chạy thành phần AI
+### 6.4. Thành phần AI
+
 ```bash
 cd ai
 pip install -r requirements.txt
 # [Lệnh chạy]
 ```
 
+## 7. Dùng hằng ngày
+
+| Muốn… | Lệnh | Ghi chú |
+|---|---|---|
+| Bật hệ thống | `docker compose up -d` | Nhớ mở Docker Desktop trước |
+| Tắt hệ thống | `docker compose down` | **Dữ liệu DB vẫn còn** (nằm trong volume) |
+| Xem trạng thái | `docker compose ps` | |
+| Xem log Mage / Postgres | `docker compose logs -f mage` / `docker compose logs -f postgres` | Ctrl + C để thoát |
+| Khởi động lại Mage | `docker compose restart mage` | Khi Mage treo |
+| Áp dụng thay đổi trong `.env` | `docker compose up -d` | `restart` **không** đọc lại `.env`; `up -d` tự tạo lại container có thay đổi. Riêng mật khẩu DB xem mục 8 |
+| Dựng lại image Mage | `docker compose up -d --build` | **Chỉ cần** khi sửa `docker/Dockerfile` |
+| Mở terminal trong container Mage | `docker compose exec mage bash` | Gõ `exit` để thoát |
+| Mở `psql` trong container Postgres | `docker compose exec postgres psql -U olist_user -d olist_dw` | Gõ `\q` để thoát |
+| ⚠ **Xóa sạch DB, làm lại từ đầu** | `docker compose down -v` rồi `docker compose up -d` | `-v` **xóa luôn volume** → mất toàn bộ dữ liệu trong DB. Dữ liệu nạp lại được bằng cách chạy lại pipeline |
+
+> Sửa file trong VS Code (pipeline Mage, model dbt, SQL) **không cần** khởi động lại gì – thư mục repo được gắn thẳng vào container (`.:/home/src` trong `compose.yaml`), Mage thấy thay đổi ngay. Ngược lại, pipeline tạo trên giao diện Mage cũng được lưu thẳng vào `mage/olist_etl/` để commit.
+
 ## 8. Lỗi thường gặp
 
 | Lỗi | Nguyên nhân | Cách khắc phục |
 |-----|-------------|----------------|
+| `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine` | Docker Desktop chưa mở | Mở Docker Desktop, đợi **Engine running** rồi chạy lại lệnh |
+| `Bind for 0.0.0.0:5432 failed: port is already allocated` hoặc `ports are not available` (cổng `5432` / `6789`) | Cổng đang bị chương trình khác chiếm – thường là demo Mage của lớp, hoặc PostgreSQL cài sẵn trên Windows | `docker ps` xem container nào chiếm cổng → `docker stop <tên>`. Nếu là PostgreSQL cài trên Windows: tắt service `postgresql-x64-…` trong *Services* |
+| `yaml: line …` khi chạy `docker compose` | Thụt lề sai trong `compose.yaml` hoặc `io_config.yaml` | YAML chỉ dùng **dấu cách**, không dùng Tab; so lại thụt lề với bản trên GitHub |
+| Đổi mật khẩu trong `.env` rồi nhưng đăng nhập DB báo `password authentication failed` | Postgres chỉ đọc mật khẩu trong `.env` **lúc tạo DB lần đầu** | Cách 1 (giữ dữ liệu): `docker compose exec postgres psql -U olist_user -d olist_dw -c "ALTER USER olist_user PASSWORD 'mật_khẩu_mới';"`. Cách 2 (mất dữ liệu): `docker compose down -v` rồi `docker compose up -d` |
+| Mage hiện project `lab_project` | Đang vào Mage của demo lớp (cùng cổng 6789) | `docker stop lab-mage lab-postgres`, rồi `docker compose up -d` trong repo đồ án |
+| Kết quả block Mage hiện `********` | Mage che giá trị trùng biến bí mật trong `.env` | Bình thường, không phải lỗi |
 | Power BI báo lỗi chứng chỉ SSL khi kết nối PostgreSQL | Postgres chạy Docker không có chứng chỉ SSL hợp lệ | *File → Options and settings → Data source settings* → chọn nguồn → *Edit Permissions* → bỏ tick **Encrypt connections** |
 | DBeaver báo `invalid value for parameter "TimeZone": "Asia/Saigon"` | Java gửi tên múi giờ cũ mà Postgres không nhận | Thêm dòng `-Duser.timezone=Asia/Ho_Chi_Minh` vào cuối `%LOCALAPPDATA%\DBeaver\dbeaver.ini`, mở lại DBeaver |

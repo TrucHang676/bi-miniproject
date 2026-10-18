@@ -1,0 +1,5 @@
+# Cấu hình project Mage (đã rút gọn: bỏ các mục mẫu EMR / Spark / Slack không dùng)
+project_type: standalone
+project_uuid: 7e7c7f90b44242b6b7edda4d88b0a416
+variables_retention_period: '90d'
+help_improve_mage: true
