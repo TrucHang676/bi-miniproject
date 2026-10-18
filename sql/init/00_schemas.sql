@@ -11,3 +11,12 @@ CREATE SCHEMA IF NOT EXISTS dds;       -- Dimensional Data Store: dim / fact do 
 -- unaccent: bỏ dấu tiếng Bồ Đào Nha ('são paulo' -> 'sao paulo'),
 -- dùng trong macro dbt normalize_city (chuẩn hóa tên thành phố)
 CREATE EXTENSION IF NOT EXISTS unaccent;
+
+-- Múi giờ mặc định của DB = giờ Việt Nam (Postgres trong Docker mặc định UTC, chậm 7 tiếng)
+-- -> now() trả giờ VN cho giờ chạy thật: etl_log.*.started_at / finished_at, staging.*._loaded_at.
+-- Không ảnh hưởng dữ liệu Olist: cột TIMESTAMP (không múi giờ) không bị quy đổi.
+-- Chỉ áp dụng cho kết nối MỚI (kết nối đang mở phải ngắt rồi nối lại).
+DO $$
+BEGIN
+    EXECUTE format('ALTER DATABASE %I SET timezone TO %L', current_database(), 'Asia/Ho_Chi_Minh');
+END $$;

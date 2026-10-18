@@ -18,6 +18,8 @@ services:
       - "5432:5432"                         # Windows (DBeaver, Power BI) vào bằng localhost:5432
     volumes:
       - pgdata:/var/lib/postgresql/data     # dữ liệu DB cất trong volume, tắt container không mất
+      - ./sql/init:/docker-entrypoint-initdb.d:ro   # tạo schema + bảng: CHỈ tự chạy khi volume còn trống (lần đầu)
+      - ./sql:/sql:ro                       # chạy tay file SQL bất kỳ: psql -f /sql/checks/...
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s

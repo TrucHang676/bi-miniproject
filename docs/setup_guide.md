@@ -35,6 +35,7 @@ Các file cấu hình môi trường:
 | `docker/Dockerfile` | Dựng image Mage cho đồ án (ghim Mage 0.9.79, dbt-postgres 1.8.2) | ✅ |
 | `.env.example` | Mẫu thông tin kết nối DB – copy thành `.env` | ✅ |
 | `.env` | Thông tin kết nối DB thật (có mật khẩu) – mỗi người tự tạo | ❌ (bị `.gitignore` chặn) |
+| `sql/init/*.sql` | Script tạo schema + bảng – Postgres **tự chạy** lần đầu dựng DB (mục 5) | ✅ |
 | `mage/olist_etl/io_config.yaml` | Cách Mage kết nối Postgres – đọc giá trị từ `.env`, không chứa mật khẩu | ✅ |
 
 ## 2. Yêu cầu phần mềm
@@ -189,7 +190,7 @@ Muốn tự kiểm tra Mage đọc được DB:
 3. **Test Connection** (lần đầu DBeaver hỏi tải driver → **Download**). Kết quả đúng: **Connected**, server **PostgreSQL 17.x**.
 4. **Finish**. Nên đổi tên kết nối thành `olist_dw (Docker)` cho dễ phân biệt.
 
-Mở `olist_dw` → **Schemas**: lúc mới dựng chỉ có `public` (trống). Các schema `staging`, `etl_log`, `dds` xuất hiện sau khi chạy script khởi tạo (mục 5).
+Mở `olist_dw` → **Schemas**: có `dds` (trống – dbt tạo bảng sau), `etl_log` (3 bảng), `public` (trống), `staging` (8 bảng). Các bảng này do script khởi tạo tạo sẵn (mục 5), lúc mới dựng chưa có dòng dữ liệu nào.
 
 ### 4.4. dbt
 
@@ -203,11 +204,47 @@ Kết quả đúng: `Core: installed: 1.8.7` và trong *Plugins* có `postgres: 
 
 ## 5. Khởi tạo Data Warehouse
 
-> *(Điền khi xong BS-18 – script tạo schema `staging`, `etl_log`, `dds` và bảng log.)*
+**Không cần chạy tay gì cả.** Lần đầu `docker compose up` (mục 3.4), Postgres **tự chạy** 3 script trong `sql/init/` theo thứ tự tên file:
 
-```bash
-# [Lệnh chạy các file trong sql/ theo thứ tự 00 → 01 → 02]
+| File | Tạo gì |
+|---|---|
+| `00_schemas.sql` | 3 schema `staging`, `etl_log`, `dds` · extension `unaccent` (bỏ dấu tên thành phố) · múi giờ DB = giờ Việt Nam |
+| `01_staging_tables.sql` | 8 bảng `staging`: tên cột giữ như CSV, kiểu theo [data_dictionary.md](data_dictionary.md), khóa chính theo D1 ([decisions.md](decisions.md)), thêm 2 cột kỹ thuật `_batch_id`, `_loaded_at` |
+| `02_etl_log.sql` | 3 bảng nhật ký ETL: `pipeline_run` (1 lần chạy) → `table_load` (từng bảng: số dòng thêm / cập nhật / bị loại) và `quality_check` (từng phép kiểm tra chất lượng) |
+
+Database sau khi khởi tạo:
+
 ```
+olist_dw
+├── staging   8 bảng  – Mage nạp CSV vào (orders, order_items, order_payments, order_reviews,
+│                       customers, sellers, products, category_translation)
+├── etl_log   3 bảng  – Mage ghi nhật ký mỗi lần chạy (pipeline_run, table_load, quality_check)
+├── dds       trống   – dbt tạo dim / fact
+└── public    trống
+```
+
+**Cơ chế:** `compose.yaml` gắn thư mục `sql/init/` vào thư mục khởi tạo `/docker-entrypoint-initdb.d` của image Postgres. Lần đầu tạo DB, Postgres chạy mọi file `.sql` trong đó (vì vậy tên file đánh số `00`, `01`, `02` để chạy đúng thứ tự).
+
+⚠ Postgres **chỉ tự chạy khi volume dữ liệu còn trống** (lần dựng đầu tiên, hoặc sau `docker compose down -v`). Những lần `up` sau, script **không** chạy lại.
+
+### 5.1. Kiểm tra DB đã khởi tạo đủ
+
+```powershell
+docker compose exec postgres psql -U olist_user -d olist_dw -f /sql/checks/00_check_init.sql
+```
+
+Kết quả đúng: 17 dòng, cột `ket_qua` **đều là `PASS`** (3 schema, `unaccent`, encoding UTF8, múi giờ, 11 bảng đủ cột và có khóa chính). Dòng nào `FAIL` thì cột `thuc_te` cho biết thiếu gì.
+
+> `compose.yaml` gắn cả thư mục `sql/` của repo vào container tại `/sql` (chỉ đọc), nên file SQL nào trong repo cũng chạy được bằng `psql -f /sql/<đường dẫn>`. Có thể chạy trong DBeaver thay thế: dán cả file vào SQL Editor rồi Ctrl + Enter.
+
+### 5.2. Khi sửa file trong `sql/init/`
+
+| Thay đổi | Cách áp dụng | Mất dữ liệu? |
+|---|---|---|
+| Thêm **bảng mới** / schema mới | Chạy lại đúng file đó: `docker compose exec postgres psql -U olist_user -d olist_dw -f /sql/init/<tên file>` (các lệnh dùng `IF NOT EXISTS` nên phần đã có được bỏ qua) | Không |
+| Sửa **bảng đã có** (thêm / đổi cột, đổi kiểu) | `IF NOT EXISTS` sẽ **bỏ qua** bảng đã tồn tại → dựng lại DB: `docker compose down -v` rồi `docker compose up -d` | **Có** – nạp lại bằng pipeline |
+
+Sửa xong nhớ chạy lại mục 5.1, và sửa số cột mong đợi trong `sql/checks/00_check_init.sql` nếu đổi số cột.
 
 ## 6. Chạy pipeline
 
@@ -255,7 +292,8 @@ pip install -r requirements.txt
 | Dựng lại image Mage | `docker compose up -d --build` | **Chỉ cần** khi sửa `docker/Dockerfile` |
 | Mở terminal trong container Mage | `docker compose exec mage bash` | Gõ `exit` để thoát |
 | Mở `psql` trong container Postgres | `docker compose exec postgres psql -U olist_user -d olist_dw` | Gõ `\q` để thoát |
-| ⚠ **Xóa sạch DB, làm lại từ đầu** | `docker compose down -v` rồi `docker compose up -d` | `-v` **xóa luôn volume** → mất toàn bộ dữ liệu trong DB. Dữ liệu nạp lại được bằng cách chạy lại pipeline |
+| Chạy 1 file SQL trong repo | `docker compose exec postgres psql -U olist_user -d olist_dw -f /sql/<đường dẫn>` | VD `/sql/checks/00_check_init.sql` |
+| ⚠ **Xóa sạch DB, làm lại từ đầu** | `docker compose down -v` rồi `docker compose up -d` | `-v` **xóa luôn volume** → mất toàn bộ dữ liệu trong DB; khi `up` lại, Postgres tự chạy `sql/init/` → schema + bảng rỗng như mới. Dữ liệu nạp lại được bằng cách chạy lại pipeline |
 
 > Sửa file trong VS Code (pipeline Mage, model dbt, SQL) **không cần** khởi động lại gì – thư mục repo được gắn thẳng vào container (`.:/home/src` trong `compose.yaml`), Mage thấy thay đổi ngay. Ngược lại, pipeline tạo trên giao diện Mage cũng được lưu thẳng vào `mage/olist_etl/` để commit.
 
@@ -267,6 +305,8 @@ pip install -r requirements.txt
 | `Bind for 0.0.0.0:5432 failed: port is already allocated` hoặc `ports are not available` (cổng `5432` / `6789`) | Cổng đang bị chương trình khác chiếm – thường là demo Mage của lớp, hoặc PostgreSQL cài sẵn trên Windows | `docker ps` xem container nào chiếm cổng → `docker stop <tên>`. Nếu là PostgreSQL cài trên Windows: tắt service `postgresql-x64-…` trong *Services* |
 | `yaml: line …` khi chạy `docker compose` | Thụt lề sai trong `compose.yaml` hoặc `io_config.yaml` | YAML chỉ dùng **dấu cách**, không dùng Tab; so lại thụt lề với bản trên GitHub |
 | Đổi mật khẩu trong `.env` rồi nhưng đăng nhập DB báo `password authentication failed` | Postgres chỉ đọc mật khẩu trong `.env` **lúc tạo DB lần đầu** | Cách 1 (giữ dữ liệu): `docker compose exec postgres psql -U olist_user -d olist_dw -c "ALTER USER olist_user PASSWORD 'mật_khẩu_mới';"`. Cách 2 (mất dữ liệu): `docker compose down -v` rồi `docker compose up -d` |
+| Sửa file trong `sql/init/` nhưng DB không đổi | Postgres chỉ tự chạy `sql/init/` khi volume còn trống (lần đầu) | Xem mục 5.2 |
+| `docker compose logs postgres` có `ERROR` ngay sau dòng `running /docker-entrypoint-initdb.d/...` và container dừng | Script khởi tạo bị lỗi → Postgres dừng giữa chừng | Sửa file SQL bị báo lỗi, rồi `docker compose down -v` và `docker compose up -d` để chạy lại từ đầu |
 | Mage hiện project `lab_project` | Đang vào Mage của demo lớp (cùng cổng 6789) | `docker stop lab-mage lab-postgres`, rồi `docker compose up -d` trong repo đồ án |
 | Kết quả block Mage hiện `********` | Mage che giá trị trùng biến bí mật trong `.env` | Bình thường, không phải lỗi |
 | Power BI báo lỗi chứng chỉ SSL khi kết nối PostgreSQL | Postgres chạy Docker không có chứng chỉ SSL hợp lệ | *File → Options and settings → Data source settings* → chọn nguồn → *Edit Permissions* → bỏ tick **Encrypt connections** |
