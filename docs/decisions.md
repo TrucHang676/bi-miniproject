@@ -152,7 +152,7 @@ Các cột "trông giống khóa" nhưng **không** unique: `order_reviews.revie
 
 **Lý do:** mọi dòng con có đúng 1 `order_id` hợp lệ (0 mồ côi) → mỗi dòng items/payments/customers thuộc đúng 1 batch, tổng khớp tuyệt đối với file gốc. Review tách riêng theo thời điểm trả lời vì đó là lúc review thực sự "xuất hiện" (D8).
 
-**Số liệu chứng minh** – số **đơn mới** và dòng con của chúng theo batch đầu tiên (cột `order_reviews` ở đây tính theo batch của *đơn*; theo phương án B, review sẽ dời sang batch chứa ngày trả lời, số dòng chính xác có khi viết script chia batch):
+**Số liệu chứng minh** – số **đơn mới** và dòng con của chúng theo batch đầu tiên (cột `order_reviews` ở đây tính theo batch của *đơn*; theo phương án B, review đi theo batch chứa ngày trả lời – số dòng thực tế ở D8, mục "Số liệu chứng minh"):
 
 | Batch | Khoảng mua | orders | order_items | order_payments | order_reviews | customers |
 |---|---|---|---|---|---|---|
@@ -267,12 +267,31 @@ Tổng từng cột = đúng số dòng file gốc; số dòng con không gán �
 - Toàn bộ logic nằm trong **script chia batch**; pipeline Mage và dbt không đổi so với phương án A.
 
 **Số liệu chứng minh**
-- Tỉ lệ đơn có mốc rơi **sau** cutoff của batch đầu tiên (bảng ở D4): giao vận chuyển 6,7–11,6%, khách nhận 27,1–51,7%, trả lời review 38,2–64,3% (các batch 2018-01…07) → mỗi batch incremental sẽ có một lượng lớn UPDATE đơn cũ và INSERT review của đơn tháng trước. Số dòng chính xác từng batch sẽ có khi viết script chia batch.
+- Tỉ lệ đơn có mốc rơi **sau** cutoff của batch đầu tiên (bảng ở D4): giao vận chuyển 6,7–11,6%, khách nhận 27,1–51,7%, trả lời review 38,2–64,3% (các batch 2018-01…07) → mỗi batch incremental sẽ có một lượng lớn UPDATE đơn cũ và INSERT review của đơn tháng trước.
 - Các mốc dùng để suy trạng thái đều có sẵn: NULL ở `order_approved_at` 160, `order_delivered_carrier_date` 1.783, `order_delivered_customer_date` 2.965 (chủ yếu đơn chưa giao / hủy – data_profiling.md mục 12).
+- **Số dòng thực tế** do `scripts/split_batches.py` sinh (BS-19, 18/10/2026 – định dạng file: `data/batches/README.md`). `order_items`, `order_payments`, `customers` giữ đúng bảng D5 (chỉ gửi theo đơn mới):
+
+  | Batch | `orders` mới (INSERT) | `orders` gửi lại (UPDATE) | `order_reviews` | – trong đó của đơn batch trước |
+  |---|---|---|---|---|
+  | FULL | 45.430 | 0 | 42.381 | 0 |
+  | 2018-01 | 7.269 | 2.456 | 6.272 | 2.834 |
+  | 2018-02 | 6.728 | 2.853 | 6.096 | 3.686 |
+  | 2018-03 | 7.211 | 3.465 | 7.655 | 4.405 |
+  | 2018-04 | 6.939 | 3.698 | 7.621 | 3.968 |
+  | 2018-05 | 6.873 | 2.741 | 7.516 | 3.283 |
+  | 2018-06 | 6.167 | 2.423 | 6.366 | 2.664 |
+  | 2018-07 | 6.292 | 1.687 | 5.822 | 2.438 |
+  | 2018-08 | 6.512 | 2.010 | 8.810 | 2.928 |
+  | 2018-09+ | 20 | 67 | 685 | 666 |
+  | **Tổng** | **99.441** | **21.400** | **99.224** | 26.872 |
+
+  → 120.841 dòng `orders` qua 10 batch (21.400 lượt UPDATE). Batch `2018-09+` gửi lại 67 đơn để đối soát = 59 đơn có mốc từ 01/09/2018 trở đi + 8 đơn `delivered` thiếu ngày nhận (xem Rủi ro). Đơn ví dụ ở trên ra đúng như bảng ví dụ.
+- **Review trả lời trước lúc mua**: nguồn có 63 review có `review_answer_timestamp` < `order_purchase_timestamp` (chủ yếu đơn `canceled` 08–09/2018; 39 review dùng chung `review_id` với đơn khác – giỏ hàng tách đơn). 28 review trong số đó rơi vào batch sớm hơn batch của đơn → **dời về batch của đơn** theo mục 4, để review không bao giờ đến trước đơn.
+- Script **tự kiểm tra 9 điều** sau khi ghi (đọc lại file, phát lại 10 batch): đủ file, số dòng khớp manifest, không trùng khóa trong 1 file, bảng con chỉ gửi 1 lần, không mốc nào sau cutoff, dòng cha luôn có trước dòng con, trạng thái không đi lùi, số INSERT / UPDATE khớp manifest, **phát lại hết = file gốc mọi bảng, mọi cột** → 9/9 PASS. Đã thử cố tình làm hỏng file theo 8 cách – đều bị bắt. Chạy trên Windows (pandas 2.3) và trong container Mage (pandas 1.5) cho kết quả giống hệt từng byte.
 
 **Rủi ro**
 - **Trạng thái trung gian là suy diễn**: nguồn không có ngày chuyển sang `invoiced` / `processing` nên đơn đi `approved` → `shipped` sẽ bỏ qua 2 trạng thái này; đơn `canceled` (625) / `unavailable` (609) hiện trạng thái hủy ngay từ batch đầu vì không có ngày hủy. Báo cáo và video phải nói rõ đây là **dữ liệu mô phỏng**.
-- **Mốc ngày sai thứ tự** sinh chuỗi trạng thái lạ: 1.359 đơn giao vận chuyển trước khi duyệt → có thể có ảnh chụp `shipped` với `approved_at` NULL; 8 đơn `delivered` thiếu ngày nhận sẽ ở `shipped` tới batch đối soát. Các đơn này đã được gắn cờ ngày không hợp lệ (data_profiling.md vấn đề #7).
+- **Mốc ngày sai thứ tự** sinh chuỗi trạng thái lạ: 1.359 đơn giao vận chuyển trước khi duyệt → có thể có ảnh chụp `shipped` với `approved_at` NULL; 8 đơn `delivered` thiếu ngày nhận không bao giờ tới `delivered` trong ảnh chụp – 7 đơn ở `shipped`, 1 đơn không có cả ngày giao vận chuyển ở `approved` – cho tới batch đối soát. Các đơn này đã được gắn cờ ngày không hợp lệ (data_profiling.md vấn đề #7).
 - **Kiểm tra bắt buộc sau batch cuối**: staging phải khớp file gốc (số dòng từng bảng và giá trị từng cột của `orders`) – đặt trong `sql/checks/`. Nếu lệch là script chia batch hoặc MERGE có lỗi.
 - **dbt phải xử lý cập nhật**: fact dựng từ staging đã được cập nhật tại chỗ. Cách an toàn nhất là materialize `table` (dựng lại mỗi lần chạy); nếu dùng `incremental` phải có `unique_key` và chiến lược cập nhật phù hợp (`dbt-postgres` hỗ trợ `merge` và `delete+insert`).
 - Ảnh chụp giữa kỳ làm KPI tháng gần nhất "chưa đầy đủ" (VD tỉ lệ giao trễ chỉ tính trên đơn đã giao). Ngoài thực tế cũng vậy, nhưng phải giải thích khi demo.

@@ -11,6 +11,7 @@ ai/.streamlit/secrets.toml
 # data/raw/ ĐƯỢC commit (9 CSV gốc Olist, ~121 MB) để cả nhóm khỏi tải lại; batch sinh lại bằng scripts/ nên không commit
 data/batches/*
 !data/batches/.gitkeep
+!data/batches/README.md
 
 # ===== Database (PostgreSQL chạy Docker) & volume =====
 mage_data/

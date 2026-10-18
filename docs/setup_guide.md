@@ -248,7 +248,20 @@ Sửa xong nhớ chạy lại mục 5.1, và sửa số cột mong đợi trong 
 
 ## 6. Chạy pipeline
 
-### 6.1. Data Ingestion (Mage.ai)
+### 6.1. Sinh batch dữ liệu (làm 1 lần, trước khi chạy Mage)
+
+Dữ liệu Kaggle là ảnh chụp cuối cùng (đã biết hết 09/2016 → 10/2018). Để mô phỏng dữ liệu "về dần" cho Full Load + Incremental Load, script cắt nó thành 10 batch theo tháng – mỗi batch chỉ chứa những gì **đã xảy ra trước cuối tháng đó**; đơn cũ có thay đổi (VD vừa được giao) được gửi lại ở batch sau (D8 trong [decisions.md](decisions.md)).
+
+```powershell
+docker compose exec mage python scripts/split_batches.py
+```
+
+- Chạy bên trong container Mage nên **không cần cài Python** trên Windows (có Python + pandas thì `py scripts/split_batches.py` cũng được – kết quả giống hệt).
+- Mất ~15 giây. Kết quả đúng: dòng cuối **`TẤT CẢ ĐẠT (9/9 PASS)`** – script tự đọc lại file, phát lại 10 batch và kiểm tra khớp 100% file gốc.
+- Sinh ra `data/batches/FULL/`, `2018-01/` … `2018-08/`, `2018-09+/` (mỗi thư mục 1 file CSV / bảng) + `manifest.csv` (thứ tự chạy, số dòng mong đợi). Các file này **không commit** – mỗi máy tự sinh. Định dạng chi tiết: [data/batches/README.md](../data/batches/README.md).
+- Chạy lại lúc nào cũng được (xóa batch cũ, ghi lại y hệt).
+
+### 6.2. Data Ingestion (Mage.ai)
 
 > *(Điền khi có pipeline.)*
 
@@ -257,7 +270,7 @@ Sửa xong nhớ chạy lại mục 5.1, và sửa số cột mong đợi trong 
 - **Incremental Load:** chạy pipeline `[tên]` với biến `[tên biến]`
 - Kiểm tra log: `SELECT * FROM etl_log.[tên bảng] ORDER BY ...;`
 
-### 6.2. Transformation (dbt)
+### 6.3. Transformation (dbt)
 
 > *(Điền khi khởi tạo project dbt.)* dbt chạy **bên trong container Mage** (mục 4.4), project dbt nằm ở `dbt/` của repo, trong container là `/home/src/dbt`.
 
@@ -265,13 +278,13 @@ Sửa xong nhớ chạy lại mục 5.1, và sửa số cột mong đợi trong 
 # docker compose exec mage dbt [deps | seed | run | test | docs generate] ...
 ```
 
-### 6.3. Power BI
+### 6.4. Power BI
 
 1. Mở `powerbi/[tên].pbix`.
 2. Kết nối PostgreSQL: Server `localhost`, Database `olist_dw`, user/mật khẩu như `.env` (nếu báo lỗi SSL xem mục 8).
 3. Nhấn **Refresh**.
 
-### 6.4. Thành phần AI
+### 6.5. Thành phần AI
 
 ```bash
 cd ai
@@ -305,6 +318,8 @@ pip install -r requirements.txt
 | `Bind for 0.0.0.0:5432 failed: port is already allocated` hoặc `ports are not available` (cổng `5432` / `6789`) | Cổng đang bị chương trình khác chiếm – thường là demo Mage của lớp, hoặc PostgreSQL cài sẵn trên Windows | `docker ps` xem container nào chiếm cổng → `docker stop <tên>`. Nếu là PostgreSQL cài trên Windows: tắt service `postgresql-x64-…` trong *Services* |
 | `yaml: line …` khi chạy `docker compose` | Thụt lề sai trong `compose.yaml` hoặc `io_config.yaml` | YAML chỉ dùng **dấu cách**, không dùng Tab; so lại thụt lề với bản trên GitHub |
 | Đổi mật khẩu trong `.env` rồi nhưng đăng nhập DB báo `password authentication failed` | Postgres chỉ đọc mật khẩu trong `.env` **lúc tạo DB lần đầu** | Cách 1 (giữ dữ liệu): `docker compose exec postgres psql -U olist_user -d olist_dw -c "ALTER USER olist_user PASSWORD 'mật_khẩu_mới';"`. Cách 2 (mất dữ liệu): `docker compose down -v` rồi `docker compose up -d` |
+| Pipeline Mage báo không tìm thấy `data/batches/...` | Chưa sinh batch (thư mục batch không lên GitHub) | Chạy mục 6.1 |
+| `split_batches.py` kết thúc bằng `CÓ ... KIỂM TRA KHÔNG ĐẠT` | File trong `data/raw/` bị sửa / thiếu, hoặc script bị sửa sai | Xem cột `chi_tiet` của dòng FAIL; khôi phục `data/raw/` bằng `git checkout -- data/raw` rồi chạy lại |
 | Sửa file trong `sql/init/` nhưng DB không đổi | Postgres chỉ tự chạy `sql/init/` khi volume còn trống (lần đầu) | Xem mục 5.2 |
 | `docker compose logs postgres` có `ERROR` ngay sau dòng `running /docker-entrypoint-initdb.d/...` và container dừng | Script khởi tạo bị lỗi → Postgres dừng giữa chừng | Sửa file SQL bị báo lỗi, rồi `docker compose down -v` và `docker compose up -d` để chạy lại từ đầu |
 | Mage hiện project `lab_project` | Đang vào Mage của demo lớp (cùng cổng 6789) | `docker stop lab-mage lab-postgres`, rồi `docker compose up -d` trong repo đồ án |

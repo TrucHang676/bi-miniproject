@@ -54,8 +54,9 @@ bi-miniproject/
 Xem chi tiết tại [docs/setup_guide.md](docs/setup_guide.md).
 
 1. Copy `.env.example` thành `.env`, đổi mật khẩu.
-2. Mở Docker Desktop, chạy `docker compose up -d --build` tại thư mục gốc repo.
-3. Mở Mage tại http://localhost:6789 (`admin@admin.com` / `admin`); DB: `localhost:5432`, database `olist_dw`.
+2. Mở Docker Desktop, chạy `docker compose up -d --build` tại thư mục gốc repo (Postgres tự tạo schema + bảng từ `sql/init/`).
+3. Sinh batch dữ liệu: `docker compose exec mage python scripts/split_batches.py` (dòng cuối phải là `TẤT CẢ ĐẠT (9/9 PASS)`).
+4. Mở Mage tại http://localhost:6789 (`admin@admin.com` / `admin`); DB: `localhost:5432`, database `olist_dw`.
 
 ## 7. Sản phẩm nộp
 
