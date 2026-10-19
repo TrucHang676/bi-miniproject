@@ -22,9 +22,12 @@
 ![Kiến trúc](docs/images/architecture.png)
 
 ```
-Kaggle CSV → Mage.ai (staging) → dbt (dds: Star Schema) → Power BI
-                                                        ↘ AI (LLM) → Summary / Giải thích
+Kaggle CSV → split_batches.py → data/batches → Mage.ai → staging → dbt → dds (Galaxy) → Power BI
+                                                  │                        └→ Module AI ↔ LLM
+                                                  └→ etl_log (nhật ký ETL), dq (dòng dữ liệu lỗi)
 ```
+
+Kiến trúc **Single DDS** (Stage → DDS). Chi tiết các tầng, cách triển khai, luồng dữ liệu: [docs/architecture.md](docs/architecture.md).
 
 ## 4. Công nghệ sử dụng
 
