@@ -51,7 +51,7 @@
 Mỗi bảng `dds` chỉ đọc từ `staging`, seed hoặc model trung gian (`int_`) – không đọc chéo giữa các fact. Ba model trung gian gom những phép tính dùng lại ở nhiều nơi, để 3 fact cho cùng một kết quả:
 
 ```
-staging.*  ──► stg_*  (view, 1 model / 1 bảng: ép kiểu, TRIM, đổi tên cột sai chính tả)
+staging.*  ──► stg_*  (view, 1 model / 1 bảng: ép kiểu, TRIM, đổi tên cột sai chính tả, bỏ đơn đã xóa mềm – R10)
                 │
                 ├─► int_orders            1 dòng / đơn: customer_unique_id, bang + thành phố nơi nhận (R1), is_valid (R4)
                 ├─► int_purchase_sessions 1 dòng / đơn hợp lệ: purchase_seq (R6)
@@ -83,7 +83,7 @@ Thứ tự chạy `dbt build`: seed → `stg_` → `int_` → dimension → fact
 | `dim_product`, `dim_seller` | `table` | Nguồn nạp **1 lần** ở Full Load (D3) → dựng lại mỗi lần vẫn cho cùng khóa (R2) |
 | `dim_customer` | `incremental`, `unique_key = customer_unique_id` | Khách mới đến theo batch; khách cũ **giữ khóa**, cập nhật thuộc tính (SCD 1, D7) |
 | `dim_geography` | `incremental`, `unique_key = (state_code, city)` | Thành phố mới xuất hiện theo batch; chỉ thêm, không sửa |
-| `fact_sales` | `incremental`, `unique_key = (order_id, product_key, seller_key)` | Sản phẩm của đơn chỉ đến 1 lần ở batch đầu tiên của đơn (D5); đơn hợp lệ không bao giờ đổi thành không hợp lệ (đơn hủy mang trạng thái hủy ngay từ batch đầu – D8) → mỗi lần chạy chỉ thêm đơn chưa có |
+| `fact_sales` | `table` | **Đổi từ `incremental` ngày 19/10/2026:** đơn bị xóa ở nguồn (R10) phải biến mất khỏi fact, mà `incremental` chỉ thêm dòng mới chứ không xóa dòng cũ. Dựng lại ~102 nghìn dòng mỗi lần chạy vẫn nhanh; dbt `incremental` vẫn được dùng ở `dim_customer`, `dim_geography`. (Lý do cũ còn đúng nếu không có xóa: sản phẩm của đơn chỉ đến 1 lần ở batch đầu – D5 – và đơn hợp lệ không đổi thành không hợp lệ – D8) |
 | `fact_delivery`, `fact_review` | `table` | `delivery_status_key` thuộc khóa và đổi theo batch; `is_latest_review` của review cũ phải đổi khi review mới đến (chốt 18/10/2026) |
 
 ---
@@ -101,6 +101,7 @@ Thứ tự chạy `dbt build`: seed → `stg_` → `int_` → dimension → fact
 | R7 | Đổi khoảng thời gian → số ngày | `ROUND(EXTRACT(EPOCH FROM (<mốc sau> − <mốc trước>)) / 86400, 2)::NUMERIC(6,2)` (Postgres: `timestamp − timestamp` ra `INTERVAL`).<br>`late_days` là `DATE − DATE` nên ra số nguyên: `(<mốc>::DATE − estimated_delivery_date)::SMALLINT`.<br>Measure = NULL khi thiếu một trong hai mốc hoặc hai mốc sai thứ tự (điều kiện cụ thể ghi ở từng cột của `fact_delivery`) | 4 measure của `fact_delivery` |
 | R8 | Làm sạch bình luận review | `NULLIF(TRIM(<cột>), '')`, sau đó coi là **không có bình luận** nếu không chứa chữ cái nào: `CASE WHEN TRIM(x) ~ '[[:alpha:]]' THEN TRIM(x) END` (database UTF-8 nên `[[:alpha:]]` nhận cả chữ có dấu tiếng Bồ Đào Nha).<br>Loại các giá trị giả-NULL kiểu `.`, `...`, `-`, `?`, `*****`, chuỗi số (`5`, `10`), emoji: 416 tiêu đề + 186 nội dung. Kết quả: **42.454** review (42,8%) có bình luận thật, so với 42.706 (43,0%) nếu chỉ kiểm NULL | `fact_review.has_comment` |
 | R9 | Thuộc tính trạng thái giao hàng | Tính một lần ở `int_delivery_lines` cho mỗi cặp (đơn, người bán), xét **theo thứ tự**, gặp điều kiện đầu tiên thì dừng:<br>**handover_status** (so theo giờ): `delivered_carrier_date IS NULL` → `Chưa bàn giao` · `delivered_carrier_date < order_purchase_timestamp` → `Không xác định` · `delivered_carrier_date > shipping_limit_date` → `Trễ hạn` · còn lại → `Đúng hạn`<br>**route_type:** `customers.customer_state = sellers.seller_state` → `Nội bang` · khác → `Liên bang` · một trong hai NULL → `Không xác định`<br>**delay_bucket:** `order_status <> 'delivered'` → `Chưa giao` · `delivered_customer_date IS NULL` → `Không xác định` · `late_days ≤ 0` → `Đúng hạn` · 1–3 → `Trễ 1–3 ngày` · 4–7 → `Trễ 4–7 ngày` · 8–14 → `Trễ 8–14 ngày` · > 14 → `Trễ > 14 ngày`<br>Bộ 4 giá trị (`order_status`, `handover_status`, `route_type`, `delay_bucket`) → lookup `dim_delivery_status.delivery_status_key` | `fact_delivery`, `fact_review` |
+| R10 | Đơn bị xóa ở nguồn (xóa mềm) | Pipeline Mage đặt `staging.orders._is_deleted = TRUE` khi nguồn báo xóa ([pipeline_rules.md](pipeline_rules.md) B6, chốt 19/10/2026). **Đơn bị xóa coi như chưa từng có trong `dds`**, lọc ngay ở lớp `stg_`:<br>• `stg_orders`: `WHERE NOT _is_deleted`<br>• `stg_order_items`, `stg_order_payments`, `stg_order_reviews`: chỉ giữ dòng của đơn chưa xóa – `WHERE order_id IN (SELECT order_id FROM <staging.orders> WHERE NOT _is_deleted)`<br>• `stg_customers`: **không lọc** – dimension giữ thành viên; các thuộc tính tính từ đơn (`purchase_count`, `customer_type`, địa chỉ đơn gần nhất) tự tính trên đơn chưa xóa vì đọc qua `stg_orders`<br>Hệ quả: 3 fact dựng lại mỗi lần chạy (`table`) để dòng của đơn vừa bị xóa biến mất (mục 0.3). Dữ liệu thật không có đơn bị xóa → mọi số liệu trong file này không đổi | `stg_*`, 3 fact |
 
 ---
 
@@ -143,7 +144,7 @@ Thứ tự chạy `dbt build`: seed → `stg_` → `int_` → dimension → fact
 
 | Cột đích | Kiểu | Nguồn | Biến đổi | NULL / lỗi | Ghi chú |
 |---|---|---|---|---|---|
-| `customer_key` (PK) | INT | (sinh) | R2 – khách cũ giữ khóa, khách mới `MAX + ROW_NUMBER() OVER (ORDER BY customer_unique_id)` | Dòng `-1` "Không xác định" | Khóa ổn định qua 10 batch để `fact_sales` (incremental) không bị lệch |
+| `customer_key` (PK) | INT | (sinh) | R2 – khách cũ giữ khóa, khách mới `MAX + ROW_NUMBER() OVER (ORDER BY customer_unique_id)` | Dòng `-1` "Không xác định" | Khóa ổn định qua 10 batch để 3 fact (dựng lại mỗi lần chạy) luôn tra ra cùng khóa cho cùng một khách |
 | `customer_unique_id` (NK) | VARCHAR(32) | `customers.customer_unique_id` | Giữ nguyên | Không NULL ở nguồn; dòng `-1`: `'-1'` | **Không** dùng `customer_id` (1 mã = 1 đơn → tỉ lệ mua lại luôn 0%) – D7. dbt test `unique` |
 | `customer_city` | VARCHAR(100) | `customers.customer_city` (đơn gần nhất) | R1 `normalize_city(customer_city, customer_state)` | R1 trả NULL → `'Không xác định'` (0 dòng trên dữ liệu thật) | Địa chỉ hiện tại của khách; vị trí *tại lúc mua* nằm ở `fact.geography_key` |
 | `customer_state` | CHAR(2) | `customers.customer_state` (đơn gần nhất) | Giữ nguyên | Không NULL ở nguồn; dòng `-1`: NULL | 27 bang; 39 khách từng đổi bang → lấy bang của đơn gần nhất |
@@ -241,7 +242,7 @@ Thứ tự các danh sách (cũng là thứ tự số `*_sort`):
   1. `order_items JOIN int_orders USING (order_id) WHERE is_valid` (R4) – loại **549 dòng `order_items`** (= 472 dòng sau gộp) của 467 đơn hủy / hết hàng.
   2. `GROUP BY order_id, product_id, seller_id` – gộp các đơn vị giống nhau thành `quantity`. Trong mỗi nhóm giá, phí ship và hạn bàn giao giống hệt nhau (0 ngoại lệ) nên gộp không mất thông tin; 112.101 đơn vị → 101.953 dòng.
   3. `LEFT JOIN int_purchase_sessions USING (order_id)` → `purchase_seq`; lookup khóa theo R3, R5.
-- **Cách nạp:** `incremental`, `unique_key = (order_id, product_key, seller_key)`; mỗi lần chạy chỉ đưa vào các đơn hợp lệ **chưa có** trong fact (`WHERE order_id NOT IN (SELECT order_id FROM {{ this }})`) – xem mục 0.3
+- **Cách nạp:** `table` – dựng lại mỗi lần chạy để đơn bị xóa mềm (R10) biến mất khỏi fact (đổi từ `incremental` ngày 19/10/2026 – xem mục 0.3)
 
 | Cột đích | Kiểu | Nguồn | Biến đổi | NULL / lỗi | Ghi chú |
 |---|---|---|---|---|---|
@@ -323,6 +324,7 @@ Thứ tự các danh sách (cũng là thứ tự số `*_sort`):
 |---|---|
 | `order_payments` (cả bảng) | Không câu hỏi nào dùng thanh toán; doanh thu lấy từ `order_items.price` (dw_design mục 1) |
 | `_batch_id`, `_loaded_at` (mọi bảng) | Cột kỹ thuật của lần nạp gần nhất (D8): theo dõi batch đã có `etl_log`, KPI không dùng ([decisions.md](decisions.md), 17/10/2026) |
+| `orders._is_deleted`, `orders._deleted_at` | Cột xóa mềm: chỉ dùng để **lọc** ở lớp `stg_` (R10), đơn bị xóa không vào `dds` nên không cần mang cột theo |
 | `customers.customer_id` | Mã theo từng đơn, chỉ dùng làm **cầu nối** `orders` → `customer_unique_id` trong dbt; khách thật là `customer_unique_id` (D7) |
 | `customers.customer_zip_code_prefix`, `sellers.seller_zip_code_prefix` | Không nạp `geolocation` (chốt 16/10/2026) nên mã bưu chính không nối đi đâu; grain địa lý là (bang, thành phố) vì 33 mã bưu chính thuộc hơn 1 bang |
 | `order_items.order_item_id` | Số thứ tự đơn vị trong đơn – mất ý nghĩa sau khi gộp thành `quantity` (grain `fact_sales`) |
@@ -346,6 +348,8 @@ Số dòng dự kiến khi `staging` đã nạp đủ 10 batch (bằng số đã
 | `fact_sales` | 101.953 | `unique_combination_of_columns` 6 cột PK; `relationships` mọi FK; `SUM(revenue)` 01/2017 – 08/2018 = 13.449.529,68 |
 | `fact_delivery` | 100.010 | `unique_combination_of_columns` 6 cột PK; K6 = 6.534 / 96.470 đơn; K12 = 8.913 / 98.824 dòng |
 | `fact_review` | 100.568 | `unique_combination_of_columns` 8 cột PK; `accepted_values` `review_score` 1–5; đúng 98.673 đơn có `is_latest_review = TRUE` |
+
+Test riêng cho xóa mềm (R10 – singular test trong `dbt/tests/`): với mỗi fact, `SELECT f.order_id FROM <fact> f JOIN <staging.orders> o USING (order_id) WHERE o._is_deleted` phải ra **0 dòng**. Dữ liệu thật luôn đạt; có ý nghĩa khi demo xóa đơn.
 
 Đối soát chéo nên chạy (`sql/checks/`): tổng `quantity` của `fact_sales` = số dòng `order_items` của đơn hợp lệ (112.101); số `order_id` riêng biệt của `fact_delivery` = số đơn có sản phẩm (98.666); số `review_id` + `order_id` riêng biệt của `fact_review` = số dòng `order_reviews` (99.224).
 

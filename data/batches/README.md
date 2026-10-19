@@ -25,11 +25,13 @@ data/batches/
 └── 2018-09+/        batch cuối: 20 đơn mới + đối soát (gửi lại 67 đơn về đúng trạng thái gốc)
 ```
 
+**File tùy chọn `deleted_orders.csv`** (chốt 19/10/2026): nguồn báo đơn bị xóa – cột `order_id`, `deleted_at` (`YYYY-MM-DD HH:MM:SS`), `batch_id`. Script **không** sinh file này (Olist không có nghiệp vụ xóa); chỉ tạo tay trong thư mục batch Incremental khi demo, và chạy lại script sẽ xóa nó. Cách pipeline xử lý: [docs/pipeline_rules.md](../../docs/pipeline_rules.md) mục B6.
+
 ## 3. `manifest.csv` – thứ tự chạy và số liệu mong đợi
 
 | Cột | Ý nghĩa | Dùng cho |
 |---|---|---|
-| `seq` | Thứ tự chạy 1 → 10 | Incremental: nạp batch có `seq` nhỏ nhất chưa `SUCCESS` trong `etl_log.pipeline_run` |
+| `seq` | Thứ tự chạy 1 → 10 | Thứ tự nạp. Incremental chọn batch có `lset` = `cet` của lần chạy `SUCCESS` gần nhất trong `etl_log.pipeline_run` (= batch ngay sau batch vừa nạp xong – [pipeline_rules.md](../../docs/pipeline_rules.md) B2.2) |
 | `batch_id` | `FULL`, `2018-01` … `2018-08`, `2018-09+` = tên thư mục | `etl_log.pipeline_run.batch_id`, cột `_batch_id` của staging |
 | `load_type` | `FULL` / `INCREMENTAL` | `etl_log.pipeline_run.load_type` |
 | `lset`, `cet` | Khoảng dữ liệu mô phỏng `[LSET, CET)`; trống = không giới hạn (FULL không có `lset`, batch cuối không có `cet`) | `etl_log.pipeline_run.lset`, `cet` |
@@ -92,7 +94,9 @@ Sau khi ghi, script đọc lại các file (như Mage sẽ đọc), phát lại 
 
 ## 7. Lưu ý cho pipeline Mage
 
-1. **Nạp đúng thứ tự `seq`**, mỗi lần 1 batch. Trong 1 batch nạp theo thứ tự (D5): *(FULL: `products`, `sellers`, `category_translation` →)* `customers` → `orders` → `order_items`, `order_payments` → `order_reviews`.
+> Quy tắc đầy đủ (Full / Incremental, kiểm tra chất lượng, ghi log, xóa đơn): [docs/pipeline_rules.md](../../docs/pipeline_rules.md). Mục này chỉ tóm tắt phần liên quan tới file batch.
+
+1. **Nạp đúng thứ tự `seq`**, mỗi lần 1 batch. Trong 1 batch nạp theo thứ tự (D5): *(FULL: `products`, `sellers`, `category_translation` →)* `customers` → `orders` → `order_items`, `order_payments` → `order_reviews` → *(nếu có `deleted_orders.csv`:)* đánh dấu xóa mềm.
 2. **MERGE theo khóa chính** (D1), không xóa dòng vắng mặt trong batch (D4):
 
    | Bảng | Khóa chính |

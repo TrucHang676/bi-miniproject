@@ -204,7 +204,7 @@ Kết quả đúng: `Core: installed: 1.8.7` và trong *Plugins* có `postgres: 
 
 ## 5. Khởi tạo Data Warehouse
 
-**Không cần chạy tay gì cả.** Lần đầu `docker compose up` (mục 3.4), Postgres **tự chạy** 4 script trong `sql/init/` theo thứ tự tên file:
+**Không cần chạy tay gì cả.** Lần đầu `docker compose up` (mục 3.4), Postgres **tự chạy** 5 script trong `sql/init/` theo thứ tự tên file:
 
 | File | Tạo gì |
 |---|---|
@@ -212,6 +212,7 @@ Kết quả đúng: `Core: installed: 1.8.7` và trong *Plugins* có `postgres: 
 | `01_staging_tables.sql` | 8 bảng `staging`: tên cột giữ như CSV, kiểu theo [data_dictionary.md](data_dictionary.md), khóa chính theo D1 ([decisions.md](decisions.md)), thêm 2 cột kỹ thuật `_batch_id`, `_loaded_at` |
 | `02_etl_log.sql` | 3 bảng nhật ký ETL: `pipeline_run` (1 lần chạy) → `table_load` (từng bảng: số dòng thêm / cập nhật / bị loại) và `quality_check` (từng phép kiểm tra chất lượng) |
 | `03_dq.sql` | Bảng `dq.rejected_rows`: **nguyên nội dung** từng dòng Mage loại (dạng JSON) + lần chạy, phép kiểm tra, lý do – khóa ngoại về `etl_log.quality_check` |
+| `04_soft_delete.sql` | Xóa mềm đơn bị xóa ở nguồn: thêm cột `_is_deleted`, `_deleted_at` vào `staging.orders` và `rows_deleted` vào `etl_log.table_load` (viết dạng `ALTER ... ADD COLUMN IF NOT EXISTS`) – cách dùng: [pipeline_rules.md](pipeline_rules.md) B6 |
 
 Database sau khi khởi tạo:
 
@@ -227,7 +228,7 @@ olist_dw
 
 Vai trò từng schema theo kiến trúc Single DDS: [architecture.md](architecture.md).
 
-**Cơ chế:** `compose.yaml` gắn thư mục `sql/init/` vào thư mục khởi tạo `/docker-entrypoint-initdb.d` của image Postgres. Lần đầu tạo DB, Postgres chạy mọi file `.sql` trong đó (vì vậy tên file đánh số `00`, `01`, `02`, `03` để chạy đúng thứ tự).
+**Cơ chế:** `compose.yaml` gắn thư mục `sql/init/` vào thư mục khởi tạo `/docker-entrypoint-initdb.d` của image Postgres. Lần đầu tạo DB, Postgres chạy mọi file `.sql` trong đó (vì vậy tên file đánh số `00` → `04` để chạy đúng thứ tự).
 
 ⚠ Postgres **chỉ tự chạy khi volume dữ liệu còn trống** (lần dựng đầu tiên, hoặc sau `docker compose down -v`). Những lần `up` sau, script **không** chạy lại.
 
@@ -246,7 +247,8 @@ Kết quả đúng: 19 dòng, cột `ket_qua` **đều là `PASS`** (4 schema, `
 | Thay đổi | Cách áp dụng | Mất dữ liệu? |
 |---|---|---|
 | Thêm **bảng mới** / schema mới | Chạy lại đúng file đó: `docker compose exec postgres psql -U olist_user -d olist_dw -f /sql/init/<tên file>` (các lệnh dùng `IF NOT EXISTS` nên phần đã có được bỏ qua) | Không |
-| Sửa **bảng đã có** (thêm / đổi cột, đổi kiểu) | `IF NOT EXISTS` sẽ **bỏ qua** bảng đã tồn tại → dựng lại DB: `docker compose down -v` rồi `docker compose up -d` | **Có** – nạp lại bằng pipeline |
+| **Thêm cột** vào bảng đã có | Viết thành **file mới** dạng `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` (như `04_soft_delete.sql`) rồi chạy tay file đó như dòng trên – DB mới cũng tự chạy file này | Không |
+| Sửa **bảng đã có** (đổi / xóa cột, đổi kiểu) | `IF NOT EXISTS` sẽ **bỏ qua** bảng đã tồn tại → dựng lại DB: `docker compose down -v` rồi `docker compose up -d` | **Có** – nạp lại bằng pipeline |
 
 Sửa xong nhớ chạy lại mục 5.1, và sửa số cột mong đợi trong `sql/checks/00_check_init.sql` nếu đổi số cột.
 

@@ -48,7 +48,7 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
 | Thành phần Single DDS | Trong đồ án | Chi tiết | Trạng thái (19/10/2026) |
 |---|---|---|---|
 | Source System | 10 batch CSV trong `data/batches/` | [../data/batches/README.md](../data/batches/README.md) | ✅ Script chia batch xong, tự kiểm tra 9/9 PASS |
-| Stage ETL | Pipeline Mage: kiểm tra → MERGE vào `staging` (Full Load / Incremental Load) | [decisions.md](decisions.md) D1–D8 | ⏳ Chưa có pipeline (BS-21 → BS-24, Yến) |
+| Stage ETL | Pipeline Mage: kiểm tra → MERGE vào `staging` (Full Load / Incremental Load), xóa mềm | [pipeline_rules.md](pipeline_rules.md), [decisions.md](decisions.md) D1–D8 | ⏳ Đã có quy tắc chi tiết, chưa có pipeline (BS-21 → BS-24, Yến) |
 | Stage | Schema `staging`: 8 bảng giữ nguyên cấu trúc CSV + `_batch_id`, `_loaded_at` | [data_dictionary.md](data_dictionary.md) | ✅ Đã tạo bảng (`sql/init/01_staging_tables.sql`) |
 | DDS ETL + DQ | dbt: model `stg_` → `int_` → `dim_` / `fact_`, seed, dbt test | [source_to_target_mapping.md](source_to_target_mapping.md) | ⏳ Ánh xạ xong (BS-15), chưa khởi tạo project dbt |
 | DDS | Schema `dds`: 3 fact + 6 dim, lược đồ Galaxy | [dw_design.md](dw_design.md) | ✅ Thiết kế xong, chưa có bảng |
@@ -63,7 +63,8 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
 1. **Source → Stage ETL:** Mage đọc lần lượt từng batch. **Trước khi nạp**, kiểm tra cấu trúc (đủ, đúng cột) và chất lượng cơ bản (khóa không rỗng, không trùng).
    Lỗi nặng (VD thiếu cột) → dừng, lần chạy ghi `FAILED`; dòng hỏng lẻ → loại riêng, phần còn lại nạp tiếp.
 2. **Stage ETL → Stage:** dữ liệu đạt được **MERGE theo khóa chính** vào `staging` – dòng mới thì thêm, dòng đã có thì cập nhật
-   (phương án B – D8: đơn cũ được gửi lại ở batch sau với trạng thái mới).
+   (phương án B – D8: đơn cũ được gửi lại ở batch sau với trạng thái mới). Đơn nguồn báo xóa (`deleted_orders.csv`) được **xóa mềm**
+   (`_is_deleted = TRUE`), dbt bỏ qua khi dựng `dds`. Quy tắc chi tiết cho pipeline: [pipeline_rules.md](pipeline_rules.md).
 3. **Stage → DDS ETL + DQ → DDS:** dbt đọc `staging`, biến đổi qua 3 lớp `stg_` (làm sạch từng bảng) → `int_` (tích hợp, tính toán dùng chung)
    → `dim_` / `fact_` (bảng trong `dds`); seed bổ sung vùng của bang và bản dịch 2 danh mục còn thiếu; dbt test kiểm tra kết quả.
 4. **DDS → Application:** 2 nhánh như mô hình –
@@ -87,4 +88,5 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
 | Mage kiểm tra chất lượng khác dbt test chỗ nào? | Mage kiểm tra **trước khi nạp** `staging` (đủ cột, khóa không rỗng / không trùng) và loại dòng hỏng; dbt test kiểm tra **sau khi biến đổi**, chỉ phát hiện chứ không xóa dòng sai |
 | `etl_log` khác `dq` chỗ nào? | `etl_log` ghi **về** lần chạy (con số, trạng thái); `dq` giữ **chính dòng dữ liệu lỗi** |
 | dbt `store_failures` có thay được `rejected_rows` không? | Không – dòng Mage loại không bao giờ vào database nên dbt không thấy; `store_failures` còn ghi đè mỗi lần chạy, không giữ lịch sử |
+| Xóa một đơn ở nguồn rồi chạy Incremental thì sao? | Incremental chỉ thấy dòng **có mặt** trong batch, không thể coi "vắng mặt" là "bị xóa" (mỗi batch chỉ là một phần dữ liệu). Nên nguồn phải **báo xóa** bằng file `deleted_orders.csv`; Mage **xóa mềm** (`_is_deleted = TRUE`, giữ dấu vết, đếm vào `etl_log`); dbt bỏ đơn đó khi dựng `dds` → biến mất khỏi dashboard. Olist thật không xóa đơn – đơn hủy là đổi trạng thái `canceled`, tức nguồn đã dùng soft delete (slide 53) |
 | Sao chọn Single DDS? | 1 nguồn, dữ liệu nhỏ, xử lý theo lô, câu hỏi chỉ cần mô hình đa chiều → không cần NDS / ODS |

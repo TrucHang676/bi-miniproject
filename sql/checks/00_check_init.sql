@@ -9,8 +9,8 @@ WITH
 expected_schemas(stt, schema_name) AS (
     VALUES (1, 'staging'), (2, 'etl_log'), (3, 'dq'), (4, 'dds')
 ),
-expected_tables(stt, table_schema, table_name, so_cot) AS (     -- số cột theo sql/init/01, 02, 03
-    VALUES (10, 'staging', 'orders',               10),
+expected_tables(stt, table_schema, table_name, so_cot) AS (     -- số cột theo sql/init/01 - 04
+    VALUES (10, 'staging', 'orders',               12),    -- 10 + _is_deleted, _deleted_at (04)
            (11, 'staging', 'order_items',           9),
            (12, 'staging', 'order_payments',        7),
            (13, 'staging', 'order_reviews',         9),
@@ -19,7 +19,7 @@ expected_tables(stt, table_schema, table_name, so_cot) AS (     -- số cột th
            (16, 'staging', 'products',             11),
            (17, 'staging', 'category_translation',  4),
            (20, 'etl_log', 'pipeline_run',         11),
-           (21, 'etl_log', 'table_load',           10),
+           (21, 'etl_log', 'table_load',           11),    -- 10 + rows_deleted (04)
            (22, 'etl_log', 'quality_check',         7),
            (30, 'dq',      'rejected_rows',         8)
 ),

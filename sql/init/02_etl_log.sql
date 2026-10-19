@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS etl_log.pipeline_run (
 
 -- Kết quả nạp từng bảng trong 1 lần chạy. Số INSERT / UPDATE lấy từ
 -- MERGE ... RETURNING merge_action() (PostgreSQL 17 - D8).
+-- Cột rows_deleted (số đơn bị đánh dấu xóa) thêm ở 04_soft_delete.sql.
 CREATE TABLE IF NOT EXISTS etl_log.table_load (
     run_id         BIGINT       NOT NULL,
     table_name     VARCHAR(30)  NOT NULL,                      -- tên bảng staging, VD orders

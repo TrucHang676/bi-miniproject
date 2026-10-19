@@ -1,0 +1,319 @@
+# Quy tắc xây dựng pipeline Mage – Full Load, Incremental Load, kiểm tra chất lượng, ghi log, xóa đơn
+
+> **Dành cho người làm BS-21 → BS-24.** Đọc **Phần A** để hiểu việc cần làm và một lần chạy diễn ra thế nào; mở **Phần B** khi bắt tay viết code.
+> Quy tắc gom từ: [decisions.md](decisions.md) (D1–D8 + bảng cuối), [data/batches/README.md](../data/batches/README.md) (định dạng file batch), [`sql/init/`](../sql/init/) (bảng đích), [architecture.md](architecture.md) (vị trí của Mage trong hệ thống).
+> Nếu thấy mâu thuẫn: `decisions.md` là gốc – báo nhóm để sửa file này.
+> **[Bắt buộc]** = nhóm đã chốt, muốn làm khác phải bàn lại · **[Gợi ý]** = cách đề xuất, làm khác được nếu ra cùng kết quả.
+> Cập nhật: 19/10/2026.
+
+---
+
+# Phần A – Nhiệm vụ
+
+## A1. Pipeline Mage nằm ở đâu
+
+Mage là khâu **Stage ETL** của kiến trúc Single DDS: lấy file batch, kiểm tra, nạp vào `staging`, ghi lại mọi chuyện đã xảy ra. Làm sạch / dựng `dds` là việc của dbt, **không** làm trong Mage.
+
+```
+data/batches/<batch>/*.csv ──► Mage ──► staging (8 bảng)         ──► dbt ──► dds
+     + manifest.csv             │
+                                ├──► etl_log  (nhật ký: lần chạy, từng bảng, từng phép kiểm tra)
+                                └──► dq       (chính các dòng dữ liệu bị loại)
+```
+
+**Đã có sẵn – không phải làm:**
+
+| Thứ | Ở đâu | Ghi chú |
+|---|---|---|
+| 10 batch + `manifest.csv` | `data/batches/` – sinh bằng `docker compose exec mage python scripts/split_batches.py` | Đã tự kiểm tra 9/9 PASS. Định dạng: [data/batches/README.md](../data/batches/README.md) |
+| Bảng đích | `staging.*` (8 bảng), `etl_log.pipeline_run` / `table_load` / `quality_check`, `dq.rejected_rows` | Tạo bởi `sql/init/00` → `04`; kiểm tra bằng `sql/checks/00_check_init.sql` (19 dòng PASS) |
+| Môi trường | Container `olist-mage` (Mage 0.9.79, pandas 1.5.3, psycopg2, sqlalchemy) | Trong container, repo nằm ở `/home/src` → batch ở `/home/src/data/batches/` |
+| Project Mage | `mage/olist_etl/` (còn trống) | `io_config.yaml` profile `default` đã nối Postgres qua biến môi trường |
+
+## A2. Bốn task và kết quả cần nộp
+
+| Task | Làm gì | Kết quả nộp | Quy tắc |
+|---|---|---|---|
+| **BS-22 Full Load** | Pipeline `full_load`: nạp batch `FULL` (8 file) vào `staging` | Chạy 1 lần → `staging` có đúng số dòng của dòng `seq = 1` trong manifest | B2.1, B3, B4 |
+| **BS-21 Kiểm tra chất lượng** | Bước kiểm tra **dùng chung** cho 2 pipeline: đủ file, đúng cột, khóa không rỗng / không trùng; tách dòng hỏng ra `dq` | Mỗi lần chạy có đủ dòng trong `etl_log.quality_check`; dòng hỏng nằm trong `dq.rejected_rows` | B4.2, B4.3 |
+| **BS-24 Ghi log & xử lý lỗi** | Ghi `etl_log` ở **mọi** lần chạy; lỗi thì đánh dấu `FAILED` và không để batch bị tính là đã nạp | `etl_log` đủ 3 bảng; demo được 1 lần chạy lỗi rồi chạy lại thành công | B5, B2.4 |
+| **BS-23 Incremental Load** | Pipeline `incremental_load`: mỗi lần chạy tự tìm batch kế tiếp bằng LSET / CET, nạp bằng MERGE; xử lý file xóa đơn | Chạy 9 lần nạp hết; chạy lại không sinh trùng; demo xóa đơn | B2.2–B2.4, B6 |
+
+**Thứ tự nên làm [Gợi ý]:** BS-22 (dựng khung đơn giản nhất) → BS-21 (chèn bước kiểm tra) → BS-24 (ghi log – Incremental cần log để biết LSET) → BS-23 (dùng lại toàn bộ khung + thêm LSET / CET + xóa đơn).
+Bốn task **dùng chung code**: viết một lần các hàm đọc file, kiểm tra, MERGE, ghi log (VD trong `mage/olist_etl/utils/`), hai pipeline cùng gọi.
+
+## A3. Một lần chạy diễn ra thế nào – và ghi log lúc nào
+
+Ví dụ lần chạy Incremental nạp batch `2018-01` (Full Load giống hệt, chỉ khác bước 1 và có thêm TRUNCATE – B2.1):
+
+| # | Việc làm | Ghi vào `etl_log` / `dq` ngay lúc đó |
+|---|---|---|
+| 1 | **Tìm batch:** lấy LSET = `cet` của lần chạy `SUCCESS` gần nhất → tra `manifest.csv` dòng có `lset` = LSET → được `batch_id = 2018-01`, CET = `2018-02-01` | Chưa ghi gì (chỉ đọc) |
+| 2 | **Bắt đầu lần chạy** | `pipeline_run`: INSERT 1 dòng `status = RUNNING`, `batch_id`, `lset`, `cet`, `started_at` → lấy `run_id` dùng cho mọi dòng log sau |
+| 3 | **Kiểm tra cấp batch:** đủ 5 file chưa | `quality_check`: 1 dòng `file_exists`. Thiếu file → FAIL → nhảy tới bước 7 |
+| 4 | **Từng bảng** theo thứ tự `customers` → `orders` → `order_items`, `order_payments` → `order_reviews` (B3): | |
+| 4a | Đọc file | `table_load`: INSERT 1 dòng `status = RUNNING`, `rows_source` = số dòng đọc được |
+| 4b | Kiểm tra cột, khóa | `quality_check`: 1 dòng / phép kiểm tra, **kể cả khi PASS** |
+| 4c | Tách dòng hỏng | `dq.rejected_rows`: 1 dòng / dòng bị loại (sau khi đã có dòng `quality_check` tương ứng) |
+| 4d | MERGE dòng sạch vào `staging` | `table_load`: UPDATE `rows_inserted`, `rows_updated`, `rows_rejected`, `status = SUCCESS`, `finished_at` |
+| 5 | **Xóa mềm** nếu batch có `deleted_orders.csv` (B6) | `quality_check` + `dq` cho file xóa; `table_load` dòng `orders`: `rows_deleted` |
+| 6 | **Kết thúc thành công** | `pipeline_run`: UPDATE `status = SUCCESS`, `finished_at` → `cet` của dòng này thành **LSET của lần sau** |
+| 7 | **Lỗi ở bất kỳ bước nào** | `table_load` đang chạy (nếu có): `FAILED` + `error_message`; `pipeline_run`: `FAILED` + `error_message`, `finished_at`. LSET **không** đổi → lần sau nạp lại đúng batch này |
+
+Vì sao ghi `RUNNING` **trước** khi làm: nếu pipeline chết giữa chừng (tắt máy, container dừng), dòng kẹt ở `RUNNING` là dấu vết cho biết có lần chạy dở dang (B2.4).
+
+## A4. Khi nào coi là xong
+Chạy được hết các kịch bản ở **B8** và số liệu khớp `manifest.csv`.
+
+---
+
+# Phần B – Quy tắc chi tiết
+
+## B1. Đầu vào và đầu ra [Bắt buộc]
+
+| | Nội dung |
+|---|---|
+| **Đầu vào** | `data/batches/<batch_id>/<bảng>.csv` + `data/batches/manifest.csv` + (tùy chọn) `deleted_orders.csv` trong thư mục batch. Định dạng: [data/batches/README.md](../data/batches/README.md) |
+| **Đầu ra** | `staging.*` · `etl_log.pipeline_run`, `table_load`, `quality_check` · `dq.rejected_rows` |
+| **Không đụng tới** | `dds` (dbt làm), file trong `data/raw/` |
+
+`manifest.csv` có 10 dòng theo thứ tự chạy (`seq` 1 → 10). Cột dùng cho pipeline: `batch_id`, `load_type`, `lset`, `cet` (trống = không giới hạn: `FULL` không có `lset`, `2018-09+` không có `cet`), số dòng từng file, `orders_new`, `orders_resent`.
+
+## B2. Hai pipeline
+
+### B2.1 Full Load – `full_load` [Bắt buộc]
+- Nạp batch `FULL` (`seq = 1`): 8 file. Ghi `pipeline_run` với `load_type = 'FULL'`, `batch_id = 'FULL'`, `lset = NULL`, `cet = '2018-01-01 00:00:00'`.
+- **Mỗi lần chạy Full Load = làm lại từ đầu:** `TRUNCATE` cả 8 bảng `staging` rồi mới nạp `FULL`. **Không** xóa `etl_log`, `dq` (là lịch sử).
+  Lý do: nếu chỉ MERGE `FULL` lên `staging` đã có các batch sau, đơn sẽ bị đưa về trạng thái cũ (VD đơn đã `delivered` ở batch `2018-02` bị trả về `shipped` như trong `FULL`).
+- Sau một lần Full Load làm lại, Incremental tự chạy lại từ `2018-01` (vì lần SUCCESS gần nhất giờ là `FULL` – B2.2), và dbt phải chạy `dbt build --full-refresh` để dựng lại các model `incremental`.
+
+### B2.2 Incremental Load – `incremental_load` [Bắt buộc]
+Làm đúng 4 bước của Bài 4 (slide 49, control flow slide 67):
+
+| Bước (bài giảng) | Làm gì |
+|---|---|
+| **Get LSET** – lấy từ metadata | `SELECT batch_id, cet FROM etl_log.pipeline_run WHERE status = 'SUCCESS' ORDER BY run_id DESC LIMIT 1`<br>• Không có dòng nào → **dừng**, báo "chưa chạy Full Load".<br>• `cet` IS NULL (lần gần nhất là `2018-09+`) → **dừng**, báo "đã nạp hết batch", không ghi `pipeline_run`.<br>• Còn lại: LSET = `cet` đó |
+| **Set CET** – xác định khoảng nạp | Tra `manifest.csv` dòng có `lset` = LSET → lấy `batch_id` và CET = `cet` của dòng đó |
+| **Extract + Load** | Nạp thư mục batch đó: 5 file (B3, B4) + xóa mềm nếu có `deleted_orders.csv` (B6) |
+| **Set LSET** – ghi CET làm LSET mới | `pipeline_run` → `SUCCESS` (dòng này đã lưu `cet`, nên lần sau tự đọc ra làm LSET). Lỗi → `FAILED` → LSET giữ nguyên |
+
+- Mỗi lần chạy nạp **đúng 1 batch**. Nạp hết = chạy 9 lần (Seminar 3 sẽ gắn trigger lịch).
+- LSET / CET là **thời gian mô phỏng** = mốc cắt batch, không phải giờ chạy thật (chốt 17/10/2026). Giờ chạy thật ghi ở `started_at`, `finished_at`.
+
+### B2.3 Chạy lại [Bắt buộc phần giới hạn, Gợi ý phần cách làm]
+- Đề yêu cầu "cho phép chạy lại pipeline và kiểm tra kết quả". **Chỉ cho chạy lại batch của lần SUCCESS gần nhất** – an toàn vì MERGE theo khóa chính: không sinh trùng, ra 0 INSERT và 0 UPDATE nếu làm theo B4.4.
+- **Không** chạy lại một batch cũ hơn khi đã nạp các batch sau: trạng thái đơn sẽ bị ghi đè bằng trạng thái cũ. Muốn quay về → chạy lại Full Load (B2.1) rồi Incremental từ đầu.
+- [Gợi ý] Thêm biến pipeline `rerun_last` (mặc định `false`): `true` thì bỏ qua bước tìm batch, nạp lại `batch_id` của lần SUCCESS gần nhất, ghi một dòng `pipeline_run` mới với cùng `lset`, `cet`.
+
+### B2.4 Xử lý lỗi [Bắt buộc]
+- Lỗi ở đâu cũng phải kết thúc bằng `pipeline_run.status = 'FAILED'` + `error_message` (thông báo lỗi ngắn gọn) + `finished_at`.
+- **LSET chỉ tiến khi SUCCESS.** Nạp lại một batch đã lỗi dở dang phải ra cùng kết quả cuối với nạp 1 lần trọn vẹn – MERGE theo khóa chính đảm bảo điều này. (Lưu ý: khi đó số `rows_inserted` của lần chạy lại sẽ nhỏ hơn manifest vì một phần đã vào ở lần lỗi – đúng, không phải lỗi.)
+- Không chạy dbt khi lần chạy gần nhất là `FAILED` (staging có thể đang dở batch).
+- [Gợi ý] Đầu mỗi lần chạy: đổi các dòng `pipeline_run` còn `RUNNING` (lần chạy cũ bị ngắt) thành `FAILED` với `error_message = 'Bị ngắt giữa chừng'`.
+- [Gợi ý] Gói mọi thay đổi `staging` của 1 batch trong **một transaction** (lỗi → ROLLBACK, staging như chưa chạy), còn `etl_log` / `dq` ghi bằng **kết nối riêng, autocommit** để lỗi vẫn còn log. Không bắt buộc vì quy tắc "LSET chỉ tiến khi SUCCESS + MERGE chạy lại được" đã đủ đúng; transaction chỉ giúp staging không dở dang trong lúc chờ chạy lại.
+
+## B3. Thứ tự nạp bảng trong một batch [Bắt buộc] (D5)
+
+```
+(chỉ FULL:) products, sellers, category_translation
+          → customers → orders → order_items, order_payments → order_reviews
+          → (chỉ Incremental, nếu có file:) xóa mềm theo deleted_orders.csv
+```
+Bảng cha trước bảng con. Xóa mềm làm **sau cùng** để nếu đơn bị xóa cũng nằm trong `orders.csv` của batch đó thì việc xóa vẫn thắng.
+
+| Bảng | Khóa chính (D1) – cột MERGE `ON` |
+|---|---|
+| `orders` | `order_id` |
+| `order_items` | `order_id`, `order_item_id` |
+| `order_payments` | `order_id`, `payment_sequential` |
+| `order_reviews` | `review_id`, `order_id` |
+| `customers` | `customer_id` |
+| `sellers` / `products` / `category_translation` | `seller_id` / `product_id` / `product_category_name` |
+
+## B4. Nạp một bảng
+
+### B4.1 Đọc file [Bắt buộc]
+- `pandas.read_csv(path, dtype=str, keep_default_na=False, na_values=[''])` – mọi cột đọc dạng **chuỗi** (giữ số 0 đầu của zip `01037`), **chỉ ô trống** mới thành NULL (tránh pandas tự biến chữ `NA` thành NULL).
+- Dùng CSV parser chuẩn: bình luận review có xuống dòng **bên trong ô** – không đọc theo từng dòng.
+- `rows_source` = số dòng dữ liệu (không tính tiêu đề).
+
+### B4.2 Kiểm tra chất lượng – BS-21
+
+Chạy **theo thứ tự**; phép sau chỉ xét các dòng còn lại sau phép trước. Mỗi phép ghi **1 dòng** `quality_check` (kể cả PASS), `failed_rows` = số dòng bị phép đó loại.
+
+| `check_name` | Kiểm tra | Không đạt thì | `status` | |
+|---|---|---|---|---|
+| `file_exists` | Đủ file của batch (`FULL`: 8, còn lại: 5) – ghi với `table_name` = tên file thiếu | Dừng cả batch | `FAIL` | Bắt buộc |
+| `columns_match` | Dòng tiêu đề đúng tên, đúng thứ tự cột như [README mục 4](../data/batches/README.md) (cột gốc + `batch_id`) | Dừng cả batch | `FAIL` | Bắt buộc |
+| `batch_id_match` | Mọi dòng có `batch_id` = batch đang nạp | Dừng cả batch | `FAIL` | Bắt buộc |
+| `not_null_key` | Cột khóa chính (B3) không rỗng | Loại dòng → `dq` | `WARN` | Bắt buộc |
+| `duplicate_key` | Khóa không lặp lại trong file | Loại **mọi** dòng mang khóa trùng (không đoán dòng nào đúng) → `dq`. Lý do: MERGE báo lỗi nếu một khóa xuất hiện 2 lần trong nguồn | `WARN` | Bắt buộc |
+| `type_cast` | Giá trị ép được sang kiểu của bảng staging (TIMESTAMP, DATE, NUMERIC, INT, SMALLINT) | Loại dòng → `dq` | `WARN` | Gợi ý |
+| `row_count_match` | `rows_source` = số dòng ghi trong manifest | Vẫn nạp, ghi chú `detail` | `WARN` | Gợi ý |
+
+- `status`: `PASS` = 0 dòng lỗi · `WARN` = có dòng bị loại nhưng bảng vẫn nạp · `FAIL` = dừng (ràng buộc `CHECK` trong `02_etl_log.sql` chỉ nhận 3 giá trị này).
+- Dữ liệu Olist sạch về khóa (D1) nên chạy thật thường **toàn PASS**. Muốn demo WARN / FAIL: sửa **bản sao** của một file batch (xóa trống 1 ô khóa, xóa 1 cột) rồi chạy.
+
+### B4.3 Lưu dòng bị loại vào `dq` [Bắt buộc]
+- Ghi dòng `quality_check` **trước**, rồi mới ghi `dq.rejected_rows` – bảng này có khóa ngoại (`run_id`, `table_name`, `check_name`) → `etl_log.quality_check`, làm ngược sẽ bị chặn.
+- Mỗi dòng bị loại ghi **1 lần**, theo phép kiểm tra đầu tiên nó không qua:
+
+| Cột | Giá trị |
+|---|---|
+| `run_id`, `table_name`, `check_name` | Lần chạy, bảng, phép kiểm tra |
+| `source_row` | Bản ghi thứ mấy trong file (1 = bản ghi đầu sau tiêu đề) |
+| `row_data` | Nguyên dòng gốc dạng JSON `{"tên cột": "giá trị"}`, giá trị để dạng chuỗi như trong file |
+| `reason` | Mô tả ngắn, VD `order_id rỗng` |
+
+- Đối soát: `table_load.rows_rejected` = số dòng `dq.rejected_rows` cùng `run_id` + `table_name` = tổng `failed_rows` của các phép cấp dòng.
+
+### B4.4 MERGE vào staging [Bắt buộc]
+- Đưa dòng sạch vào **bảng tạm** (VD `CREATE TEMP TABLE tmp_<bảng>` toàn cột TEXT rồi `COPY ... FROM STDIN WITH CSV` qua psycopg2 – ô trống tự thành NULL), sau đó MERGE theo khóa chính, ép kiểu trong câu `USING`.
+- **Không** dùng `WHEN NOT MATCHED BY SOURCE ... DELETE`: mỗi batch chỉ là một phần dữ liệu, dòng vắng mặt không có nghĩa là bị xóa (D4). Xóa đi đường riêng (B6).
+- `batch_id` trong file → cột `_batch_id`; `_loaded_at = now()` – đặt cả khi INSERT lẫn UPDATE.
+- **Không** cập nhật `_is_deleted`, `_deleted_at` trong MERGE: đơn đã xóa vẫn giữ trạng thái xóa dù batch sau gửi lại.
+- [Khuyến nghị] Chỉ UPDATE khi dữ liệu **thật sự khác** (`IS DISTINCT FROM`): `rows_updated` = số dòng đổi thật, chạy lại batch → 0 / 0, dễ giải thích khi demo.
+- Đếm INSERT / UPDATE bằng `RETURNING merge_action()` (PostgreSQL 17). Câu mẫu cho `orders` – **đã chạy thử trên Postgres của đồ án** (ra đúng 2 INSERT, chạy lại 0 / 0); bảng khác viết theo cùng khuôn:
+
+```sql
+WITH m AS (
+  MERGE INTO staging.orders AS t
+  USING (
+    SELECT order_id, customer_id, order_status,
+           order_purchase_timestamp::timestamp       AS order_purchase_timestamp,
+           order_approved_at::timestamp              AS order_approved_at,
+           order_delivered_carrier_date::timestamp   AS order_delivered_carrier_date,
+           order_delivered_customer_date::timestamp  AS order_delivered_customer_date,
+           order_estimated_delivery_date::date       AS order_estimated_delivery_date,  -- '2017-10-18 00:00:00' -> 2017-10-18
+           batch_id                                  AS _batch_id
+    FROM tmp_orders
+  ) AS s
+  ON t.order_id = s.order_id
+  WHEN MATCHED AND (t.customer_id, t.order_status, t.order_purchase_timestamp, t.order_approved_at,
+                    t.order_delivered_carrier_date, t.order_delivered_customer_date, t.order_estimated_delivery_date)
+       IS DISTINCT FROM
+                   (s.customer_id, s.order_status, s.order_purchase_timestamp, s.order_approved_at,
+                    s.order_delivered_carrier_date, s.order_delivered_customer_date, s.order_estimated_delivery_date)
+  THEN UPDATE SET customer_id = s.customer_id, order_status = s.order_status,
+                  order_purchase_timestamp = s.order_purchase_timestamp, order_approved_at = s.order_approved_at,
+                  order_delivered_carrier_date = s.order_delivered_carrier_date,
+                  order_delivered_customer_date = s.order_delivered_customer_date,
+                  order_estimated_delivery_date = s.order_estimated_delivery_date,
+                  _batch_id = s._batch_id, _loaded_at = now()
+  WHEN NOT MATCHED THEN
+    INSERT (order_id, customer_id, order_status, order_purchase_timestamp, order_approved_at,
+            order_delivered_carrier_date, order_delivered_customer_date, order_estimated_delivery_date, _batch_id)
+    VALUES (s.order_id, s.customer_id, s.order_status, s.order_purchase_timestamp, s.order_approved_at,
+            s.order_delivered_carrier_date, s.order_delivered_customer_date, s.order_estimated_delivery_date, s._batch_id)
+  RETURNING merge_action() AS action
+)
+SELECT count(*) FILTER (WHERE action = 'INSERT') AS rows_inserted,
+       count(*) FILTER (WHERE action = 'UPDATE') AS rows_updated
+FROM m;
+```
+
+## B5. Ghi log – BS-24 [Bắt buộc]
+
+Thời điểm ghi: xem bảng ở **A3**. Ý nghĩa từng cột:
+
+| Bảng | Cột | Ghi gì |
+|---|---|---|
+| `pipeline_run` | `pipeline_name` | `full_load` / `incremental_load` (= tên pipeline Mage) |
+| | `load_type` | `FULL` / `INCREMENTAL` |
+| | `batch_id`, `lset`, `cet` | Lấy từ manifest. `FULL`: `lset` NULL; `2018-09+`: `cet` NULL |
+| | `triggered_by` | `manual` (chạy tay) / `schedule` (trigger lịch – Seminar 3) |
+| | `started_at`, `finished_at` | Giờ chạy thật (DB đã đặt giờ Việt Nam – `now()` là đủ) |
+| | `status`, `error_message` | `RUNNING` → `SUCCESS` / `FAILED`; lỗi thì ghi thông báo ngắn |
+| `table_load` | `rows_source` | Số dòng đọc từ file |
+| | `rows_inserted`, `rows_updated` | Từ `merge_action()` (B4.4) |
+| | `rows_rejected` | Số dòng bị loại (= số dòng `dq.rejected_rows` của bảng) |
+| | `rows_deleted` | Chỉ dòng `orders`: số đơn bị đánh dấu xóa (B6); bảng khác = 0 |
+| `quality_check` | `check_name`, `failed_rows`, `status`, `detail` | Mỗi phép kiểm tra 1 dòng (B4.2); `detail` VD `'thiếu cột price'` |
+
+**Số liệu mong đợi** khi nạp lần đầu đúng thứ tự (đối chiếu với `manifest.csv`): `rows_source` = số dòng trong manifest; `orders`: `rows_inserted` = `orders_new`, `rows_updated` = `orders_resent`; bảng khác: `rows_inserted` = số dòng, `rows_updated` = 0; `rows_rejected` = 0, `rows_deleted` = 0 (dữ liệu sạch, không demo xóa).
+
+## B6. Xóa đơn (soft delete) [Bắt buộc] – chốt 19/10/2026
+
+Vì sao cần: Incremental chỉ thấy dòng **có mặt** trong batch nên không tự biết đơn nào bị xóa ở nguồn (Bài 4, slide 52–53). Nhóm chọn cách **nguồn báo xóa + kho xóa mềm**.
+
+- **Đầu vào:** file tùy chọn `deleted_orders.csv` trong thư mục batch Incremental – cột `order_id`, `deleted_at` (`YYYY-MM-DD HH:MM:SS`, thời gian mô phỏng), `batch_id`. Không có file = batch không có đơn bị xóa. `split_batches.py` **không** sinh file này (Olist không có nghiệp vụ xóa – đơn hủy là đổi trạng thái `canceled`) → chỉ tạo tay khi demo. Ở batch `FULL` không xét.
+- **Kiểm tra** (ghi `quality_check` / `dq` với `table_name = 'deleted_orders'`):
+
+  | `check_name` | Kiểm tra | Không đạt |
+  |---|---|---|
+  | `columns_match` | Đúng 3 cột theo thứ tự trên | `FAIL` – dừng cả batch |
+  | `not_null_key` | `order_id` không rỗng | `WARN` – loại dòng → `dq` |
+  | `key_exists` | Đơn có trong `staging.orders` và **chưa** bị xóa | `WARN` – loại dòng → `dq` |
+  | `in_window` | `LSET ≤ deleted_at < CET` (nguồn không thể báo xóa ở tương lai) | `WARN` – loại dòng → `dq` |
+
+- **Xử lý** (sau khi MERGE xong mọi bảng của batch – B3): đưa các dòng hợp lệ vào bảng tạm `tmp_deleted_orders` rồi
+
+  ```sql
+  UPDATE staging.orders AS o
+  SET _is_deleted = TRUE, _deleted_at = d.deleted_at::timestamp,
+      _batch_id = d.batch_id, _loaded_at = now()
+  FROM tmp_deleted_orders AS d
+  WHERE o.order_id = d.order_id AND NOT o._is_deleted;   -- số dòng UPDATE -> table_load(orders).rows_deleted
+  ```
+  (đã chạy thử: lần 1 → 1 dòng, chạy lại → 0 dòng).
+- **Không** xóa hẳn dòng, **không** đụng bảng con (`order_items`, `order_payments`, `order_reviews`, `customers`): dbt tự bỏ chúng qua `order_id` (R10 trong [source_to_target_mapping.md](source_to_target_mapping.md)).
+- **Demo** (VD đã nạp tới `2018-02`):
+  1. Chọn 1 đơn đã có: `SELECT order_id FROM staging.orders WHERE _batch_id = 'FULL' AND NOT _is_deleted LIMIT 1;`
+  2. Tạo `data/batches/2018-03/deleted_orders.csv`:
+     ```
+     order_id,deleted_at,batch_id
+     <order_id vừa chọn>,2018-03-10 09:00:00,2018-03
+     ```
+  3. Chạy Incremental → `table_load` dòng `orders`: `rows_deleted = 1`; trong `staging` dòng vẫn còn, `_is_deleted = TRUE`.
+  4. Chạy dbt → đơn biến mất khỏi các fact và dashboard.
+  - ⚠ Chạy lại `split_batches.py` sẽ **xóa file demo** (script dựng lại thư mục batch).
+  - ⚠ Sau khi demo xóa, đối soát "staging khớp `data/raw/`" sau batch cuối sẽ lệch đúng số đơn đã xóa. Muốn sạch: chạy lại Full Load rồi Incremental từ đầu.
+
+## B7. Gợi ý cấu trúc pipeline trong Mage [Gợi ý]
+
+```
+mage/olist_etl/
+├── pipelines/
+│   ├── full_load
+│   │   ├── start_full_run     (data_loader)    đổi RUNNING cũ → FAILED; ghi pipeline_run RUNNING (batch FULL)
+│   │   ├── load_batch         (data_exporter)  B4 cho 8 bảng theo thứ tự B3 (TRUNCATE trước), ghi table_load / quality_check / dq
+│   │   └── finish_run         (callback)       success → SUCCESS · failure → FAILED + error_message
+│   └── incremental_load
+│       ├── get_lset_cet       (data_loader)    Get LSET (etl_log) + Set CET (manifest); ghi pipeline_run RUNNING
+│       ├── load_batch         (data_exporter)  dùng chung code với full_load + xóa mềm (B6)
+│       └── finish_run         (callback)       Set LSET = ghi SUCCESS
+└── utils/                                      hàm dùng chung: đọc file, kiểm tra, MERGE, ghi log
+```
+- Đặt tên block theo các bước của slide 67 (**Set CET → Get LSET → Extract → Set LSET**) để khi demo nhìn là thấy khớp bài giảng.
+- Giữa các block chỉ truyền thông tin nhỏ (`run_id`, `batch_id`, `lset`, `cet`); việc đọc – kiểm tra – MERGE từng bảng làm trong vòng lặp bên trong 1 block.
+- Mage 0.9.79 có **callback block**: hàm gắn `@callback('success')` / `@callback('failure')`, lỗi được truyền vào `kwargs['__error']` – tiện để ghi `SUCCESS` / `FAILED`. Cách đơn giản hơn: `try / except` trong block, ghi `FAILED` rồi `raise` lại lỗi.
+- Code trong `utils/` import theo tên project, VD `from olist_etl.utils.loader import merge_table` (thử lại trong Mage nếu báo lỗi import).
+- Kết nối DB: dùng profile `default` trong `io_config.yaml` hoặc đọc thẳng biến môi trường `POSTGRES_*` (container đã có từ `.env`).
+
+## B8. Kịch bản kiểm thử – tiêu chí hoàn thành
+
+| # | Kịch bản | Kết quả mong đợi |
+|---|---|---|
+| 1 | Full Load lần đầu | `pipeline_run` SUCCESS; `table_load` khớp manifest `seq = 1`: `orders` 45.430 INSERT, `order_items` 51.234, `order_payments` 47.871, `order_reviews` 42.381, `customers` 45.430, `sellers` 3.095, `products` 32.951, `category_translation` 71; `quality_check` toàn PASS |
+| 2 | Incremental lần 1 | Tự chọn `2018-01`; `orders` 7.269 INSERT + 2.456 UPDATE; `order_reviews` 6.272 INSERT; `order_items` 8.208; `order_payments` 7.563; `customers` 7.269 |
+| 3 | Chạy lại batch vừa nạp (B2.3) | 0 INSERT, 0 UPDATE ở mọi bảng; LSET không đổi |
+| 4 | Lỗi: sửa bản sao 1 file batch cho thiếu cột rồi chạy | `quality_check` `columns_match` FAIL; `pipeline_run` FAILED; LSET không đổi. Trả file về → chạy lại → nạp đúng batch đó |
+| 5 | Dòng hỏng: để trống 1 ô khóa | `not_null_key` WARN, `failed_rows = 1`; 1 dòng `dq.rejected_rows`; `rows_rejected = 1`; bảng vẫn nạp |
+| 6 | Xóa đơn (B6) | `rows_deleted = 1`; dòng còn trong staging với `_is_deleted = TRUE` |
+| 7 | Chạy hết 10 batch | Số dòng staging: `orders` 99.441 · `order_items` 112.650 · `order_payments` 103.886 · `order_reviews` 99.224 · `customers` 99.441 · `sellers` 3.095 · `products` 32.951 · `category_translation` 71 (khớp `data/raw/`, D8) |
+| 8 | Incremental khi đã nạp hết | Dừng, báo "đã nạp hết batch"; không ghi `pipeline_run` |
+| 9 | Full Load làm lại sau khi đã chạy vài batch | Staging chỉ còn dữ liệu `FULL`; Incremental kế tiếp chọn lại `2018-01` |
+
+## B9. Đối chiếu bài giảng (Bài 4 – ETL)
+
+| Slide | Nội dung | Đồ án |
+|---|---|---|
+| 46–47 | Incremental extract dựa vào cột thời gian đáng tin | `order_purchase_timestamp` – không NULL ở mọi đơn (D4) |
+| 48–49, 64–67 | LSET / CET lưu ở metadata, 4 bước Get LSET → Set CET → Extract → Set LSET | B2.2; metadata = `etl_log.pipeline_run` |
+| 50 | Dữ liệu đến muộn | Đơn cũ có mốc mới được gửi lại ở batch sau (phương án B, D8) – không cần lùi LSET |
+| 51 | Dùng ID tăng dần (LSEI) | Không dùng được: `order_id` là mã hash |
+| 52 | Chịu lỗi: không sót, không trùng | LSET chỉ tiến khi SUCCESS + MERGE theo khóa chính (B2.4) |
+| 53 | Xử lý xóa | Soft delete theo file `deleted_orders.csv` (B6) |
+| 61 | Stage giữ cấu trúc như nguồn; nên **không** đặt ràng buộc để bắt được "bad data" | Giữ cấu trúc như CSV. Staging **có** khóa chính vì MERGE cần khóa duy nhất; "bad data" không bị mất vì đã chặn và **lưu ở `dq`** trước khi vào staging |
+| 62–63 | 3 cách tổ chức bảng stage | Cách 1: giữ dữ liệu các lần trước trong cùng bảng, có cột thời điểm nạp (`_loaded_at`, `_batch_id`) |
+| 68–69 | Data firewall, DQ database | Bước kiểm tra B4.2 (trước staging) + dbt test (sau biến đổi); dòng lỗi lưu ở `dq` |

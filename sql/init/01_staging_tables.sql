@@ -6,6 +6,7 @@
 --   * NOT NULL chỉ đặt ở cột khóa / mã và cột luôn có giá trị; cột còn lại để NULL được
 --     vì batch mô phỏng (D8) cố ý để trống các mốc thời gian chưa xảy ra
 --   * 2 cột kỹ thuật cuối mỗi bảng (D8): _batch_id = batch nạp gần nhất, _loaded_at = lúc nạp
+--   * staging.orders có thêm _is_deleted, _deleted_at (xóa mềm) - thêm ở 04_soft_delete.sql
 --   * Chạy lại nhiều lần vẫn an toàn (IF NOT EXISTS), không xóa dữ liệu có sẵn
 -- =====================================================================
 
