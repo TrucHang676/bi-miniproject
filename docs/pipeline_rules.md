@@ -1,6 +1,6 @@
 # Quy tắc xây dựng pipeline Mage – Full Load, Incremental Load, kiểm tra chất lượng, ghi log, xóa đơn
 
-> **Dành cho người làm BS-21 → BS-24.** Đọc **Phần A** để hiểu việc cần làm và một lần chạy diễn ra thế nào; mở **Phần B** khi bắt tay viết code.
+> **Dành cho người làm BS-21 → BS-24.** Đọc **Phần A** để hiểu việc cần làm và một lần chạy diễn ra thế nào; mở **Phần B** khi bắt tay viết code; viết báo cáo (mục 6.1.2 → 6.1.6) theo **B10**.
 > Quy tắc gom từ: [decisions.md](decisions.md) (D1–D8 + bảng cuối), [data/batches/README.md](../data/batches/README.md) (định dạng file batch), [`sql/init/`](../sql/init/) (bảng đích), [architecture.md](architecture.md) (vị trí của Mage trong hệ thống).
 > Nếu thấy mâu thuẫn: `decisions.md` là gốc – báo nhóm để sửa file này.
 > **[Bắt buộc]** = nhóm đã chốt, muốn làm khác phải bàn lại · **[Gợi ý]** = cách đề xuất, làm khác được nếu ra cùng kết quả.
@@ -63,7 +63,7 @@ Ví dụ lần chạy Incremental nạp batch `2018-01` (Full Load giống hệt
 Vì sao ghi `RUNNING` **trước** khi làm: nếu pipeline chết giữa chừng (tắt máy, container dừng), dòng kẹt ở `RUNNING` là dấu vết cho biết có lần chạy dở dang (B2.4).
 
 ## A4. Khi nào coi là xong
-Chạy được hết các kịch bản ở **B8** và số liệu khớp `manifest.csv`.
+Chạy được hết các kịch bản ở **B8** và số liệu khớp `manifest.csv`. Viết báo cáo mục 6.1.2 → 6.1.6 và chụp ảnh demo theo **B10**.
 
 ---
 
@@ -317,3 +317,97 @@ mage/olist_etl/
 | 61 | Stage giữ cấu trúc như nguồn; nên **không** đặt ràng buộc để bắt được "bad data" | Giữ cấu trúc như CSV. Staging **có** khóa chính vì MERGE cần khóa duy nhất; "bad data" không bị mất vì đã chặn và **lưu ở `dq`** trước khi vào staging |
 | 62–63 | 3 cách tổ chức bảng stage | Cách 1: giữ dữ liệu các lần trước trong cùng bảng, có cột thời điểm nạp (`_loaded_at`, `_batch_id`) |
 | 68–69 | Data firewall, DQ database | Bước kiểm tra B4.2 (trước staging) + dbt test (sau biến đổi); dòng lỗi lưu ở `dq` |
+
+## B10. Gợi ý viết báo cáo – mục 6.1.2 → 6.1.6 [Gợi ý]
+
+Mục lục phần Yến trong báo cáo:
+
+```
+6.1.2. Pipeline Full Load
+6.1.3. Pipeline Incremental Load
+6.1.4. Kiểm tra cấu trúc và chất lượng dữ liệu đầu vào
+6.1.5. Ghi nhận trạng thái thực thi (ETL Log)
+6.1.6. Kịch bản demo
+   6.1.6.1 → 6.1.6.8 (B10.3)
+```
+
+### B10.1 Nguyên tắc chung
+- **6.1.2 – 6.1.5 viết thiết kế + cách làm**, **6.1.6 chứa bằng chứng chạy** (ảnh). Cuối mỗi mục 6.1.2 – 6.1.5 chỉ dẫn "kết quả chạy: mục 6.1.6.x", không lặp ảnh.
+- Mỗi quyết định kèm **lý do** (lấy từ cột *Lý do* trong [decisions.md](decisions.md) hoặc các đoạn "Lý do" trong file này) – cô hay hỏi "sao làm vậy" hơn là "làm gì".
+- Gắn với bài giảng: dùng đúng thuật ngữ LSET / CET, data firewall, Control + Audit, DQ database; bảng đối chiếu slide **B9** đưa được thẳng vào báo cáo.
+- Nói rõ batch là **dữ liệu mô phỏng** từ bộ Olist tĩnh (D8) – cách chia batch thuộc phần khác của báo cáo, ở đây chỉ dẫn lại.
+- **Không dán code dài**: trích đoạn ngắn (câu Get LSET, khung câu MERGE), code đầy đủ nằm trong repo `mage/olist_etl/`.
+- Số liệu lấy từ `manifest.csv` / B8, ghi đúng tên bảng, tên cột như trong database.
+
+### B10.2 Mục 6.1.2 – 6.1.5 viết gì
+
+| Mục | Ý chính (theo thứ tự nên viết) | Hình / bảng nên có | Lấy từ |
+|---|---|---|---|
+| **6.1.2 Pipeline Full Load** | (1) Mục đích: nạp lần đầu batch `FULL` (8 file, lịch sử đến hết 2017) vào `staging` · (2) Các block trong Mage và việc của từng block · (3) Quy trình: ghi `RUNNING` → TRUNCATE → kiểm tra → nạp 8 bảng → `SUCCESS` / `FAILED` · (4) Vì sao TRUNCATE (chạy lại Full Load sau các batch Incremental sẽ đưa đơn về trạng thái cũ) và vì sao **không** xóa `etl_log`, `dq` · (5) Thứ tự nạp cha → con · (6) Vì sao vẫn dùng MERGE khi kho trống (dùng chung code với Incremental) | Hình: cây block pipeline trong Mage · Bảng: thứ tự nạp + khóa chính từng bảng | A3, B2.1, B3 |
+| **6.1.3 Pipeline Incremental Load** | (1) Cột watermark `order_purchase_timestamp` và khoảng nửa mở `[LSET, CET)` · (2) **4 bước Get LSET → Set CET → Extract + Load → Set LSET** (slide 49, 67), kèm câu SQL Get LSET; LSET lưu ở `etl_log.pipeline_run` · (3) MERGE: chưa có thì INSERT, khác thật thì UPDATE (`IS DISTINCT FROM`), dòng vắng mặt giữ nguyên; đếm bằng `RETURNING merge_action()` · (4) Vì sao có UPDATE (đơn cũ được gửi lại – phương án B) · (5) Chạy lại: chỉ batch gần nhất, ra 0 / 0 (idempotent) · (6) Xử lý lỗi: LSET chỉ tiến khi SUCCESS · (7) **Tiểu mục xử lý đơn bị xóa ở nguồn**: vì sao Incremental không tự biết (slide 52–53), file `deleted_orders.csv`, xóa mềm, dbt lọc ở `stg_` | Hình: sơ đồ 4 bước LSET / CET (vẽ theo slide 67) · Bảng: chuỗi LSET → CET qua các batch (có 1 lần FAILED) · Đoạn trích khung câu MERGE | B2.2 – B2.4, B4.4, B6, D4, D8 |
+| **6.1.4 Kiểm tra cấu trúc và chất lượng dữ liệu đầu vào** | (1) Vị trí: **data firewall** trước `staging` (slide 68–69) · (2) 7 phép kiểm tra, mức `FAIL` (dừng batch) / `WARN` (loại dòng) / `PASS` · (3) Quy tắc: chạy theo thứ tự, mỗi dòng lỗi ghi 1 lần, trùng khóa thì loại mọi dòng mang khóa đó (lý do) · (4) DQ database: `dq.rejected_rows` giữ nguyên dòng lỗi + lý do; ghi `quality_check` trước rồi mới ghi `dq` · (5) Đối soát `rows_rejected` = số dòng `dq` = tổng `failed_rows` · (6) Khác dbt test chỗ nào | Bảng: 7 phép kiểm tra · Bảng: cấu trúc `dq.rejected_rows` | B4.1 – B4.3, [architecture.md](architecture.md) mục 3.3 – 4 |
+| **6.1.5 Ghi nhận trạng thái thực thi (ETL Log)** | (1) Vai trò **Control + Audit**: Audit = xem lại lần chạy (dashboard ETL ở Seminar 3), Control = Incremental đọc log để chọn batch · (2) 3 bảng `pipeline_run` → `table_load` → `quality_check`, nối bằng `run_id`; ý nghĩa từng cột · (3) **Ghi lúc nào**: ghi dần trong lúc chạy, `RUNNING` trước để lần chạy bị ngắt vẫn để lại dấu vết · (4) Xử lý lỗi: `FAILED` + `error_message`, không chạy dbt khi lần gần nhất `FAILED` · (5) Số liệu mong đợi đối chiếu với `manifest.csv` | Hình: sơ đồ quan hệ 3 bảng `etl_log` + `dq.rejected_rows` (ER diagram của DBeaver là đủ) · Bảng: "một lần chạy – ghi gì lúc nào" (A3) | A3, B2.4, B5, `sql/init/02_etl_log.sql`, `03_dq.sql` |
+
+### B10.3 Mục 6.1.6 – thứ tự demo
+Mỗi kịch bản B8 = 1 mục con. Xếp để chạy **liên tục** được; 2 kịch bản làm hỏng dữ liệu (6.1.6.7, 6.1.6.8) để **cuối** vì làm lệch đối soát với `data/raw/`.
+
+| Mục | Kịch bản | KB (B8) | Trạng thái trước khi chạy |
+|---|---|---|---|
+| 6.1.6.1 | Full Load lần đầu | 1 | `staging` trống, `etl_log` trống |
+| 6.1.6.2 | Incremental Load nạp batch kế tiếp | 2 | Đã Full Load |
+| 6.1.6.3 | Chạy lại batch vừa nạp | 3 | Đã nạp `2018-01` |
+| 6.1.6.4 | Batch lỗi cấu trúc và chạy lại | 4 | Đã nạp `2018-01`; làm hỏng 1 file của `2018-02` |
+| 6.1.6.5 | Nạp hết các batch và đối soát dữ liệu gốc | 7, 8 | Đã nạp `2018-02` |
+| 6.1.6.6 | Chạy lại Full Load từ đầu | 9 | Đã nạp hết 10 batch |
+| 6.1.6.7 | Loại dòng dữ liệu hỏng vào DQ database | 5 | Vừa Full Load lại; làm trống 1 khóa trong `2018-01/order_payments.csv` |
+| 6.1.6.8 | Xóa đơn hàng ở nguồn (xóa mềm) | 6 | Đã nạp `2018-01`; thêm `2018-02/deleted_orders.csv` |
+
+Mỗi mục con viết cùng khuôn: **Mục đích → Chuẩn bị (ảnh setup) → Thao tác → Kết quả mong đợi → Kết quả thực tế (ảnh kết quả) → Nhận xét**. Mở đầu 6.1.6 đặt 1 bảng tổng hợp: kịch bản / kết quả mong đợi / kết quả thực tế / đạt.
+
+### B10.4 Câu truy vấn dùng chung để chụp kết quả
+
+```sql
+-- Q1. Các lần chạy
+SELECT run_id, pipeline_name, batch_id, lset, cet, status, error_message, started_at, finished_at
+FROM etl_log.pipeline_run ORDER BY run_id;
+
+-- Q2. Từng bảng của 1 lần chạy
+SELECT table_name, rows_source, rows_inserted, rows_updated, rows_rejected, rows_deleted, status
+FROM etl_log.table_load WHERE run_id = :run_id ORDER BY started_at;
+
+-- Q3. Các phép kiểm tra của 1 lần chạy
+SELECT table_name, check_name, failed_rows, status, detail
+FROM etl_log.quality_check WHERE run_id = :run_id ORDER BY checked_at;
+
+-- Q4. Dòng bị loại của 1 lần chạy
+SELECT table_name, check_name, source_row, row_data, reason
+FROM dq.rejected_rows WHERE run_id = :run_id;
+
+-- Q5. Số dòng staging
+SELECT 'orders' AS bang, count(*) FROM staging.orders
+UNION ALL SELECT 'order_items', count(*) FROM staging.order_items
+UNION ALL SELECT 'order_payments', count(*) FROM staging.order_payments
+UNION ALL SELECT 'order_reviews', count(*) FROM staging.order_reviews
+UNION ALL SELECT 'customers', count(*) FROM staging.customers
+UNION ALL SELECT 'sellers', count(*) FROM staging.sellers
+UNION ALL SELECT 'products', count(*) FROM staging.products
+UNION ALL SELECT 'category_translation', count(*) FROM staging.category_translation;
+```
+
+### B10.5 Ảnh cần chụp cho từng mục 6.1.6.x
+
+| Mục | Ảnh setup (trước khi chạy) | Ảnh kết quả (sau khi chạy) |
+|---|---|---|
+| 6.1.6.1 | (1) Cây block pipeline `full_load` trong Mage · (2) thư mục `data/batches/FULL/` đủ 8 file · (3) Q5 ra toàn 0 | (1) Mage báo chạy thành công · (2) Q1: 1 dòng `FULL` SUCCESS · (3) Q2 đặt cạnh dòng `seq = 1` của `manifest.csv` · (4) Q3 toàn PASS |
+| 6.1.6.2 | (1) Q1: lần SUCCESS gần nhất `FULL`, `cet = 2018-01-01` · (2) dòng `seq = 2` của manifest | (1) Q1: dòng mới `2018-01`, `lset 2018-01-01`, `cet 2018-02-01` · (2) Q2: `orders` 7.269 INSERT + 2.456 UPDATE |
+| 6.1.6.3 | Biến `rerun_last = true` trong Mage (hoặc cách chạy lại nhóm chọn) | (1) Q1: 2 dòng `2018-01` cùng `lset`, `cet` · (2) Q2 của lần chạy lại: mọi bảng 0 / 0 |
+| 6.1.6.4 | (1) Sao lưu file gốc · (2) tiêu đề file `2018-02/order_payments.csv` đã xóa 1 cột | Lần lỗi: (1) Mage báo lỗi · (2) Q3: `columns_match` FAIL · (3) Q1: `2018-02` FAILED + `error_message`. Trả file về, chạy lại: (4) Q1: `2018-02` SUCCESS ngay sau dòng FAILED |
+| 6.1.6.5 | Q1 trước khi chạy các batch còn lại | (1) Q1: đủ 10 batch SUCCESS, `cet` của `2018-09+` trống · (2) Q5 đặt cạnh số dòng `data/raw/` (B8 KB7) · (3) chạy thêm 1 lần: Mage báo "đã nạp hết batch", Q1 không thêm dòng |
+| 6.1.6.6 | Q5 khi đang có đủ 10 batch | (1) Q5 = số dòng `FULL` · (2) Q1: dòng `full_load` mới SUCCESS · (3) chạy Incremental: Q1 chọn lại `2018-01` |
+| 6.1.6.7 | Dòng trong `2018-01/order_payments.csv` có `order_id` để trống | (1) Q3: `not_null_key` WARN, `failed_rows = 1` · (2) Q4: dòng bị loại kèm `row_data`, `reason` · (3) Q2: `order_payments` `rows_rejected = 1`, status SUCCESS |
+| 6.1.6.8 | (1) Câu chọn 1 đơn đã có (B6) · (2) nội dung `2018-02/deleted_orders.csv` | (1) Q2: `orders` `rows_deleted = 1` · (2) `SELECT order_id, _is_deleted, _deleted_at, _batch_id FROM staging.orders WHERE order_id = '...'` · (3) khi đã có dbt: đơn không còn trong `dds.fact_sales` |
+
+- Làm trống khóa ở **`order_payments`** (6.1.6.7) vì bảng này không có bảng con; làm trống `order_id` trong `orders.csv` sẽ khiến dòng con thành mồ côi, dbt test báo lỗi lan sang chỗ khác.
+- 6.1.6.4 và 6.1.6.7 sửa trực tiếp file trong thư mục batch: **sao lưu trước**, demo xong chép lại hoặc chạy lại `split_batches.py` (cũng xóa luôn `deleted_orders.csv` của 6.1.6.8).
+- Ảnh chụp từ DBeaver (lưới kết quả) và giao diện Mage; nên thấy được `run_id` và thời gian để người đọc nối các ảnh với nhau. Đặt tên ảnh theo mục, VD `6.1.6.4_setup.png`, `6.1.6.4_ketqua_1.png`.
+- Sau 6.1.6.7 / 6.1.6.8 muốn có dữ liệu sạch lại: chạy lại Full Load rồi Incremental từ đầu.
