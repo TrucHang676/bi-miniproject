@@ -18,11 +18,53 @@ Vấn đề hiện tại:
   và đơn giao trễ bị đánh giá thấp rõ rệt → cần biết **trễ ở đâu, do ai, ảnh hưởng thế nào**.
 - Tỉ lệ khách quay lại rất thấp (~2,3%) → tăng trưởng dựa gần như hoàn toàn vào khách mới, trải nghiệm lần mua đầu càng quan trọng.
 
-## 2. Mục tiêu phân tích
+## 2. Mục tiêu và yêu cầu phân tích
 
 1. **Theo dõi tình hình kinh doanh**: doanh thu, số đơn, giá trị đơn trung bình, khách hàng theo thời gian, khu vực, danh mục; so sánh cùng kỳ.
 2. **Chẩn đoán chất lượng giao hàng và mức độ hài lòng**: tìm khu vực, thời điểm, khâu gây giao trễ và lượng hóa tác động của giao trễ lên điểm đánh giá.
 3. **Tách nguyên nhân giao trễ và đánh giá người bán**: giao trễ do người bán bàn giao chậm hay do vận chuyển; người bán nào cần ưu tiên xử lý.
+
+**Yêu cầu phân tích** (báo cáo mục 3.1): phạm vi phân tích chung của hệ thống, gom theo 3 hoạt động trong vòng đời một đơn hàng
+– là cơ sở thiết kế kho dữ liệu ([dw_design.md](dw_design.md)). Câu hỏi Q1–Q6 ở mục 5 là các câu hỏi **cụ thể** chọn ra từ các yêu cầu này
+để trình bày trên dashboard, đồng thời dùng để kiểm chứng mô hình. Yêu cầu chỉ đặt trong giới hạn dữ liệu nguồn (mục 4.2):
+không có thanh toán, lợi nhuận, tọa độ; phân tích theo thời gian dùng **ngày đặt hàng** (và ngày trả lời đánh giá), không theo ngày giao.
+Phạm vi xu hướng 01/2017 – 08/2018, tiền tệ BRL.
+
+### 2.1. Phân tích bán hàng
+
+Ban quản lý cần theo dõi quy mô và cơ cấu hoạt động bán hàng của sàn theo thời gian, khách hàng, khu vực nhận hàng, sản phẩm và người bán:
+- doanh thu, số đơn hàng và số lượng sản phẩm bán ra theo ngày, tháng, quý, năm và theo thứ trong tuần;
+- giá trị đơn hàng trung bình và mức tăng trưởng doanh thu so với cùng kỳ năm trước;
+- doanh thu và số đơn theo danh mục sản phẩm, theo nhóm khối lượng sản phẩm;
+- doanh thu và số khách hàng theo khu vực nhận hàng;
+- số khách hàng, phân biệt khách mua một lần và khách mua lại, và tỉ lệ khách mua lại;
+- số người bán hoạt động, doanh thu của từng người bán và mức độ tập trung doanh thu vào nhóm người bán lớn;
+- tổng phí vận chuyển phát sinh trên các đơn hàng.
+
+Drill-down tối thiểu: Năm → Quý → Tháng → Ngày · Vùng → Bang → Thành phố (nơi nhận hàng và nơi người bán đặt cửa hàng) · Danh mục → Sản phẩm.
+
+### 2.2. Phân tích giao hàng
+
+Ban quản lý cần đánh giá hiệu quả giao hàng theo thời gian đặt hàng, khu vực nhận hàng, người bán và tuyến vận chuyển, đồng thời xác định khâu gây ra giao trễ:
+- số lượt giao hàng và số đơn hàng theo trạng thái đơn (đã giao, đang giao, đã hủy…);
+- thời gian giao hàng thực tế (từ lúc đặt hàng đến lúc khách nhận) và thời gian vận chuyển (từ lúc người bán bàn giao cho đơn vị vận chuyển đến lúc khách nhận);
+- số ngày giao sớm hoặc trễ so với ngày giao dự kiến đã cam kết với khách;
+- số lượng và tỉ lệ đơn giao đúng hạn / giao trễ, phân theo mức độ trễ;
+- số lượng và tỉ lệ lượt người bán bàn giao hàng cho đơn vị vận chuyển trễ hạn;
+- so sánh hiệu quả giao hàng giữa đơn nội bang và đơn liên bang, giữa các khu vực và giữa các người bán.
+
+Drill-down tối thiểu: Năm → Quý → Tháng → Ngày (theo ngày đặt hàng) · Vùng → Bang → Thành phố (nơi nhận hàng) · Kết quả giao hàng → Mức độ trễ.
+
+### 2.3. Phân tích đánh giá của khách hàng
+
+Ban quản lý cần đo mức độ hài lòng của khách hàng và tìm mối liên hệ giữa mức hài lòng với chất lượng giao hàng và người bán:
+- số lượt đánh giá, điểm đánh giá trung bình và phân bố điểm từ 1 đến 5 sao;
+- tỉ lệ đánh giá tiêu cực (1–2 sao) và tỉ lệ đánh giá có kèm bình luận;
+- điểm đánh giá theo thời điểm đặt hàng và theo thời điểm khách trả lời đánh giá;
+- điểm đánh giá theo khu vực nhận hàng và theo từng người bán;
+- điểm đánh giá theo kết quả giao hàng (đúng hạn, trễ theo từng mức) và theo việc người bán bàn giao đúng hạn hay trễ.
+
+Drill-down tối thiểu: Năm → Quý → Tháng → Ngày (cho cả ngày đặt hàng và ngày trả lời đánh giá) · Vùng → Bang → Thành phố.
 
 ## 3. Đối tượng sử dụng
 
@@ -63,6 +105,9 @@ Vấn đề hiện tại:
 | Xu hướng trước 01/2017 và sau 08/2018 | Dữ liệu quá thưa / bị cắt |
 
 ## 5. Câu hỏi nghiệp vụ
+
+> Q1–Q6 là các câu hỏi cụ thể chọn từ yêu cầu phân tích ở mục 2.1–2.3 (Q1, Q2 ← bán hàng; Q3, Q5 ← giao hàng; Q4 ← giao hàng + đánh giá;
+> Q6 ← bán hàng + giao hàng + đánh giá). Ở chương thiết kế DW, chúng được dùng lại để kiểm chứng mô hình.
 
 Hệ thống gồm **3 trang dashboard**, mỗi trang trả lời **2 câu hỏi**, mỗi câu hỏi dùng **2 biểu đồ** (tổng 6 câu hỏi, 12 biểu đồ):
 trang 1 là phân tích mô tả (Overview), trang 2 và 3 là phân tích chẩn đoán (Diagnostic). Dashboard theo dõi ETL (bonus) không nằm trong danh sách này.
