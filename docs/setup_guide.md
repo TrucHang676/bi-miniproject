@@ -204,13 +204,14 @@ Kết quả đúng: `Core: installed: 1.8.7` và trong *Plugins* có `postgres: 
 
 ## 5. Khởi tạo Data Warehouse
 
-**Không cần chạy tay gì cả.** Lần đầu `docker compose up` (mục 3.4), Postgres **tự chạy** 3 script trong `sql/init/` theo thứ tự tên file:
+**Không cần chạy tay gì cả.** Lần đầu `docker compose up` (mục 3.4), Postgres **tự chạy** 4 script trong `sql/init/` theo thứ tự tên file:
 
 | File | Tạo gì |
 |---|---|
-| `00_schemas.sql` | 3 schema `staging`, `etl_log`, `dds` · extension `unaccent` (bỏ dấu tên thành phố) · múi giờ DB = giờ Việt Nam |
+| `00_schemas.sql` | 4 schema `staging`, `etl_log`, `dq`, `dds` · extension `unaccent` (bỏ dấu tên thành phố) · múi giờ DB = giờ Việt Nam |
 | `01_staging_tables.sql` | 8 bảng `staging`: tên cột giữ như CSV, kiểu theo [data_dictionary.md](data_dictionary.md), khóa chính theo D1 ([decisions.md](decisions.md)), thêm 2 cột kỹ thuật `_batch_id`, `_loaded_at` |
 | `02_etl_log.sql` | 3 bảng nhật ký ETL: `pipeline_run` (1 lần chạy) → `table_load` (từng bảng: số dòng thêm / cập nhật / bị loại) và `quality_check` (từng phép kiểm tra chất lượng) |
+| `03_dq.sql` | Bảng `dq.rejected_rows`: **nguyên nội dung** từng dòng Mage loại (dạng JSON) + lần chạy, phép kiểm tra, lý do – khóa ngoại về `etl_log.quality_check` |
 
 Database sau khi khởi tạo:
 
@@ -219,11 +220,14 @@ olist_dw
 ├── staging   8 bảng  – Mage nạp CSV vào (orders, order_items, order_payments, order_reviews,
 │                       customers, sellers, products, category_translation)
 ├── etl_log   3 bảng  – Mage ghi nhật ký mỗi lần chạy (pipeline_run, table_load, quality_check)
+├── dq        1 bảng  – dòng dữ liệu lỗi Mage loại (rejected_rows); dbt test ghi thêm bảng khi bật store_failures
 ├── dds       trống   – dbt tạo dim / fact
 └── public    trống
 ```
 
-**Cơ chế:** `compose.yaml` gắn thư mục `sql/init/` vào thư mục khởi tạo `/docker-entrypoint-initdb.d` của image Postgres. Lần đầu tạo DB, Postgres chạy mọi file `.sql` trong đó (vì vậy tên file đánh số `00`, `01`, `02` để chạy đúng thứ tự).
+Vai trò từng schema theo kiến trúc Single DDS: [architecture.md](architecture.md).
+
+**Cơ chế:** `compose.yaml` gắn thư mục `sql/init/` vào thư mục khởi tạo `/docker-entrypoint-initdb.d` của image Postgres. Lần đầu tạo DB, Postgres chạy mọi file `.sql` trong đó (vì vậy tên file đánh số `00`, `01`, `02`, `03` để chạy đúng thứ tự).
 
 ⚠ Postgres **chỉ tự chạy khi volume dữ liệu còn trống** (lần dựng đầu tiên, hoặc sau `docker compose down -v`). Những lần `up` sau, script **không** chạy lại.
 
@@ -233,7 +237,7 @@ olist_dw
 docker compose exec postgres psql -U olist_user -d olist_dw -f /sql/checks/00_check_init.sql
 ```
 
-Kết quả đúng: 17 dòng, cột `ket_qua` **đều là `PASS`** (3 schema, `unaccent`, encoding UTF8, múi giờ, 11 bảng đủ cột và có khóa chính). Dòng nào `FAIL` thì cột `thuc_te` cho biết thiếu gì.
+Kết quả đúng: 19 dòng, cột `ket_qua` **đều là `PASS`** (4 schema, `unaccent`, encoding UTF8, múi giờ, 12 bảng đủ cột và có khóa chính). Dòng nào `FAIL` thì cột `thuc_te` cho biết thiếu gì.
 
 > `compose.yaml` gắn cả thư mục `sql/` của repo vào container tại `/sql` (chỉ đọc), nên file SQL nào trong repo cũng chạy được bằng `psql -f /sql/<đường dẫn>`. Có thể chạy trong DBeaver thay thế: dán cả file vào SQL Editor rồi Ctrl + Enter.
 

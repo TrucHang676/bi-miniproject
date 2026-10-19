@@ -5,7 +5,8 @@
 
 -- Schema = một "khu" trong database, gom các bảng theo vai trò
 CREATE SCHEMA IF NOT EXISTS staging;   -- dữ liệu thô Mage nạp từ CSV (giữ nguyên tên cột gốc)
-CREATE SCHEMA IF NOT EXISTS etl_log;   -- nhật ký mỗi lần chạy pipeline
+CREATE SCHEMA IF NOT EXISTS etl_log;   -- nhật ký mỗi lần chạy pipeline (Control + Audit)
+CREATE SCHEMA IF NOT EXISTS dq;        -- DQ database: chính các dòng dữ liệu lỗi (Mage loại + dbt test)
 CREATE SCHEMA IF NOT EXISTS dds;       -- Dimensional Data Store: dim / fact do dbt tạo
 
 -- unaccent: bỏ dấu tiếng Bồ Đào Nha ('são paulo' -> 'sao paulo'),

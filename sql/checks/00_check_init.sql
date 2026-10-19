@@ -7,9 +7,9 @@
 -- =====================================================================
 WITH
 expected_schemas(stt, schema_name) AS (
-    VALUES (1, 'staging'), (2, 'etl_log'), (3, 'dds')
+    VALUES (1, 'staging'), (2, 'etl_log'), (3, 'dq'), (4, 'dds')
 ),
-expected_tables(stt, table_schema, table_name, so_cot) AS (     -- số cột theo sql/init/01, 02
+expected_tables(stt, table_schema, table_name, so_cot) AS (     -- số cột theo sql/init/01, 02, 03
     VALUES (10, 'staging', 'orders',               10),
            (11, 'staging', 'order_items',           9),
            (12, 'staging', 'order_payments',        7),
@@ -20,12 +20,13 @@ expected_tables(stt, table_schema, table_name, so_cot) AS (     -- số cột th
            (17, 'staging', 'category_translation',  4),
            (20, 'etl_log', 'pipeline_run',         11),
            (21, 'etl_log', 'table_load',           10),
-           (22, 'etl_log', 'quality_check',         7)
+           (22, 'etl_log', 'quality_check',         7),
+           (30, 'dq',      'rejected_rows',         8)
 ),
 actual_cols AS (
     SELECT table_schema, table_name, count(*) AS so_cot
     FROM information_schema.columns
-    WHERE table_schema IN ('staging', 'etl_log')
+    WHERE table_schema IN ('staging', 'etl_log', 'dq')
     GROUP BY table_schema, table_name
 ),
 actual_pk AS (
@@ -46,13 +47,13 @@ results(stt, kiem_tra, thuc_te, dat) AS (
     FROM expected_schemas e LEFT JOIN pg_namespace n ON n.nspname = e.schema_name
 
     UNION ALL
-    SELECT 4, 'Extension unaccent', coalesce(unaccent('são paulo'), '-'), unaccent('são paulo') = 'sao paulo'
+    SELECT 5, 'Extension unaccent', coalesce(unaccent('são paulo'), '-'), unaccent('são paulo') = 'sao paulo'
 
     UNION ALL
-    SELECT 5, 'Encoding database', encoding, encoding = 'UTF8' FROM db_settings
+    SELECT 6, 'Encoding database', encoding, encoding = 'UTF8' FROM db_settings
 
     UNION ALL
-    SELECT 6, 'Múi giờ database', coalesce(array_to_string(setconfig, ', '), ''),
+    SELECT 7, 'Múi giờ database', coalesce(array_to_string(setconfig, ', '), ''),
            'TimeZone=Asia/Ho_Chi_Minh' = ANY (setconfig)
     FROM db_settings
 

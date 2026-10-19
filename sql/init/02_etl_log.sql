@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS etl_log.table_load (
     rows_source    INT,                                        -- số dòng đọc từ file batch
     rows_inserted  INT          NOT NULL DEFAULT 0,            -- dòng mới thêm vào staging
     rows_updated   INT          NOT NULL DEFAULT 0,            -- dòng đã có, được cập nhật
-    rows_rejected  INT          NOT NULL DEFAULT 0,            -- dòng bị loại vì không qua kiểm tra chất lượng
+    rows_rejected  INT          NOT NULL DEFAULT 0,            -- dòng bị loại vì không qua kiểm tra chất lượng (nội dung dòng: dq.rejected_rows)
     started_at     TIMESTAMP    NOT NULL DEFAULT now(),
     finished_at    TIMESTAMP,
     status         VARCHAR(10)  NOT NULL DEFAULT 'RUNNING',
