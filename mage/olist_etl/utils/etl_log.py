@@ -4,8 +4,10 @@ Mọi hàm nhận 1 kết nối autocommit (db.connect(autocommit=True)): mỗi 
 nên khi phần nạp staging bị hoàn tác (rollback) thì log vẫn còn để biết chuyện gì đã xảy ra.
 """
 import pandas as pd
+from psycopg2.extras import Json, execute_values
 
 MAX_ERROR_LENGTH = 1000
+INTERRUPTED_MESSAGE = 'Bị ngắt giữa chừng'
 
 
 def short_error(exc):
@@ -28,6 +30,52 @@ def start_run(conn, pipeline_name, load_type, batch_id, lset, cet, triggered_by=
             (pipeline_name, load_type, batch_id, lset, cet, triggered_by),
         )
         return cur.fetchone()[0]
+
+
+def fail_interrupted_runs(conn):
+    """Lần chạy cũ còn kẹt RUNNING (container dừng, tắt máy giữa chừng...) -> FAILED (pipeline_rules.md B2.4).
+
+    Gọi ở đầu mỗi lần chạy mới. Trả về danh sách run_id đã đổi.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE etl_log.pipeline_run
+            SET status = 'FAILED', finished_at = now(), error_message = %s
+            WHERE status = 'RUNNING'
+            RETURNING run_id
+            """,
+            (INTERRUPTED_MESSAGE,),
+        )
+        run_ids = [row[0] for row in cur.fetchall()]
+        if run_ids:
+            cur.execute(
+                """
+                UPDATE etl_log.table_load
+                SET status = 'FAILED', finished_at = coalesce(finished_at, now()), error_message = %s
+                WHERE run_id = ANY(%s) AND status = 'RUNNING'
+                """,
+                (INTERRUPTED_MESSAGE, run_ids),
+            )
+        return run_ids
+
+
+def last_success_run(conn):
+    """Lần chạy SUCCESS gần nhất (dict run_id, pipeline_name, batch_id, lset, cet) hoặc None. Dùng cho bước Get LSET."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT run_id, pipeline_name, batch_id, lset, cet
+            FROM etl_log.pipeline_run
+            WHERE status = 'SUCCESS'
+            ORDER BY run_id DESC
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+    if row is None:
+        return None
+    return dict(zip(['run_id', 'pipeline_name', 'batch_id', 'lset', 'cet'], row))
 
 
 def finish_run(conn, run_id):
@@ -78,6 +126,15 @@ def record_table(conn, run_id, table, inserted, updated, rejected=0, deleted=0):
         )
 
 
+def record_deleted(conn, run_id, deleted):
+    """Số đơn bị đánh dấu xóa mềm (B6) - ghi ở dòng table_name = 'orders'."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE etl_log.table_load SET rows_deleted = %s WHERE run_id = %s AND table_name = 'orders'",
+            (deleted, run_id),
+        )
+
+
 def mark_tables_success(conn, run_id):
     """Batch đã commit: mọi bảng của lần chạy -> SUCCESS."""
     with conn.cursor() as cur:
@@ -100,6 +157,39 @@ def fail_tables(conn, run_id, failed_table, message):
             WHERE run_id = %s AND status = 'RUNNING'
             """,
             (failed_table, message, run_id),
+        )
+
+
+# ---------- quality_check + dq.rejected_rows: kết quả kiểm tra chất lượng (B4.2, B4.3) ----------
+
+def add_check(conn, run_id, table, check_name, failed_rows, status, detail=None):
+    """1 dòng / 1 phép kiểm tra trên 1 bảng, ghi cả khi PASS."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO etl_log.quality_check (run_id, table_name, check_name, failed_rows, status, detail)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (run_id, table, check_name, failed_rows, status, detail),
+        )
+
+
+def add_rejected(conn, run_id, table, check_name, rows):
+    """Ghi các dòng bị loại vào dq.rejected_rows. rows = [(source_row, row_data dict, reason), ...].
+
+    Phải gọi SAU add_check của cùng phép kiểm tra: dq.rejected_rows có khóa ngoại về etl_log.quality_check.
+    """
+    if not rows:
+        return
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            """
+            INSERT INTO dq.rejected_rows (run_id, table_name, check_name, source_row, row_data, reason)
+            VALUES %s
+            """,
+            [(run_id, table, check_name, source_row, Json(row_data), reason)
+             for source_row, row_data, reason in rows],
         )
 
 

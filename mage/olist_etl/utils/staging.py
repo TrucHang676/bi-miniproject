@@ -4,18 +4,26 @@ import io
 from olist_etl.utils.settings import STAGING_SCHEMA, TABLES
 
 
-def column_types(cur, table):
-    """Kiểu dữ liệu từng cột của bảng staging, đọc từ DB, VD {'price': 'numeric(10,2)', ...}."""
+def column_info(cur, table):
+    """Kiểu dữ liệu và ràng buộc NOT NULL từng cột của bảng staging, đọc từ DB.
+
+    VD {'price': ('numeric(10,2)', False), 'order_id': ('character varying(32)', True), ...}
+    """
     cur.execute(
         """
-        SELECT a.attname, format_type(a.atttypid, a.atttypmod)
+        SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull
         FROM pg_attribute a
         WHERE a.attrelid = %s::regclass AND a.attnum > 0 AND NOT a.attisdropped
         ORDER BY a.attnum
         """,
         (f'{STAGING_SCHEMA}.{table}',),
     )
-    return dict(cur.fetchall())
+    return {name: (data_type, not_null) for name, data_type, not_null in cur.fetchall()}
+
+
+def column_types(cur, table):
+    """Kiểu dữ liệu từng cột của bảng staging, VD {'price': 'numeric(10,2)', ...}."""
+    return {name: data_type for name, (data_type, _) in column_info(cur, table).items()}
 
 
 def truncate_staging(cur, tables):
@@ -24,14 +32,12 @@ def truncate_staging(cur, tables):
     cur.execute(f'TRUNCATE {names}')
 
 
-def copy_to_temp(cur, table, df):
-    """Đưa các dòng của DataFrame vào bảng tạm tmp_<bảng> (mọi cột TEXT) bằng COPY.
+def copy_frame(cur, tmp, df, columns):
+    """Đưa các cột `columns` của DataFrame vào bảng tạm `tmp` (mọi cột TEXT) bằng COPY.
 
     Bảng tạm tự xóa khi transaction kết thúc (ON COMMIT DROP).
     Ô NULL được ghi thành ô trống không ngoặc kép -> COPY ... CSV hiểu là NULL.
     """
-    columns = TABLES[table]['columns'] + ['batch_id']
-    tmp = f'tmp_{table}'
     cur.execute(f'DROP TABLE IF EXISTS {tmp}')
     cur.execute(f'CREATE TEMP TABLE {tmp} ({", ".join(c + " TEXT" for c in columns)}) ON COMMIT DROP')
 
@@ -40,6 +46,11 @@ def copy_to_temp(cur, table, df):
     buf.seek(0)
     cur.copy_expert(f'COPY {tmp} ({", ".join(columns)}) FROM STDIN WITH (FORMAT csv)', buf)
     return tmp
+
+
+def copy_to_temp(cur, table, df):
+    """Đưa các dòng của 1 bảng vào bảng tạm tmp_<bảng> để MERGE."""
+    return copy_frame(cur, f'tmp_{table}', df, TABLES[table]['columns'] + ['batch_id'])
 
 
 def build_merge_sql(table, types):
