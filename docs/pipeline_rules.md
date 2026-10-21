@@ -411,3 +411,26 @@ UNION ALL SELECT 'category_translation', count(*) FROM staging.category_translat
 - 6.1.6.4 và 6.1.6.7 sửa trực tiếp file trong thư mục batch: **sao lưu trước**, demo xong chép lại hoặc chạy lại `split_batches.py` (cũng xóa luôn `deleted_orders.csv` của 6.1.6.8).
 - Ảnh chụp từ DBeaver (lưới kết quả) và giao diện Mage; nên thấy được `run_id` và thời gian để người đọc nối các ảnh với nhau. Đặt tên ảnh theo mục, VD `6.1.6.4_setup.png`, `6.1.6.4_ketqua_1.png`.
 - Sau 6.1.6.7 / 6.1.6.8 muốn có dữ liệu sạch lại: chạy lại Full Load rồi Incremental từ đầu.
+
+---
+
+## B11. Ghi chú khi triển khai (21/10/2026)
+
+> Pipeline đã làm xong theo các quy tắc trên. Bảng dưới ghi những chỗ **code thực tế khác hoặc cụ thể hơn** phần quy tắc, để đọc file này không bị lệch với code. Mô tả code đầy đủ: [mage/README.md](../mage/README.md).
+
+| Mục | Quy tắc ghi | Code thực tế | Vì sao |
+|---|---|---|---|
+| B7 – tên block `full_load` | `start_full_run` → `load_batch` → `finish_run` | `start_full_run` → `load_full_batch` → `finish_full_run` | Tên block trong Mage là duy nhất trong cả project; tách tên để không trùng với block của `incremental_load` |
+| B7 – tên block `incremental_load` | `get_lset_cet` → `load_batch` → `finish_run` | `get_lset` → `set_cet` → `extract_load` → `set_lset` | Mỗi block đúng 1 bước của slide 67, khi demo nhìn là thấy khớp bài giảng. Lần chạy `RUNNING` được ghi ở `set_cet` (sau khi đã biết batch) |
+| B7 – callback | Gợi ý `@callback` hoặc `try / except` | `try / except` trong `utils/runner.py`: lỗi thì ghi `FAILED` rồi báo lỗi lại cho Mage | Đơn giản, chạy giống nhau khi chạy bằng giao diện hay dòng lệnh |
+| B2.2 – chưa có lần SUCCESS | Dừng, báo "chưa chạy Full Load" | Báo lỗi (block `get_lset` màu đỏ), không ghi `pipeline_run` | Đây là thao tác sai nên cho hiện lỗi rõ; trường hợp "đã nạp hết batch" thì dừng êm, không báo lỗi |
+| B2.4 – chạy lại sau lỗi | `rows_inserted` của lần chạy lại có thể nhỏ hơn manifest | Ra **đúng** số manifest | Đã làm phần [Gợi ý] transaction: cả batch là 1 transaction, lỗi thì hoàn tác toàn bộ (kể cả TRUNCATE của Full Load) |
+| B4.2 – `failed_rows` | Số dòng bị phép đó loại | `columns_match`, `row_count_match`, `file_exists` ghi `failed_rows = 0` (`row_count_match` ghi độ lệch trong `detail`); `batch_id_match` ghi số dòng sai batch | Giữ đúng phép đối soát B4.3: tổng `failed_rows` = số dòng trong `dq` |
+| B4.2 – `type_cast` | Ép được sang kiểu staging | Dùng `pg_input_is_valid()` của PostgreSQL 17 theo kiểu đọc từ bảng staging; **kiểm thêm** cột `NOT NULL` ngoài khóa (VD `orders.customer_id`) | Kiểm giống hệt lúc MERGE; dòng trống ở cột bắt buộc sẽ làm MERGE lỗi cả batch nếu không loại trước |
+| B4.2 – file không đọc được | Không nhắc | Ghi `columns_match` FAIL với `detail` "Không đọc được file: …" | Coi là lỗi cấu trúc file |
+| B4.2 – `file_exists` | Ghi với `table_name` = tên file thiếu | Ghi 1 dòng cho **mọi** file của batch (PASS hoặc FAIL) | Thống nhất "mỗi phép 1 dòng, kể cả khi PASS" |
+| B5 – `table_load.status` | `SUCCESS` sau khi MERGE xong bảng | Để `RUNNING` tới khi cả batch commit rồi mới `SUCCESS`; lỗi thì bảng gây lỗi ghi lỗi thật, các bảng đã MERGE ghi "Đã hoàn tác (rollback) vì lần chạy bị lỗi ở bước sau" | Vì có transaction, trước lúc commit dữ liệu vẫn có thể bị hoàn tác |
+| B10.3 – kịch bản 6.1.6.7, 6.1.6.8 | Sửa file batch `2018-01` / `2018-02` | Đã chạy trên `2018-02/order_payments.csv` và `2018-03/deleted_orders.csv` | Kịch bản 6.1.6.6 đã nạp lại `2018-01`, nên dùng batch kế tiếp để chạy liên tục được, không phải chạy lại |
+| B10.5 – ảnh | Chụp DBeaver + Mage | Ảnh Mage ở `docs/images/pipeline_demo/`; kết quả truy vấn đưa vào báo cáo dạng bảng Word (số lấy thẳng từ `etl_log`) | Bảng dễ đọc hơn ảnh chụp lưới DBeaver |
+
+Kết quả 9 kịch bản B8: đều đạt (chi tiết số liệu trong báo cáo mục 6.1.6). Chạy thử nhanh không cần giao diện: `docker compose exec mage mage run /home/src/mage/olist_etl full_load` (thay `incremental_load` cho Incremental).

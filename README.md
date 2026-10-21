@@ -60,6 +60,7 @@ Xem chi tiết tại [docs/setup_guide.md](docs/setup_guide.md).
 2. Mở Docker Desktop, chạy `docker compose up -d --build` tại thư mục gốc repo (Postgres tự tạo schema + bảng từ `sql/init/`).
 3. Sinh batch dữ liệu: `docker compose exec mage python scripts/split_batches.py` (dòng cuối phải là `TẤT CẢ ĐẠT (9/9 PASS)`).
 4. Mở Mage tại http://localhost:6789 (`admin@admin.com` / `admin`); DB: `localhost:5432`, database `olist_dw`.
+5. Nạp dữ liệu vào `staging`: chạy pipeline `full_load` 1 lần, rồi `incremental_load` 9 lần (mỗi lần 1 batch) – **Triggers → Run@once**. Chi tiết các block: [mage/README.md](mage/README.md); xem kết quả bằng [sql/checks/01_pipeline_demo.sql](sql/checks/01_pipeline_demo.sql).
 
 ## 7. Sản phẩm nộp
 
