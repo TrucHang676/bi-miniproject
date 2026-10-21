@@ -27,6 +27,16 @@ def manifest_row(batch_id):
     return {k: (None if pd.isna(v) else v) for k, v in row.items()}
 
 
+def manifest_row_by_lset(lset):
+    """Bước Set CET của Incremental: batch có lset = LSET (= cet của lần SUCCESS gần nhất). Không có -> None."""
+    manifest = read_csv(MANIFEST_PATH)
+    rows = manifest[manifest['lset'] == lset]
+    if rows.empty:
+        return None
+    row = rows.iloc[0].to_dict()
+    return {k: (None if pd.isna(v) else v) for k, v in row.items()}
+
+
 def batch_file_path(batch_id, table):
     """Đường dẫn file của 1 bảng trong 1 batch, VD /home/src/data/batches/FULL/orders.csv."""
     return os.path.join(BATCH_DIR, batch_id, f'{table}.csv')
