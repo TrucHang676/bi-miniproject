@@ -269,12 +269,17 @@ docker compose exec mage python scripts/split_batches.py
 
 ### 6.2. Data Ingestion (Mage.ai)
 
-> *(Điền khi có pipeline.)*
+> Chi tiết các block và cơ chế: [mage/README.md](../mage/README.md); quy tắc: [pipeline_rules.md](pipeline_rules.md).
 
-- Mở Mage tại: `http://localhost:6789`
-- **Full Load:** chạy pipeline `[tên]`
-- **Incremental Load:** chạy pipeline `[tên]` với biến `[tên biến]`
-- Kiểm tra log: `SELECT * FROM etl_log.[tên bảng] ORDER BY ...;`
+1. Mở Mage tại `http://localhost:6789` → **Pipelines**.
+2. **Full Load** (chạy trước, 1 lần): `full_load` → **Triggers** → **Run@once** → **Run now** → thẻ **Runs** đợi `completed`.
+3. **Incremental Load**: `incremental_load` → **Triggers** → **Run@once** → **Run now**. Mỗi lần chạy nạp **1** batch kế tiếp (2018-01 → … → 2018-09+); nạp hết = chạy 9 lần, chạy thêm thì báo "đã nạp hết batch".
+   - Chạy lại batch vừa nạp: trong hộp **Run@once** đổi biến `rerun_last` thành `true`.
+4. Kiểm tra kết quả: mở [`sql/checks/01_pipeline_demo.sql`](../sql/checks/01_pipeline_demo.sql) trong DBeaver – Q1 các lần chạy, Q2 từng bảng, Q3 kiểm tra chất lượng, Q4 dòng bị loại, Q5 số dòng staging (có ghi sẵn số mong đợi).
+
+Không mở giao diện cũng chạy được: `docker compose exec mage mage run /home/src/mage/olist_etl full_load` (thay `incremental_load` cho Incremental).
+
+⚠ Chạy lại `full_load` sau khi đã nạp vài batch = làm lại từ đầu: staging chỉ còn batch FULL, Incremental kế tiếp nạp lại từ 2018-01.
 
 ### 6.3. Transformation (dbt)
 
