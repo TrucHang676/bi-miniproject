@@ -76,6 +76,11 @@ File `deleted_orders.csv` có bộ kiểm tra riêng (`columns_match`, `not_null
 - Đối soát: `rows_rejected` = số dòng `dq.rejected_rows` cùng `run_id` + bảng = tổng `failed_rows` của các phép cấp dòng.
 - Câu truy vấn xem kết quả: [`sql/checks/01_pipeline_demo.sql`](../sql/checks/01_pipeline_demo.sql).
 
+## Lưu ý khi lập lịch (Seminar 3)
+
+- Cột `pipeline_run.triggered_by` lấy từ biến `triggered_by` (mặc định `manual`). Khi tạo trigger chạy theo lịch, thêm runtime variable `triggered_by = schedule` cho trigger đó để dashboard ETL phân biệt được lần chạy tay và lần chạy theo lịch.
+- Pipeline không tự khóa chống chạy chồng: hai lần `incremental_load` chạy cùng lúc có thể cùng đọc một LSET. Khi lập lịch, để khoảng cách giữa các lần chạy dài hơn thời gian một lần chạy (~40 giây) và không bấm Run@once trong lúc trigger đang chạy. Mỗi lần chạy mới cũng đổi mọi dòng còn `RUNNING` thành `FAILED`, nên chạy chồng sẽ làm sai trạng thái lần chạy kia.
+
 ## Chạy thử từ dòng lệnh (không cần mở giao diện)
 
 ```powershell

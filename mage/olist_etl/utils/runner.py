@@ -28,11 +28,13 @@ def load_batch(run_id, batch_id, load_type, lset=None, cet=None, truncate_first=
     Lỗi: ghi FAILED cho bảng đang nạp và lần chạy, rồi báo lỗi lại cho Mage (block hiện màu đỏ).
     """
     tables = tables_for(load_type)
-    expected = manifest_row(batch_id)   # số dòng mong đợi từng file (row_count_match)
-    log_conn = connect(autocommit=True)
-    staging_conn = connect(autocommit=False)
+    log_conn = connect(autocommit=True)   # không mở được thì cũng không ghi log được -> để Mage báo lỗi
+    staging_conn = None
     current_table = None
     try:
+        # Mọi lỗi từ đây (kể cả thiếu manifest, không mở được kết nối thứ hai) đều ghi FAILED đúng nguyên nhân
+        expected = manifest_row(batch_id)   # số dòng mong đợi từng file (row_count_match)
+        staging_conn = connect(autocommit=False)
         with staging_conn.cursor() as cur:
             quality.check_files_exist(log_conn, run_id, batch_id, tables, batch_file_path)
 
@@ -68,7 +70,8 @@ def load_batch(run_id, batch_id, load_type, lset=None, cet=None, truncate_first=
         return etl_log.table_summary(log_conn, run_id)
 
     except Exception as exc:
-        staging_conn.rollback()
+        if staging_conn is not None:
+            staging_conn.rollback()
         message = etl_log.short_error(exc) if not isinstance(exc, quality.BatchCheckFailed) else str(exc)
         if current_table and not isinstance(exc, quality.BatchCheckFailed):
             message = f'Bảng {current_table}: {message}'
@@ -78,5 +81,6 @@ def load_batch(run_id, batch_id, load_type, lset=None, cet=None, truncate_first=
         raise
 
     finally:
-        staging_conn.close()
+        if staging_conn is not None:
+            staging_conn.close()
         log_conn.close()
