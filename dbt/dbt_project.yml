@@ -1,0 +1,49 @@
+# Project dbt của đồ án BI - Nhóm 3: biến đổi staging (Mage nạp) -> dds (Galaxy schema cho Power BI)
+# Chạy trong container Mage, gõ ở thư mục repo:  docker compose exec mage dbt <lệnh>
+#   (compose.yaml đặt DBT_PROJECT_DIR = DBT_PROFILES_DIR = /home/src/dbt). Hướng dẫn: dbt/README.md
+name: olist_dw
+version: '1.0.0'
+config-version: 2
+require-dbt-version: ">=1.8.0"
+profile: olist_dw              # khai báo trong profiles.yml (copy từ profiles.yml.example)
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+clean-targets: ["target", "dbt_packages"]
+
+# Schema đích của từng tầng. Macro generate_schema_name dùng ĐÚNG tên khai báo ở đây
+# (mặc định dbt sẽ ghép thành "<schema trong profiles.yml>_<tên>", VD dbt_stg_dds).
+models:
+  olist_dw:
+    staging:              # stg_ : 1 view / 1 bảng staging - ép kiểu, đổi tên cột, bỏ đơn đã xóa mềm (R10)
+      +schema: dbt_stg
+      +materialized: view
+    intermediate:         # int_ : phép tính dùng chung cho nhiều dim / fact (int_orders, int_delivery_lines...)
+      +schema: dbt_int
+      +materialized: view
+    marts:                # dim_ / fact_ : kho dữ liệu Power BI đọc. dim_customer, dim_geography tự khai incremental
+      +schema: dds
+      +materialized: table
+
+seeds:
+  olist_dw:
+    +schema: dbt_stg      # dữ liệu tham chiếu tự bổ sung - đầu vào của dimension (source_to_target_mapping.md 0.2)
+    seed_brazil_states:
+      +column_types:
+        state_code: char(2)
+        state_name: varchar(50)
+        region: varchar(30)
+    seed_category_translation_extra:
+      +column_types:
+        product_category_name: varchar(60)
+        product_category_name_english: varchar(60)
+
+# dbt test: lưu chính các dòng vi phạm vào schema dq - DQ database (decisions.md, 19/10/2026).
+# Mỗi test 1 bảng, ghi đè ở mỗi lần chạy.
+data_tests:
+  olist_dw:
+    +store_failures: true
+    +schema: dq

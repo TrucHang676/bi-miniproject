@@ -36,6 +36,8 @@ services:
       - .env                                # Mage đọc POSTGRES_* để kết nối DB
     environment:
       USER_CODE_PATH: /home/src/mage/olist_etl   # project Mage nằm ở mage/olist_etl
+      DBT_PROJECT_DIR: /home/src/dbt             # dbt: gõ "docker compose exec mage dbt ..." là đúng project
+      DBT_PROFILES_DIR: /home/src/dbt            # profiles.yml nằm cạnh dbt_project.yml (copy từ profiles.yml.example)
     ports:
       - "6789:6789"                         # giao diện Mage: http://localhost:6789
     volumes:

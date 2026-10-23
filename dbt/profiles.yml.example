@@ -1,0 +1,16 @@
+# Kết nối dbt -> PostgreSQL của đồ án.
+# Copy thành dbt/profiles.yml (bị .gitignore chặn):  Copy-Item dbt\profiles.yml.example dbt\profiles.yml
+# File KHÔNG chứa mật khẩu: dbt chạy trong container Mage, đọc POSTGRES_* từ .env (compose.yaml nạp vào container)
+# - cùng nguồn với mage/olist_etl/io_config.yaml.
+olist_dw:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST') }}"           # 'postgres' = tên service trong compose.yaml
+      port: "{{ env_var('POSTGRES_PORT') | as_number }}"
+      user: "{{ env_var('POSTGRES_USER') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD') }}"
+      dbname: "{{ env_var('POSTGRES_DB') }}"
+      schema: dbt_stg   # schema mặc định - các tầng đã có schema riêng trong dbt_project.yml
+      threads: 4

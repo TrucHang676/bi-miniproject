@@ -1,0 +1,94 @@
+version: 2
+
+# 8 bảng do Mage nạp (pipeline full_load / incremental_load). Chỉ model stg_ được đọc thẳng nguồn:
+#   select ... from {{ source('staging', 'orders') }}
+# các tầng sau dùng ref('stg_...').
+# Khóa chính (D1) KHÔNG test lại ở đây: staging đã có ràng buộc PRIMARY KEY (sql/init/01_staging_tables.sql).
+# Khóa ngoại (D2) không có ràng buộc vật lý -> test relationships bên dưới.
+
+sources:
+  - name: staging
+    schema: staging
+    description: >
+      Dữ liệu Olist do Mage nạp từ data/batches, giữ nguyên tên cột như CSV gốc (kể cả lỗi chính tả
+      product_name_lenght, product_description_lenght). Cột kỹ thuật cuối mỗi bảng: _batch_id (batch nạp
+      gần nhất), _loaded_at (lúc nạp). Kiểu dữ liệu từng cột: docs/data_dictionary.md.
+    tables:
+      - name: orders
+        description: >
+          1 dòng = 1 đơn hàng (99.441 dòng khi nạp đủ 10 batch). Khóa order_id.
+          Đơn bị xóa ở nguồn vẫn còn dòng nhưng _is_deleted = TRUE (xóa mềm) -> stg_ phải lọc bỏ (R10).
+        columns:
+          - name: customer_id
+            data_tests:
+              - relationships:
+                  to: source('staging', 'customers')
+                  field: customer_id
+
+      - name: order_items
+        description: 1 dòng = 1 đơn vị sản phẩm trong 1 đơn (112.650 dòng). Khóa (order_id, order_item_id).
+        columns:
+          - name: order_id
+            data_tests:
+              - relationships:
+                  to: source('staging', 'orders')
+                  field: order_id
+          - name: product_id
+            data_tests:
+              - relationships:
+                  to: source('staging', 'products')
+                  field: product_id
+          - name: seller_id
+            data_tests:
+              - relationships:
+                  to: source('staging', 'sellers')
+                  field: seller_id
+
+      - name: order_payments
+        description: 1 dòng = 1 lần thanh toán của đơn (103.886 dòng). Khóa (order_id, payment_sequential).
+        columns:
+          - name: order_id
+            data_tests:
+              - relationships:
+                  to: source('staging', 'orders')
+                  field: order_id
+
+      - name: order_reviews
+        description: >
+          1 dòng = 1 đánh giá cho 1 đơn (99.224 dòng). Khóa (review_id, order_id) - review_id KHÔNG duy nhất.
+          Review đến theo tháng khách trả lời, thường ở batch sau đơn (D8).
+        columns:
+          - name: order_id
+            data_tests:
+              - relationships:
+                  to: source('staging', 'orders')
+                  field: order_id
+
+      - name: customers
+        description: >
+          1 dòng = 1 customer_id = địa chỉ nhận của 1 đơn (99.441 dòng). Khách thật là customer_unique_id (D7).
+        columns:
+          - name: customer_state
+            description: Mã bang nơi nhận - phải có trong seed_brazil_states.
+            data_tests:
+              - relationships:
+                  to: ref('seed_brazil_states')
+                  field: state_code
+
+      - name: sellers
+        description: 1 dòng = 1 người bán (3.095 dòng). Khóa seller_id. Chỉ nạp ở Full Load (D3).
+        columns:
+          - name: seller_state
+            description: Mã bang người bán - phải có trong seed_brazil_states.
+            data_tests:
+              - relationships:
+                  to: ref('seed_brazil_states')
+                  field: state_code
+
+      - name: products
+        description: 1 dòng = 1 sản phẩm (32.951 dòng). Khóa product_id. Chỉ nạp ở Full Load (D3).
+
+      - name: category_translation
+        description: >
+          Bản dịch tên danh mục Bồ Đào Nha -> tiếng Anh (71 dòng). Thiếu 2 danh mục có sản phẩm ->
+          bổ sung bằng seed_category_translation_extra.

@@ -1,0 +1,33 @@
+version: 2
+
+# Dữ liệu tham chiếu nhóm tự bổ sung (source_to_target_mapping.md mục 0.2). Nạp bằng: dbt seed (dbt build tự chạy).
+seeds:
+  - name: seed_brazil_states
+    description: >
+      27 đơn vị hành chính của Brazil (26 bang + Distrito Federal): mã bang -> tên bang, vùng.
+      Phân cấp Vùng -> Bang -> Thành phố cho dim_geography, dim_customer, dim_seller.
+    columns:
+      - name: state_code
+        description: Mã bang 2 chữ, khớp customers.customer_state, sellers.seller_state (VD SP).
+        data_tests:
+          - unique
+          - not_null
+      - name: state_name
+        description: Tên bang có dấu (VD São Paulo).
+        data_tests:
+          - not_null
+      - name: region
+        description: 1 trong 5 vùng địa lý.
+        data_tests:
+          - accepted_values:
+              values: ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul']
+
+  - name: seed_category_translation_extra
+    description: >
+      2 danh mục có sản phẩm nhưng thiếu bản dịch trong staging.category_translation (13 sản phẩm).
+      dim_product lấy bản dịch từ category_translation, không có thì lấy ở đây.
+    columns:
+      - name: product_category_name
+        data_tests:
+          - unique
+          - not_null
