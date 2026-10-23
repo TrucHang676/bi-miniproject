@@ -73,6 +73,7 @@ File `deleted_orders.csv` có bộ kiểm tra riêng (`columns_match`, `not_null
 
 - `RUNNING` được ghi **trước** khi làm; lần chạy bị ngắt (tắt máy, container dừng) được lần chạy kế tiếp đổi thành `FAILED` – "Bị ngắt giữa chừng".
 - `table_load` chỉ thành `SUCCESS` sau khi cả batch commit; batch lỗi thì bảng gây lỗi ghi lỗi thật, các bảng đã MERGE trước đó ghi "Đã hoàn tác (rollback)".
+- Block chỉ ghi cho lần chạy còn `RUNNING`. Bấm ▶ chạy riêng 1 block trong editor thì Mage đưa vào output **cũ** của block trước (`run_id` đã kết thúc, LSET cũ) → block dừng với lỗi `StaleRunError`, không ghi gì. Không chặn thì lần chạy cũ bị ghi đè `SUCCESS` → `FAILED`, LSET lùi và Incremental nhảy cóc batch. Muốn chạy lại thì chạy cả pipeline: **Run@once**, biến `rerun_last`.
 - Đối soát: `rows_rejected` = số dòng `dq.rejected_rows` cùng `run_id` + bảng = tổng `failed_rows` của các phép cấp dòng.
 - Câu truy vấn xem kết quả: [`sql/checks/01_pipeline_demo.sql`](../sql/checks/01_pipeline_demo.sql).
 

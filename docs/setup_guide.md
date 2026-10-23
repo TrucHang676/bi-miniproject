@@ -275,6 +275,7 @@ docker compose exec mage python scripts/split_batches.py
 2. **Full Load** (chạy trước, 1 lần): `full_load` → **Triggers** → **Run@once** → **Run now** → thẻ **Runs** đợi `completed`.
 3. **Incremental Load**: `incremental_load` → **Triggers** → **Run@once** → **Run now**. Mỗi lần chạy nạp **1** batch kế tiếp (2018-01 → … → 2018-09+); nạp hết = chạy 9 lần, chạy thêm thì báo "đã nạp hết batch".
    - Chạy lại batch vừa nạp: trong hộp **Run@once** đổi biến `rerun_last` thành `true`.
+   - Không bấm ▶ trên từng block để chạy lại: block nhận output cũ của block trước nên sẽ dừng với lỗi `StaleRunError` (cố ý chặn để không ghi đè lần chạy cũ).
 4. Kiểm tra kết quả: mở [`sql/checks/01_pipeline_demo.sql`](../sql/checks/01_pipeline_demo.sql) trong DBeaver – Q1 các lần chạy, Q2 từng bảng, Q3 kiểm tra chất lượng, Q4 dòng bị loại, Q5 số dòng staging (có ghi sẵn số mong đợi).
 
 Không mở giao diện cũng chạy được: `docker compose exec mage mage run /home/src/mage/olist_etl full_load` (thay `incremental_load` cho Incremental).

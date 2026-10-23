@@ -78,22 +78,51 @@ def last_success_run(conn):
     return dict(zip(['run_id', 'pipeline_name', 'batch_id', 'lset', 'cet'], row))
 
 
+class StaleRunError(Exception):
+    """Block nhận thông tin của lần chạy đã kết thúc (output cũ của block trước) -> dừng, không ghi gì."""
+
+
+def ensure_running(conn, run_id):
+    """Dừng nếu lần chạy run_id không còn RUNNING.
+
+    Bấm ▶ chạy riêng 1 block trong editor Mage: Mage đưa vào output CŨ của block trước, tức run_id của
+    lần chạy đã kết thúc. Không chặn thì block ghi đè lần chạy đó (VD SUCCESS -> FAILED) và LSET bị lùi.
+    """
+    with conn.cursor() as cur:
+        cur.execute('SELECT status FROM etl_log.pipeline_run WHERE run_id = %s', (run_id,))
+        row = cur.fetchone()
+    status = row[0] if row else None
+    if status != 'RUNNING':
+        state = f'đã {status}' if status else 'không có trong etl_log.pipeline_run'
+        raise StaleRunError(
+            f'run_id {run_id} {state}, không còn RUNNING: block đang nhận output cũ của block trước '
+            '(chạy riêng block trong editor Mage). Hãy chạy cả pipeline: Triggers -> Run@once'
+        )
+
+
 def finish_run(conn, run_id):
-    """Kết thúc thành công. Với Incremental, cet của dòng này thành LSET của lần sau."""
+    """Kết thúc thành công. Với Incremental, cet của dòng này thành LSET của lần sau.
+
+    Chỉ đổi lần chạy còn RUNNING (ensure_running): không biến lần chạy đã FAILED thành SUCCESS.
+    """
+    ensure_running(conn, run_id)
     with conn.cursor() as cur:
         cur.execute(
             "UPDATE etl_log.pipeline_run SET status = 'SUCCESS', finished_at = now(), error_message = NULL "
-            "WHERE run_id = %s",
+            "WHERE run_id = %s AND status = 'RUNNING'",
             (run_id,),
         )
 
 
 def fail_run(conn, run_id, message):
-    """Kết thúc thất bại. LSET không tiến -> lần sau nạp lại đúng batch này."""
+    """Kết thúc thất bại. LSET không tiến -> lần sau nạp lại đúng batch này.
+
+    Chỉ đổi lần chạy còn RUNNING: không ghi đè lần chạy đã kết thúc (VD SUCCESS -> FAILED).
+    """
     with conn.cursor() as cur:
         cur.execute(
             "UPDATE etl_log.pipeline_run SET status = 'FAILED', finished_at = now(), error_message = %s "
-            "WHERE run_id = %s",
+            "WHERE run_id = %s AND status = 'RUNNING'",
             (message, run_id),
         )
 

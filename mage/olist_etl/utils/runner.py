@@ -1,6 +1,7 @@
 """Nạp trọn 1 batch vào staging - phần chung của full_load và incremental_load (pipeline_rules.md A3, B3, B4).
 
 Một lần nạp:
+    0. run_id phải còn RUNNING - block nhận output cũ thì dừng     (etl_log.ensure_running)
     1. file_exists cho mọi file của batch                         (quality.py)
     2. từng bảng theo thứ tự cha -> con:
          đọc file -> table_load RUNNING -> kiểm tra chất lượng (dòng hỏng -> dq) -> MERGE dòng sạch
@@ -26,12 +27,14 @@ def load_batch(run_id, batch_id, load_type, lset=None, cet=None, truncate_first=
     lset, cet      : khoảng nạp của batch - dùng cho phép kiểm tra in_window của file xóa đơn.
     truncate_first : xóa sạch staging trước khi nạp (Full Load làm lại từ đầu - B2.1).
     Lỗi: ghi FAILED cho bảng đang nạp và lần chạy, rồi báo lỗi lại cho Mage (block hiện màu đỏ).
+    run_id không còn RUNNING (chạy riêng block với output cũ): báo StaleRunError, không ghi gì.
     """
     tables = tables_for(load_type)
     log_conn = connect(autocommit=True)   # không mở được thì cũng không ghi log được -> để Mage báo lỗi
     staging_conn = None
     current_table = None
     try:
+        etl_log.ensure_running(log_conn, run_id)   # trước mọi thao tác ghi (kể cả TRUNCATE của Full Load)
         # Mọi lỗi từ đây (kể cả thiếu manifest, không mở được kết nối thứ hai) đều ghi FAILED đúng nguyên nhân
         expected = manifest_row(batch_id)   # số dòng mong đợi từng file (row_count_match)
         staging_conn = connect(autocommit=False)
@@ -68,6 +71,9 @@ def load_batch(run_id, batch_id, load_type, lset=None, cet=None, truncate_first=
         staging_conn.commit()
         etl_log.mark_tables_success(log_conn, run_id)
         return etl_log.table_summary(log_conn, run_id)
+
+    except etl_log.StaleRunError:
+        raise   # lần chạy đã kết thúc từ trước: không ghi FAILED đè lên
 
     except Exception as exc:
         if staging_conn is not None:
