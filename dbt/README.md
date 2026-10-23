@@ -2,6 +2,7 @@
 
 > Project dbt `olist_dw`: biến đổi schema `staging` (Mage nạp) thành kho `dds` (Galaxy schema) cho Power BI.
 > Công thức từng cột: [docs/source_to_target_mapping.md](../docs/source_to_target_mapping.md) · thiết kế kho: [docs/dw_design.md](../docs/dw_design.md).
+> **Quy tắc, mẫu code, số liệu nghiệm thu cho người viết model: [docs/dbt_rules.md](../docs/dbt_rules.md).**
 > Khởi tạo 23/10/2026: cấu hình, kết nối, nguồn, seed – **chưa có model** (BS-28 → BS-31, mục 4).
 
 ## 1. Chạy dbt
@@ -65,7 +66,7 @@ Cấu hình: [dbt_project.yml](dbt_project.yml) · kết nối: [profiles.yml.ex
 | BS-30 – Models Dimension | 6 model `dim_` | Mục 2, R2 (khóa số nguyên ổn định, member `-1`) |
 | BS-31 – Model Fact | 3 model `fact_` + singular test xóa mềm trong `tests/` | Mục 3, R5; số dòng / test dự kiến ở mục 5 |
 
-Quy ước: mỗi thư mục 1 file `_<tầng>_models.yml` (mô tả model, cột, test); mô tả viết tiếng Việt – dbt docs (Metadata) lấy từ đây. Điền mục 5, 6 khi làm.
+Quy ước: mỗi task 1 file yml cạnh model (`_stg_models.yml`, `_int_models.yml`, `_dim_models.yml`, `_fact_models.yml`) chứa mô tả model, cột, test; mô tả viết tiếng Việt – dbt docs (Metadata) lấy từ đây. Điền mục 5, 6 khi làm. Chi tiết từng task: [docs/dbt_rules.md](../docs/dbt_rules.md).
 
 ## 5. Danh sách model
 
