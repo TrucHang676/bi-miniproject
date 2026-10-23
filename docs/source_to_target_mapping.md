@@ -70,7 +70,7 @@ Thứ tự chạy `dbt build`: seed → `stg_` → `int_` → dimension → fact
 
 ### 0.2. dbt seed (dữ liệu tham chiếu tự bổ sung)
 
-| Seed (đề xuất tên) | Cột | Số dòng | Dùng cho | Lý do |
+| Seed (tên đã chốt 23/10/2026, file trong `dbt/seeds/`) | Cột | Số dòng | Dùng cho | Lý do |
 |---|---|---|---|---|
 | `seed_brazil_states` | `state_code` CHAR(2), `state_name` VARCHAR(50), `region` VARCHAR(30) | 27 | `dim_geography`, `dim_customer`, `dim_seller` | Nguồn chỉ có mã bang (`SP`); tên bang và 5 vùng (Norte, Nordeste, Centro-Oeste, Sudeste, Sul) phục vụ phân cấp Vùng → Bang → Thành phố |
 | `seed_category_translation_extra` | `product_category_name`, `product_category_name_english` | 2 | `dim_product` | 2 danh mục có sản phẩm nhưng thiếu bản dịch: `pc_gamer` → `pc_gamer`, `portateis_cozinha_e_preparadores_de_alimentos` → `portable_kitchen_and_food_preparers` (13 sản phẩm) |
@@ -366,4 +366,4 @@ Các điểm dưới đây **không đổi thiết kế**, chỉ là chênh lệ
 | 3 | Số dòng có `quantity` > 1 | dw_design mục 2 ghi 7.088 – đó là số nhóm trên **mọi** đơn; trong `fact_sales` (chỉ đơn hợp lệ) là **7.049** | Sửa thành 7.049 hoặc ghi rõ "trên mọi đơn" |
 | 4 | "Loại 472 dòng của 467 đơn" (dw_design mục 2) | 472 là số dòng **sau gộp**; tính theo dòng `order_items` là 549 | Ghi rõ đơn vị để người viết dbt test không nhầm |
 | 5 | `shipping_limit_date` có giá trị bất thường (đến 2020) | `handover_delay_days` âm tới −1.054 ngày | Dashboard dùng tỉ lệ K12, tránh trung bình `handover_delay_days`; ghi vào phần hạn chế |
-| 6 | Tên 2 seed | `seed_brazil_states`, `seed_category_translation_extra` là tên **đề xuất** | Chốt tên khi khởi tạo project dbt |
+| 6 | Tên 2 seed | `seed_brazil_states`, `seed_category_translation_extra` là tên **đề xuất** | **Đã chốt 23/10/2026** khi khởi tạo dbt: giữ nguyên 2 tên (`dbt/seeds/`) |

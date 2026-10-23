@@ -23,7 +23,7 @@
 |---|---|---|
 | Nguồn dữ liệu | 8 file CSV Olist (`data/raw/`), script `scripts/split_batches.py` | Dữ liệu tĩnh → chia thành **10 batch** theo tháng mua (FULL, 2018-01 … 2018-08, 2018-09+) để mô phỏng dữ liệu mới đến định kỳ |
 | Tích hợp & biến đổi | Mage.ai, dbt | **Mage** (Extract – Load): đọc batch, kiểm tra chất lượng, MERGE vào `staging`, ghi nhật ký. **dbt** (Transform): biến đổi `staging` thành dim / fact trong `dds`, chạy dbt test |
-| Kho dữ liệu | PostgreSQL 17, database `olist_dw` | 4 schema: `staging`, `dds`, `etl_log` (nhật ký ETL), `dq` (dòng dữ liệu lỗi) |
+| Kho dữ liệu | PostgreSQL 17, database `olist_dw` | 4 schema: `staging`, `dds`, `etl_log` (nhật ký ETL), `dq` (dòng dữ liệu lỗi) + 2 schema làm việc dbt tự tạo: `dbt_stg`, `dbt_int` (view trung gian `stg_`, `int_`, seed) |
 | Khai thác & trình bày | Power BI Desktop, module AI, dịch vụ LLM | Power BI: semantic model + dashboard. Module AI: lấy KPI đã tính từ `dds`, gửi kèm prompt tới LLM để tạo tóm tắt / giải thích |
 
 ### 2.2. Triển khai
@@ -50,7 +50,7 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
 | Source System | 10 batch CSV trong `data/batches/` | [../data/batches/README.md](../data/batches/README.md) | ✅ Script chia batch xong, tự kiểm tra 9/9 PASS |
 | Stage ETL | Pipeline Mage: kiểm tra → MERGE vào `staging` (Full Load / Incremental Load), xóa mềm | [pipeline_rules.md](pipeline_rules.md), [decisions.md](decisions.md) D1–D8, [../mage/README.md](../mage/README.md) | ✅ Pipeline `full_load` + `incremental_load` xong (BS-21 → BS-24); chạy đủ 9 kịch bản kiểm thử, nạp hết 10 batch khớp 100% `data/raw/` |
 | Stage | Schema `staging`: 8 bảng giữ nguyên cấu trúc CSV + `_batch_id`, `_loaded_at` | [data_dictionary.md](data_dictionary.md) | ✅ Đã tạo bảng (`sql/init/01_staging_tables.sql`) |
-| DDS ETL + DQ | dbt: model `stg_` → `int_` → `dim_` / `fact_`, seed, dbt test | [source_to_target_mapping.md](source_to_target_mapping.md) | ⏳ Ánh xạ xong (BS-15), chưa khởi tạo project dbt |
+| DDS ETL + DQ | dbt: model `stg_` → `int_` → `dim_` / `fact_`, seed, dbt test | [source_to_target_mapping.md](source_to_target_mapping.md), [../dbt/README.md](../dbt/README.md) | ⏳ Ánh xạ xong (BS-15); đã khởi tạo project dbt (23/10/2026: nguồn, seed, test nguồn), chờ viết model (BS-28 → BS-31) |
 | DDS | Schema `dds`: 3 fact + 6 dim, lược đồ Galaxy | [dw_design.md](dw_design.md) | ✅ Thiết kế xong, chưa có bảng |
 | Control + Audit | Schema `etl_log`: `pipeline_run`, `table_load`, `quality_check` | `sql/init/02_etl_log.sql`, [../mage/README.md](../mage/README.md) mục Ghi log | ✅ Mage ghi đủ 3 bảng ở mọi lần chạy; Incremental đọc `pipeline_run` để lấy LSET |
 | DQ database | Schema `dq`: dòng bị Mage loại (`rejected_rows`) + dòng vi phạm dbt test (`store_failures`) | [decisions.md](decisions.md) (bảng cuối, 19/10/2026), `sql/init/03_dq.sql` | ✅ Mage ghi dòng bị loại vào `rejected_rows`; phần dbt `store_failures` ⏳ |

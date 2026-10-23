@@ -37,6 +37,8 @@ Các file cấu hình môi trường:
 | `.env` | Thông tin kết nối DB thật (có mật khẩu) – mỗi người tự tạo | ❌ (bị `.gitignore` chặn) |
 | `sql/init/*.sql` | Script tạo schema + bảng – Postgres **tự chạy** lần đầu dựng DB (mục 5) | ✅ |
 | `mage/olist_etl/io_config.yaml` | Cách Mage kết nối Postgres – đọc giá trị từ `.env`, không chứa mật khẩu | ✅ |
+| `dbt/profiles.yml.example` | Mẫu cách dbt kết nối Postgres – copy thành `dbt/profiles.yml` (mục 6.3), cũng đọc giá trị từ `.env` | ✅ |
+| `dbt/profiles.yml` | Bản thật của file trên – mỗi người tự tạo | ❌ (bị `.gitignore` chặn) |
 
 ## 2. Yêu cầu phần mềm
 
@@ -284,11 +286,26 @@ Không mở giao diện cũng chạy được: `docker compose exec mage mage ru
 
 ### 6.3. Transformation (dbt)
 
-> *(Điền khi khởi tạo project dbt.)* dbt chạy **bên trong container Mage** (mục 4.4), project dbt nằm ở `dbt/` của repo, trong container là `/home/src/dbt`.
+> Chi tiết project (tầng model, schema đích, việc còn lại): [dbt/README.md](../dbt/README.md). dbt chạy **bên trong container Mage** (mục 4.4); project nằm ở `dbt/` của repo, trong container là `/home/src/dbt` – `compose.yaml` đã trỏ sẵn tới đó nên gõ lệnh ở thư mục gốc repo.
 
-```bash
-# docker compose exec mage dbt [deps | seed | run | test | docs generate] ...
+**Lần đầu trên mỗi máy:**
+
+```powershell
+Copy-Item dbt\profiles.yml.example dbt\profiles.yml   # giống .env: file thật bị .gitignore, nhưng không chứa mật khẩu
+docker compose up -d                                   # nạp biến DBT_PROJECT_DIR, DBT_PROFILES_DIR vào container Mage
+docker compose exec mage dbt deps                      # cài package dbt_utils
+docker compose exec mage dbt debug                     # kết quả đúng: All checks passed!
 ```
+
+**Mỗi lần biến đổi** (sau khi Mage đã nạp `staging` – mục 6.2):
+
+```powershell
+docker compose exec mage dbt build      # seed -> model -> test, dbt tự xếp đúng thứ tự
+```
+
+- Dim / fact nằm trong schema `dds`; view trung gian của dbt nằm ở `dbt_stg`, `dbt_int`; dòng vi phạm dbt test nằm ở `dq`.
+- Chạy lại Full Load (staging làm lại từ đầu) thì lần build kế tiếp thêm `--full-refresh`.
+- Tài liệu dbt: `docker compose exec mage dbt docs generate --static` → mở `dbt/target/static_index.html` bằng trình duyệt.
 
 ### 6.4. Power BI
 
@@ -338,3 +355,6 @@ pip install -r requirements.txt
 | Kết quả block Mage hiện `********` | Mage che giá trị trùng biến bí mật trong `.env` | Bình thường, không phải lỗi |
 | Power BI báo lỗi chứng chỉ SSL khi kết nối PostgreSQL | Postgres chạy Docker không có chứng chỉ SSL hợp lệ | *File → Options and settings → Data source settings* → chọn nguồn → *Edit Permissions* → bỏ tick **Encrypt connections** |
 | DBeaver báo `invalid value for parameter "TimeZone": "Asia/Saigon"` | Java gửi tên múi giờ cũ mà Postgres không nhận | Thêm dòng `-Duser.timezone=Asia/Ho_Chi_Minh` vào cuối `%LOCALAPPDATA%\DBeaver\dbeaver.ini`, mở lại DBeaver |
+| dbt báo `No dbt_project.yml found at expected path /home/src/dbt_project.yml` | Container Mage tạo từ `compose.yaml` cũ, chưa có biến `DBT_PROJECT_DIR` | `docker compose up -d` (tự tạo lại container Mage) |
+| dbt báo `Could not find profile named 'olist_dw'` (riêng `dbt debug` báo `profiles.yml file [ERROR not found]`) | Chưa có `dbt/profiles.yml` | `Copy-Item dbt\profiles.yml.example dbt\profiles.yml` (mục 6.3) |
+| dbt báo `dbt found 1 package(s) specified in packages.yml, but only 0 package(s) installed` | Chưa cài package (thư mục `dbt/dbt_packages/` không lên GitHub) | `docker compose exec mage dbt deps` |
