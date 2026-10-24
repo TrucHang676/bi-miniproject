@@ -4,7 +4,7 @@
 > Công thức từng cột: [docs/source_to_target_mapping.md](../docs/source_to_target_mapping.md) · thiết kế kho: [docs/dw_design.md](../docs/dw_design.md).
 > **Quy tắc, mẫu code, số liệu nghiệm thu cho người viết model: [docs/dbt_rules.md](../docs/dbt_rules.md).**
 > Khởi tạo 23/10/2026: cấu hình, kết nối, nguồn, seed. Model BS-28 → BS-31 làm xong 24/10/2026: 20 model, 155 test (mục 4 – 6); đã chạy đủ 6 kịch bản kiểm thử B7 (mục 4).
-> Đối soát số liệu kho `dds` sau khi chạy: [sql/checks/02_dds_checks.sql](../sql/checks/02_dds_checks.sql).
+> Đối soát số liệu kho `dds` sau khi chạy: [sql/checks/02_dds_checks.sql](../sql/checks/02_dds_checks.sql) · xem test đang lỗi, demo test FAIL, kiểm khóa giữa 2 lần build: [sql/checks/03_dbt_test_demo.sql](../sql/checks/03_dbt_test_demo.sql).
 
 ## 1. Chạy dbt
 
@@ -70,7 +70,7 @@ Kết quả 6 kịch bản kiểm thử ([dbt_rules.md](../docs/dbt_rules.md) B7
 | 3 | Nạp từng batch như lịch Seminar 3: Mage `full_load` → `dbt build --full-refresh` → 9 lần (Mage `incremental_load` → `dbt build`) | Cả 10 lần `PASS=177 ERROR=0` (mỗi vòng: Mage ~12 giây + dbt ~35 giây). Sau mỗi lần build, so khóa với lần build trước: **0** khách / thành phố / sản phẩm / người bán bị đổi khóa, khóa mới nối tiếp liền mạch (bảng dưới), luôn đúng 1 dòng `-1`. Sau batch cuối, so với kịch bản 1 theo khóa tự nhiên: cả 9 bảng giống hệt (0 dòng chênh cả 2 chiều). Chỉ **giá trị** khóa của `dim_customer`, `dim_geography` khác kịch bản 1 (cấp dần theo batch thay vì theo thứ tự mã) – đúng thiết kế R2, fact dựng lại cùng lần nên vẫn khớp |
 | 4 | Xóa mềm 1 đơn rồi build | Đơn biến mất khỏi 3 fact (mỗi fact giảm 1 dòng); khách vẫn còn trong `dim_customer`, giữ khóa, chuyển sang "Chưa có đơn hợp lệ". Khôi phục đơn → số liệu trở lại như cũ |
 | 5 | Mage chạy lại `full_load` → `dbt build --full-refresh` | `PASS=177 ERROR=0`. Cả 9 bảng giống hệt (kể cả khóa) kết quả sau Full Load lần đầu của kịch bản 3: chỉ còn dữ liệu batch FULL (đơn mới nhất 31/12/2017; `fact_sales` 46.418 dòng) |
-| 6 | Demo 1 test FAIL: thêm 1 dòng `order_items` trỏ tới đơn không tồn tại → `dbt test --select source:staging` | Test `relationships` của `order_items.order_id` báo `FAIL 1` (`PASS=8 ERROR=1`); dòng lỗi (`demo_orphan_order`) nằm trong bảng `dq` mà dbt in ra. Xóa dòng demo, chạy lại → `PASS=9`, bảng lỗi trống lại |
+| 6 | Demo 1 test FAIL: thêm 1 dòng `order_items` trỏ tới đơn không tồn tại → `dbt test --select source:staging` | Test `relationships` của `order_items.order_id` báo `FAIL 1` (`PASS=8 ERROR=1`); dòng lỗi (`demo_orphan_order`) nằm trong bảng `dq` mà dbt in ra. Xóa dòng demo, chạy lại → `PASS=9`, bảng lỗi trống lại. Cách làm: mục 6 |
 
 Kịch bản 3 – khóa được cấp qua từng batch ở 2 dimension incremental, và số dòng fact sau mỗi lần build:
 
@@ -88,6 +88,7 @@ Kịch bản 3 – khóa được cấp qua từng batch ở 2 dimension increme
 | 2018-09+ | 6 → 96.091 … 96.096 | 0 (`INSERT 0 0`) | 101.953 · 100.010 · 100.568 |
 
 Mỗi lần build, dbt báo `dim_customer` `INSERT` lại **toàn bộ** khách (VD `INSERT 0 51059` sau batch 2018-01): mẫu SCD 1 tính lại thuộc tính của mọi khách rồi `delete+insert`, khóa vẫn lấy lại từ bảng cũ. Batch 2018-09+ chỉ có 20 đơn mới nhưng `fact_review` vẫn tăng 699 dòng: đánh giá đến theo tháng khách **trả lời** (D8), nhiều đơn tháng 8 được trả lời sang tháng 9.
+Cách so khóa trước / sau 1 lần build (dùng lại khi demo nạp từng batch): [sql/checks/03_dbt_test_demo.sql](../sql/checks/03_dbt_test_demo.sql) câu Q4.
 
 Lỗi môi trường đã gặp: build song song 3 fact báo `could not resize shared memory segment … No space left on device` (lúc có lúc không). Nguyên nhân: Docker mặc định cho container Postgres 64 MB bộ nhớ dùng chung (`/dev/shm`). Đã thêm `shm_size: 256mb` cho service `postgres` trong `compose.yaml` – máy nào đã bật container trước đó thì chạy `docker compose up -d` để tạo lại container (dữ liệu trong volume không mất).
 
@@ -140,6 +141,27 @@ Số dòng dim có tính 1 dòng `-1` "Không xác định" (trừ `dim_date`, `
 | `tests/assert_facts_match_sources.sql` | Viết tay | Tổng `quantity`, tổng `revenue`, số dòng `fact_delivery`, số lượt đánh giá khớp nguồn → không nhân dòng, không mất dòng. So với nguồn chứ không so với số cố định nên vẫn đúng khi xóa đơn |
 
 Tổng tiền, số dòng **không** viết thành test cứng (demo xóa đơn sẽ làm chúng đổi) – đối soát bằng `sql/checks/02_dds_checks.sql`.
+
+### Khi có test FAIL – xem dòng vi phạm ở đâu
+
+- dbt in tên test và câu `select * from "olist_dw"."dq"."<tên bảng>"` (dòng *See test failures*) → chạy câu đó trong DBeaver để xem dòng sai. Trong `dbt build`, test FAIL làm các model / test **phía sau** bị `SKIP`, nên dữ liệu sai không chảy tiếp vào `dds`.
+- Mỗi test có 1 bảng trong schema `dq` (155 bảng), ghi đè ở mỗi lần chạy; bảng 0 dòng = test đạt. Liệt kê nhanh các test đang có dòng vi phạm: [sql/checks/03_dbt_test_demo.sql](../sql/checks/03_dbt_test_demo.sql) câu Q1.
+- Khác `dq.rejected_rows`: bảng đó do Mage ghi – dòng **bị loại**, không vào `staging`. dbt test chỉ **phát hiện**; dòng sai vẫn nằm trong `staging` / `dds` cho tới khi sửa nguồn rồi nạp lại.
+
+**Demo 1 test FAIL** (B7 kịch bản 6, các bước ở câu Q3 của file trên): thêm 1 dòng `order_items` trỏ tới đơn `demo_orphan_order` không tồn tại → `dbt test --select source:staging` ra:
+
+```
+3 of 9 FAIL 1 source_relationships_staging_order_items_order_id__order_id__source_staging_orders_  [FAIL 1 in 0.44s]
+...
+Failure in test source_relationships_staging_order_items_order_id__order_id__source_staging_orders_ (models/staging/_sources.yml)
+  Got 1 result, configured to fail if != 0
+  ...
+  See test failures:
+  select * from "olist_dw"."dq"."source_relationships_staging_o_e2f0b1bc186e5bee3058cd672e745441"
+Done. PASS=8 WARN=0 ERROR=1 SKIP=0 TOTAL=9
+```
+
+Bảng lỗi có đúng 1 dòng `from_field = demo_orphan_order`. `TOTAL=9` = 8 test nguồn + `assert_no_deleted_orders_in_facts` (test này cũng đọc `staging.orders` nên được chọn theo). Xóa dòng demo, chạy lại → `PASS=9`, bảng lỗi trống lại. Tên bảng lỗi giống nhau ở mọi máy (máy Thanh, máy Hằng).
 
 ## 7. Lineage graph
 

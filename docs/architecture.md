@@ -45,15 +45,15 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
 
 ### 3.1. Đối chiếu Single DDS → đồ án
 
-| Thành phần Single DDS | Trong đồ án | Chi tiết | Trạng thái (21/10/2026) |
+| Thành phần Single DDS | Trong đồ án | Chi tiết | Trạng thái (24/10/2026) |
 |---|---|---|---|
 | Source System | 10 batch CSV trong `data/batches/` | [../data/batches/README.md](../data/batches/README.md) | ✅ Script chia batch xong, tự kiểm tra 9/9 PASS |
 | Stage ETL | Pipeline Mage: kiểm tra → MERGE vào `staging` (Full Load / Incremental Load), xóa mềm | [pipeline_rules.md](pipeline_rules.md), [decisions.md](decisions.md) D1–D8, [../mage/README.md](../mage/README.md) | ✅ Pipeline `full_load` + `incremental_load` xong (BS-21 → BS-24); chạy đủ 9 kịch bản kiểm thử, nạp hết 10 batch khớp 100% `data/raw/` |
 | Stage | Schema `staging`: 8 bảng giữ nguyên cấu trúc CSV + `_batch_id`, `_loaded_at` | [data_dictionary.md](data_dictionary.md) | ✅ Đã tạo bảng (`sql/init/01_staging_tables.sql`) |
-| DDS ETL + DQ | dbt: model `stg_` → `int_` → `dim_` / `fact_`, seed, dbt test | [source_to_target_mapping.md](source_to_target_mapping.md), [dbt_rules.md](dbt_rules.md), [../dbt/README.md](../dbt/README.md) | ⏳ Ánh xạ xong (BS-15); đã khởi tạo project dbt (23/10/2026: nguồn, seed, test nguồn), chờ viết model (BS-28 → BS-31) |
-| DDS | Schema `dds`: 3 fact + 6 dim, lược đồ Galaxy | [dw_design.md](dw_design.md) | ✅ Thiết kế xong, chưa có bảng |
+| DDS ETL + DQ | dbt: model `stg_` → `int_` → `dim_` / `fact_`, seed, dbt test | [source_to_target_mapping.md](source_to_target_mapping.md), [dbt_rules.md](dbt_rules.md), [../dbt/README.md](../dbt/README.md) | ✅ Ánh xạ xong (BS-15); 20 model + 155 dbt test xong (BS-28 → BS-31); đạt đủ 6 kịch bản kiểm thử B7, kể cả nạp từng batch ([../dbt/README.md](../dbt/README.md) mục 4) |
+| DDS | Schema `dds`: 3 fact + 6 dim, lược đồ Galaxy | [dw_design.md](dw_design.md) | ✅ Thiết kế xong; dbt dựng đủ 9 bảng, số liệu khớp nghiệm thu (`sql/checks/02_dds_checks.sql`) |
 | Control + Audit | Schema `etl_log`: `pipeline_run`, `table_load`, `quality_check` | `sql/init/02_etl_log.sql`, [../mage/README.md](../mage/README.md) mục Ghi log | ✅ Mage ghi đủ 3 bảng ở mọi lần chạy; Incremental đọc `pipeline_run` để lấy LSET |
-| DQ database | Schema `dq`: dòng bị Mage loại (`rejected_rows`) + dòng vi phạm dbt test (`store_failures`) | [decisions.md](decisions.md) (bảng cuối, 19/10/2026), `sql/init/03_dq.sql` | ✅ Mage ghi dòng bị loại vào `rejected_rows`; phần dbt `store_failures` ⏳ |
+| DQ database | Schema `dq`: dòng bị Mage loại (`rejected_rows`) + dòng vi phạm dbt test (`store_failures`) | [decisions.md](decisions.md) (bảng cuối, 19/10/2026), `sql/init/03_dq.sql` | ✅ Mage ghi dòng bị loại vào `rejected_rows`; dbt test lưu dòng vi phạm vào `dq` – mỗi test 1 bảng, 155 bảng (xem bằng `sql/checks/03_dbt_test_demo.sql`) |
 | Metadata | dbt docs, data dictionary, ánh xạ nguồn → đích | | Tài liệu ✅, dbt docs ⏳ |
 | MDB | Semantic model trong Power BI (quan hệ, DAX, hierarchy) | [../powerbi/README.md](../powerbi/README.md) | ⏳ |
 | Application | Dashboard Power BI (3 trang); module AI (tóm tắt, giải thích, hỏi đáp) | [../powerbi/README.md](../powerbi/README.md), [../ai/README.md](../ai/README.md) | ⏳ Mới phác thảo dashboard, chưa chọn LLM |

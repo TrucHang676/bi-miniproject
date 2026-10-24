@@ -304,6 +304,7 @@ docker compose exec mage dbt build      # seed -> model -> test, dbt tự xếp 
 ```
 
 - Dim / fact nằm trong schema `dds`; view trung gian của dbt nằm ở `dbt_stg`, `dbt_int`; dòng vi phạm dbt test nằm ở `dq`.
+- Kiểm tra kết quả bằng DBeaver: `sql/checks/02_dds_checks.sql` (số liệu `dds`, có số mong đợi); test FAIL thì `sql/checks/03_dbt_test_demo.sql` câu Q1 liệt kê test nào đang có dòng vi phạm.
 - Chạy lại Full Load (staging làm lại từ đầu) thì lần build kế tiếp thêm `--full-refresh`.
 - Tài liệu dbt: `docker compose exec mage dbt docs generate --static` → mở `dbt/target/static_index.html` bằng trình duyệt.
 
@@ -358,3 +359,5 @@ pip install -r requirements.txt
 | dbt báo `No dbt_project.yml found at expected path /home/src/dbt_project.yml` | Container Mage tạo từ `compose.yaml` cũ, chưa có biến `DBT_PROJECT_DIR` | `docker compose up -d` (tự tạo lại container Mage) |
 | dbt báo `Could not find profile named 'olist_dw'` (riêng `dbt debug` báo `profiles.yml file [ERROR not found]`) | Chưa có `dbt/profiles.yml` | `Copy-Item dbt\profiles.yml.example dbt\profiles.yml` (mục 6.3) |
 | dbt báo `dbt found 1 package(s) specified in packages.yml, but only 0 package(s) installed` | Chưa cài package (thư mục `dbt/dbt_packages/` không lên GitHub) | `docker compose exec mage dbt deps` |
+| `dbt build` báo `could not resize shared memory segment … No space left on device` (lúc có lúc không) | Container Postgres tạo trước khi `compose.yaml` có `shm_size: 256mb` – vẫn dùng 64 MB `/dev/shm` mặc định của Docker | `docker compose up -d` (tự tạo lại container, dữ liệu trong volume giữ nguyên); kiểm tra `docker compose exec postgres df -h /dev/shm` ra `256M` |
+| Gõ trong **Git Bash**: `mage run /home/src/mage/olist_etl full_load` báo `Pipeline full_load does not exist in repo_path /home/src/C:/Program Files/Git/home/src/...` | Git Bash tự đổi tham số dạng `/home/...` thành đường dẫn Windows trước khi gửi vào container | Chạy lệnh trong **PowerShell**, hoặc thêm `MSYS_NO_PATHCONV=1` trước lệnh: `MSYS_NO_PATHCONV=1 docker compose exec mage mage run /home/src/mage/olist_etl full_load` |
