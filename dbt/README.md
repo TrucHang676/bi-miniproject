@@ -3,7 +3,7 @@
 > Project dbt `olist_dw`: biến đổi schema `staging` (Mage nạp) thành kho `dds` (Galaxy schema) cho Power BI.
 > Công thức từng cột: [docs/source_to_target_mapping.md](../docs/source_to_target_mapping.md) · thiết kế kho: [docs/dw_design.md](../docs/dw_design.md).
 > **Quy tắc, mẫu code, số liệu nghiệm thu cho người viết model: [docs/dbt_rules.md](../docs/dbt_rules.md).**
-> Khởi tạo 23/10/2026: cấu hình, kết nối, nguồn, seed. Model BS-28 → BS-31 làm xong 24/10/2026: 20 model, 155 test (mục 4 – 6).
+> Khởi tạo 23/10/2026: cấu hình, kết nối, nguồn, seed. Model BS-28 → BS-31 làm xong 24/10/2026: 20 model, 155 test (mục 4 – 6); đã chạy đủ 6 kịch bản kiểm thử B7 (mục 4).
 > Đối soát số liệu kho `dds` sau khi chạy: [sql/checks/02_dds_checks.sql](../sql/checks/02_dds_checks.sql).
 
 ## 1. Chạy dbt
@@ -20,7 +20,6 @@ docker compose exec mage dbt debug                     # phải ra: All checks p
 ```
 
 `staging` phải có dữ liệu trước khi build: chạy Mage `full_load` + 9 lần `incremental_load` ([setup_guide.md](../docs/setup_guide.md) mục 6.2).
-Khi chưa có model nào, dbt in `[WARNING]: … There are 3 unused configuration paths` – bình thường, tự hết khi mỗi thư mục có model.
 
 | Muốn… | `docker compose exec mage …` |
 |---|---|
@@ -35,7 +34,7 @@ Khi chưa có model nào, dbt in `[WARNING]: … There are 3 unused configuratio
 
 | Thư mục | Tiền tố | Materialization | Schema | Nội dung |
 |---|---|---|---|---|
-| `models/staging/` | `stg_` | view | `dbt_stg` | 1 model / 1 bảng nguồn: ép kiểu, `TRIM`, đổi tên cột sai chính tả, bỏ đơn đã xóa mềm (R10) |
+| `models/staging/` | `stg_` | view | `dbt_stg` | 1 model / 1 bảng nguồn: chọn cột, bỏ cột kỹ thuật, đổi tên cột sai chính tả, bỏ đơn đã xóa mềm (R10). Không ép kiểu lại – Mage đã nạp đúng kiểu |
 | `models/intermediate/` | `int_` | view | `dbt_int` | Phép tính dùng chung cho nhiều dim / fact: `int_orders`, `int_purchase_sessions`, `int_delivery_lines` |
 | `models/marts/` | `dim_`, `fact_` | table (`dim_customer`, `dim_geography`: incremental) | `dds` | 6 dimension + 3 fact – Power BI chỉ đọc schema này |
 | `seeds/` | `seed_` | table | `dbt_stg` | Dữ liệu tham chiếu nhóm tự bổ sung |
@@ -46,7 +45,7 @@ Khi chưa có model nào, dbt in `[WARNING]: … There are 3 unused configuratio
 `staging` (Mage) và `dds` (Power BI) giữ đúng vai trò; view trung gian của dbt nằm riêng ở `dbt_stg`, `dbt_int` (dbt tự tạo 2 schema này).
 Cấu hình: [dbt_project.yml](dbt_project.yml) · kết nối: [profiles.yml.example](profiles.yml.example) · package: [packages.yml](packages.yml).
 
-## 3. Đã có sẵn
+## 3. Nguồn, seed, package
 
 | Thứ | File | Ghi chú |
 |---|---|---|
@@ -56,27 +55,39 @@ Cấu hình: [dbt_project.yml](dbt_project.yml) · kết nối: [profiles.yml.ex
 | Mô tả + test seed | `seeds/_seeds.yml` | Mã bang không trùng, vùng thuộc 5 giá trị |
 | Package | `packages.yml` | `dbt_utils` 1.3.x – `unique_combination_of_columns` cho khóa ghép (mapping mục 5) |
 
-Đã chạy thử trên dữ liệu đủ 10 batch (23/10/2026): `dbt build` đạt hết (2 seed, 14 test); làm mồ côi 1 đơn thì test báo `FAIL 1` và dòng lỗi nằm trong `dq`.
+## 4. Trạng thái và kết quả kiểm thử
 
-## 4. Việc tiếp theo
+**Trạng thái (24/10/2026): 4 task BS-28 → BS-31 đã xong** (Nhựt Thanh). `dbt build` cả project: `PASS=177 ERROR=0` (2 seed, 20 model, 155 test). Số dòng và số liệu đối soát khớp [dbt_rules.md](../docs/dbt_rules.md) B6 ([sql/checks/02_dds_checks.sql](../sql/checks/02_dds_checks.sql)).
+Quy ước: mỗi tầng 1 file yml cạnh model (`_stg_models.yml`, `_int_models.yml`, `_dim_models.yml`, `_fact_models.yml`) chứa mô tả model, cột, test bằng tiếng Việt – dbt docs (Metadata) lấy từ đây.
 
-| Task | Tạo gì | Công thức (source_to_target_mapping.md) |
+Kết quả 6 kịch bản kiểm thử ([dbt_rules.md](../docs/dbt_rules.md) B7). Kịch bản 2, 4 chạy trên máy Thanh; kịch bản 1, 3, 5, 6 chạy trên máy Hằng (24/10/2026, DB trống, nạp `staging` bằng chính pipeline Mage):
+
+| # | Kịch bản | Kết quả |
 |---|---|---|
-| BS-28 – Models tầng staging | 8 model `stg_<tên bảng>` + `_stg_models.yml` | Mục 0.1, R10; `stg_products` đổi `*_lenght` → `*_length` |
-| BS-29 – Models tầng intermediate | `int_orders`, `int_purchase_sessions`, `int_delivery_lines` + macro `normalize_city` | R1, R4, R6, R7, R9 |
-| BS-30 – Models Dimension | 6 model `dim_` | Mục 2, R2 (khóa số nguyên ổn định, member `-1`) |
-| BS-31 – Model Fact | 3 model `fact_` + singular test xóa mềm trong `tests/` | Mục 3, R5; số dòng / test dự kiến ở mục 5 |
+| 1 | Nạp đủ 10 batch rồi dựng `dds` từ đầu (`dbt build --full-refresh`) | `PASS=177 ERROR=0`. Số dòng 9 bảng và mọi số B6 khớp: doanh thu 01/2017 – 08/2018 13.449.529,68 BRL; K6 6.534 / 96.470 = 6,77%; K12 8.913 / 98.824 = 9,02%; K8 4,09; K9 14,69% cả kỳ / 14,63% trong kỳ; K5 2,27%; 47 tổ hợp trạng thái; 0 dòng fact trỏ vào `-1` ở khách / địa lý / sản phẩm |
+| 2 | Build lại khi dữ liệu không đổi | Khóa 4 dimension giữ nguyên 100%; `dim_geography` báo `INSERT 0 0` |
+| – | Có khách / thành phố mới (mô phỏng: xóa 200 khách, 20 thành phố khỏi dimension rồi build lại) | Khách cũ giữ khóa; khách mới nhận khóa nối tiếp 96.097 → 96.296; vẫn đúng 1 dòng `-1` |
+| 3 | Nạp từng batch như lịch Seminar 3: Mage `full_load` → `dbt build --full-refresh` → 9 lần (Mage `incremental_load` → `dbt build`) | Cả 10 lần `PASS=177 ERROR=0` (mỗi vòng: Mage ~12 giây + dbt ~35 giây). Sau mỗi lần build, so khóa với lần build trước: **0** khách / thành phố / sản phẩm / người bán bị đổi khóa, khóa mới nối tiếp liền mạch (bảng dưới), luôn đúng 1 dòng `-1`. Sau batch cuối, so với kịch bản 1 theo khóa tự nhiên: cả 9 bảng giống hệt (0 dòng chênh cả 2 chiều). Chỉ **giá trị** khóa của `dim_customer`, `dim_geography` khác kịch bản 1 (cấp dần theo batch thay vì theo thứ tự mã) – đúng thiết kế R2, fact dựng lại cùng lần nên vẫn khớp |
+| 4 | Xóa mềm 1 đơn rồi build | Đơn biến mất khỏi 3 fact (mỗi fact giảm 1 dòng); khách vẫn còn trong `dim_customer`, giữ khóa, chuyển sang "Chưa có đơn hợp lệ". Khôi phục đơn → số liệu trở lại như cũ |
+| 5 | Mage chạy lại `full_load` → `dbt build --full-refresh` | `PASS=177 ERROR=0`. Cả 9 bảng giống hệt (kể cả khóa) kết quả sau Full Load lần đầu của kịch bản 3: chỉ còn dữ liệu batch FULL (đơn mới nhất 31/12/2017; `fact_sales` 46.418 dòng) |
+| 6 | Demo 1 test FAIL: thêm 1 dòng `order_items` trỏ tới đơn không tồn tại → `dbt test --select source:staging` | Test `relationships` của `order_items.order_id` báo `FAIL 1` (`PASS=8 ERROR=1`); dòng lỗi (`demo_orphan_order`) nằm trong bảng `dq` mà dbt in ra. Xóa dòng demo, chạy lại → `PASS=9`, bảng lỗi trống lại |
 
-Quy ước: mỗi task 1 file yml cạnh model (`_stg_models.yml`, `_int_models.yml`, `_dim_models.yml`, `_fact_models.yml`) chứa mô tả model, cột, test; mô tả viết tiếng Việt – dbt docs (Metadata) lấy từ đây. Chi tiết từng task: [docs/dbt_rules.md](../docs/dbt_rules.md).
+Kịch bản 3 – khóa được cấp qua từng batch ở 2 dimension incremental, và số dòng fact sau mỗi lần build:
 
-**Trạng thái (24/10/2026): cả 4 task đã xong** (Nhựt Thanh). `dbt build` cả project: `PASS=177 ERROR=0` (2 seed, 20 model, 155 test), chạy lại nhiều lần vẫn đạt. Số dòng và số liệu đối soát khớp [dbt_rules.md](../docs/dbt_rules.md) B6. Đã chạy các kịch bản B7:
+| Batch | Khách mới → khóa | Thành phố mới → khóa | `fact_sales` · `fact_delivery` · `fact_review` |
+|---|---|---|---|
+| FULL | 44.034 → 1 … 44.034 | 3.413 → 1 … 3.413 | 46.418 · 45.394 · 42.867 |
+| 2018-01 | 7.025 → 44.035 … 51.059 | 184 → 3.414 … 3.597 | 53.901 · 52.727 · 49.224 |
+| 2018-02 | 6.451 → 51.060 … 57.510 | 151 → 3.598 … 3.748 | 60.704 · 59.473 · 55.390 |
+| 2018-03 | 6.965 → 57.511 … 64.475 | 142 → 3.749 … 3.890 | 68.101 · 66.754 · 63.115 |
+| 2018-04 | 6.711 → 64.476 … 71.186 | 108 → 3.891 … 3.998 | 75.317 · 73.823 · 70.863 |
+| 2018-05 | 6.622 → 71.187 … 77.808 | 85 → 3.999 … 4.083 | 82.414 · 80.790 · 78.512 |
+| 2018-06 | 5.940 → 77.809 … 83.748 | 67 → 4.084 … 4.150 | 88.803 · 87.064 · 84.991 |
+| 2018-07 | 6.071 → 83.749 … 89.819 | 85 → 4.151 … 4.235 | 95.255 · 93.438 · 90.904 |
+| 2018-08 | 6.271 → 89.820 … 96.090 | 74 → 4.236 … 4.309 | 101.952 · 100.009 · 99.869 |
+| 2018-09+ | 6 → 96.091 … 96.096 | 0 (`INSERT 0 0`) | 101.953 · 100.010 · 100.568 |
 
-| Kịch bản | Kết quả |
-|---|---|
-| 1. Build sau khi nạp đủ 10 batch | `ERROR=0`; số liệu khớp B6 (`sql/checks/02_dds_checks.sql`) |
-| 2. Build lại khi dữ liệu không đổi | Khóa 4 dimension giữ nguyên 100%; `dim_geography` báo `INSERT 0 0` |
-| Có khách / thành phố mới (mô phỏng: xóa 200 khách, 20 thành phố khỏi dimension rồi build lại) | Khách cũ giữ khóa; khách mới nhận khóa nối tiếp 96.097 → 96.296; vẫn đúng 1 dòng `-1` |
-| 4. Xóa mềm 1 đơn rồi build | Đơn biến mất khỏi 3 fact (mỗi fact giảm 1 dòng); khách vẫn còn trong `dim_customer`, giữ khóa, chuyển sang "Chưa có đơn hợp lệ". Khôi phục đơn → số liệu trở lại như cũ |
+Mỗi lần build, dbt báo `dim_customer` `INSERT` lại **toàn bộ** khách (VD `INSERT 0 51059` sau batch 2018-01): mẫu SCD 1 tính lại thuộc tính của mọi khách rồi `delete+insert`, khóa vẫn lấy lại từ bảng cũ. Batch 2018-09+ chỉ có 20 đơn mới nhưng `fact_review` vẫn tăng 699 dòng: đánh giá đến theo tháng khách **trả lời** (D8), nhiều đơn tháng 8 được trả lời sang tháng 9.
 
 Lỗi môi trường đã gặp: build song song 3 fact báo `could not resize shared memory segment … No space left on device` (lúc có lúc không). Nguyên nhân: Docker mặc định cho container Postgres 64 MB bộ nhớ dùng chung (`/dev/shm`). Đã thêm `shm_size: 256mb` cho service `postgres` trong `compose.yaml` – máy nào đã bật container trước đó thì chạy `docker compose up -d` để tạo lại container (dữ liệu trong volume không mất).
 
