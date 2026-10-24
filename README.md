@@ -23,7 +23,7 @@
 
 ```
 Kaggle CSV → split_batches.py → data/batches → Mage.ai → staging → dbt → dds (Galaxy) → Power BI
-                                                  │                        └→ Module AI ↔ LLM
+                                                  │    (Mage gọi dbt)      └→ Module AI ↔ LLM
                                                   └→ etl_log (nhật ký ETL), dq (dòng dữ liệu lỗi)
 ```
 
@@ -59,9 +59,9 @@ Xem chi tiết tại [docs/setup_guide.md](docs/setup_guide.md).
 1. Copy `.env.example` thành `.env` (đổi mật khẩu) và `dbt/profiles.yml.example` thành `dbt/profiles.yml`.
 2. Mở Docker Desktop, chạy `docker compose up -d --build` tại thư mục gốc repo (Postgres tự tạo schema + bảng từ `sql/init/`).
 3. Sinh batch dữ liệu: `docker compose exec mage python scripts/split_batches.py` (dòng cuối phải là `TẤT CẢ ĐẠT (9/9 PASS)`).
-4. Mở Mage tại http://localhost:6789 (`admin@admin.com` / `admin`); DB: `localhost:5432`, database `olist_dw`.
-5. Nạp dữ liệu vào `staging`: chạy pipeline `full_load` 1 lần, rồi `incremental_load` 9 lần (mỗi lần 1 batch) – **Triggers → Run@once**. Chi tiết các block: [mage/README.md](mage/README.md); xem kết quả bằng [sql/checks/01_pipeline_demo.sql](sql/checks/01_pipeline_demo.sql).
-6. Biến đổi `staging` → `dds` bằng dbt: `docker compose exec mage dbt deps` (lần đầu), rồi `docker compose exec mage dbt build`. Chi tiết: [dbt/README.md](dbt/README.md).
+4. Cài package dbt (lần đầu): `docker compose exec mage dbt deps`, rồi `docker compose exec mage dbt debug` phải ra `All checks passed!`. Chi tiết: [dbt/README.md](dbt/README.md).
+5. Mở Mage tại http://localhost:6789 (`admin@admin.com` / `admin`); DB: `localhost:5432`, database `olist_dw`.
+6. Chạy pipeline `full_load` 1 lần, rồi `incremental_load` 9 lần (mỗi lần 1 batch) – **Triggers → Run@once**. Mỗi lần chạy, Mage nạp batch vào `staging` rồi **tự gọi `dbt build`** dựng `dds` (Galaxy schema). Chi tiết các block: [mage/README.md](mage/README.md); xem kết quả bằng [sql/checks/01_pipeline_demo.sql](sql/checks/01_pipeline_demo.sql) và [sql/checks/02_dds_checks.sql](sql/checks/02_dds_checks.sql).
 
 ## 7. Sản phẩm nộp
 

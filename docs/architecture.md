@@ -2,7 +2,7 @@
 
 > Sơ đồ: [images/architecture.drawio](images/architecture.drawio) (2 trang: `[Seminar] - Kiến trúc tổng thể`, `[Seminar] - Luồng dữ liệu`);
 > ảnh xuất: [images/architecture.png](images/architecture.png) (trang 1), [images/data_flow.png](images/data_flow.png) (trang 2).
-> Dùng cho báo cáo Chương 4 (Hình 4.1, Hình 4.2). Trạng thái ghi trong file cập nhật ngày 21/10/2026.
+> Dùng cho báo cáo Chương 4 (Hình 4.1, Hình 4.2). Trạng thái ghi trong file cập nhật ngày 24/10/2026.
 
 ## 1. Kiến trúc được chọn: Single DDS
 
@@ -22,7 +22,7 @@
 | Tầng | Thành phần | Vai trò |
 |---|---|---|
 | Nguồn dữ liệu | 8 file CSV Olist (`data/raw/`), script `scripts/split_batches.py` | Dữ liệu tĩnh → chia thành **10 batch** theo tháng mua (FULL, 2018-01 … 2018-08, 2018-09+) để mô phỏng dữ liệu mới đến định kỳ |
-| Tích hợp & biến đổi | Mage.ai, dbt | **Mage** (Extract – Load): đọc batch, kiểm tra chất lượng, MERGE vào `staging`, ghi nhật ký. **dbt** (Transform): biến đổi `staging` thành dim / fact trong `dds`, chạy dbt test |
+| Tích hợp & biến đổi | Mage.ai, dbt | **Mage** (Extract – Load): đọc batch, kiểm tra chất lượng, MERGE vào `staging`, ghi nhật ký; nạp xong thì **gọi dbt** trong cùng lần chạy (điều phối cả luồng). **dbt** (Transform): biến đổi `staging` thành dim / fact trong `dds`, chạy dbt test |
 | Kho dữ liệu | PostgreSQL 17, database `olist_dw` | 4 schema: `staging`, `dds`, `etl_log` (nhật ký ETL), `dq` (dòng dữ liệu lỗi) + 2 schema làm việc dbt tự tạo: `dbt_stg`, `dbt_int` (view trung gian `stg_`, `int_`, seed) |
 | Khai thác & trình bày | Power BI Desktop, module AI, dịch vụ LLM | Power BI: semantic model + dashboard. Module AI: lấy KPI đã tính từ `dds`, gửi kèm prompt tới LLM để tạo tóm tắt / giải thích |
 
@@ -31,7 +31,7 @@
 | Thành phần | Chạy ở đâu | Truy cập |
 |---|---|---|
 | PostgreSQL 17 | Container `olist-postgres` (image `postgres:17`); dữ liệu trong volume `bi-miniproject_pgdata`; script `sql/init/` tự chạy khi volume còn trống | `localhost:5432` |
-| Mage.ai 0.9.79 + dbt 1.8 | Container `olist-mage` (build từ `docker/Dockerfile`); cả repo gắn vào `/home/src`; dbt chạy bằng `docker compose exec mage dbt ...` | http://localhost:6789 |
+| Mage.ai 0.9.79 + dbt 1.8 | Container `olist-mage` (build từ `docker/Dockerfile`); cả repo gắn vào `/home/src`; pipeline Mage gọi `dbt build` sau khi nạp staging, chạy tay bằng `docker compose exec mage dbt ...` | http://localhost:6789 |
 | Power BI Desktop, DBeaver | Cài trực tiếp trên Windows | Kết nối DB qua `localhost:5432` |
 | Module AI | Chưa chốt (xem [../ai/README.md](../ai/README.md)) | |
 | LLM | Dịch vụ bên ngoài, gọi qua API – chưa chọn | |
@@ -48,11 +48,11 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
 | Thành phần Single DDS | Trong đồ án | Chi tiết | Trạng thái (24/10/2026) |
 |---|---|---|---|
 | Source System | 10 batch CSV trong `data/batches/` | [../data/batches/README.md](../data/batches/README.md) | ✅ Script chia batch xong, tự kiểm tra 9/9 PASS |
-| Stage ETL | Pipeline Mage: kiểm tra → MERGE vào `staging` (Full Load / Incremental Load), xóa mềm | [pipeline_rules.md](pipeline_rules.md), [decisions.md](decisions.md) D1–D8, [../mage/README.md](../mage/README.md) | ✅ Pipeline `full_load` + `incremental_load` xong (BS-21 → BS-24); chạy đủ 9 kịch bản kiểm thử, nạp hết 10 batch khớp 100% `data/raw/` |
+| Stage ETL | Pipeline Mage: kiểm tra → MERGE vào `staging` (Full Load / Incremental Load), xóa mềm; cuối mỗi lần chạy gọi dbt (BS-34) | [pipeline_rules.md](pipeline_rules.md), [decisions.md](decisions.md) D1–D8, [../mage/README.md](../mage/README.md) | ✅ Pipeline `full_load` + `incremental_load` xong (BS-21 → BS-24); chạy đủ 9 kịch bản kiểm thử, nạp hết 10 batch khớp 100% `data/raw/`. ✅ Nối dbt vào pipeline (BS-34): 1 lần chạy = CSV → `staging` → `dds`, LSET chỉ tiến khi dbt xong |
 | Stage | Schema `staging`: 8 bảng giữ nguyên cấu trúc CSV + `_batch_id`, `_loaded_at` | [data_dictionary.md](data_dictionary.md) | ✅ Đã tạo bảng (`sql/init/01_staging_tables.sql`) |
 | DDS ETL + DQ | dbt: model `stg_` → `int_` → `dim_` / `fact_`, seed, dbt test | [source_to_target_mapping.md](source_to_target_mapping.md), [dbt_rules.md](dbt_rules.md), [../dbt/README.md](../dbt/README.md) | ✅ Ánh xạ xong (BS-15); 20 model + 155 dbt test xong (BS-28 → BS-31); đạt đủ 6 kịch bản kiểm thử B7, kể cả nạp từng batch ([../dbt/README.md](../dbt/README.md) mục 4) |
 | DDS | Schema `dds`: 3 fact + 6 dim, lược đồ Galaxy | [dw_design.md](dw_design.md) | ✅ Thiết kế xong; dbt dựng đủ 9 bảng, số liệu khớp nghiệm thu (`sql/checks/02_dds_checks.sql`) |
-| Control + Audit | Schema `etl_log`: `pipeline_run`, `table_load`, `quality_check` | `sql/init/02_etl_log.sql`, [../mage/README.md](../mage/README.md) mục Ghi log | ✅ Mage ghi đủ 3 bảng ở mọi lần chạy; Incremental đọc `pipeline_run` để lấy LSET |
+| Control + Audit | Schema `etl_log`: `pipeline_run`, `table_load`, `quality_check`, `dbt_result` | `sql/init/02_etl_log.sql`, `05_dbt_log.sql`, [../mage/README.md](../mage/README.md) mục Ghi log | ✅ Mage ghi đủ 4 bảng ở mọi lần chạy (`dbt_result`: kết quả từng seed / model / test của bước dbt); Incremental đọc `pipeline_run` để lấy LSET |
 | DQ database | Schema `dq`: dòng bị Mage loại (`rejected_rows`) + dòng vi phạm dbt test (`store_failures`) | [decisions.md](decisions.md) (bảng cuối, 19/10/2026), `sql/init/03_dq.sql` | ✅ Mage ghi dòng bị loại vào `rejected_rows`; dbt test lưu dòng vi phạm vào `dq` – mỗi test 1 bảng, 155 bảng (xem bằng `sql/checks/03_dbt_test_demo.sql`) |
 | Metadata | dbt docs, data dictionary, ánh xạ nguồn → đích | [../dbt/README.md](../dbt/README.md) mục 7, [data_dictionary.md](data_dictionary.md), [source_to_target_mapping.md](source_to_target_mapping.md) | ✅ Tài liệu xong; dbt docs: trang mở đầu, mô tả mọi cột model / seed, macro, exposure Dashboard Power BI, ảnh lineage; mô tả ghi cả vào `COMMENT` của bảng / cột trong Postgres |
 | MDB | Semantic model trong Power BI (quan hệ, DAX, hierarchy) | [../powerbi/README.md](../powerbi/README.md) | ⏳ |
@@ -67,6 +67,8 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
    (`_is_deleted = TRUE`), dbt bỏ qua khi dựng `dds`. Quy tắc chi tiết cho pipeline: [pipeline_rules.md](pipeline_rules.md).
 3. **Stage → DDS ETL + DQ → DDS:** dbt đọc `staging`, biến đổi qua 3 lớp `stg_` (làm sạch từng bảng) → `int_` (tích hợp, tính toán dùng chung)
    → `dim_` / `fact_` (bảng trong `dds`); seed bổ sung vùng của bang và bản dịch 2 danh mục còn thiếu; dbt test kiểm tra kết quả.
+   dbt chạy **ngay trong lần chạy Mage**, sau khi `staging` đã commit (block `dbt_build`, Full Load thêm `--full-refresh`); chỉ khi dbt xong lần chạy mới ghi `SUCCESS`
+   → LSET chỉ tiến khi batch đã vào tới `dds` ([pipeline_rules.md](pipeline_rules.md) B12).
 4. **DDS → Application:** 2 nhánh như mô hình –
    (a) Power BI kết nối `dds`, dựng semantic model (đóng vai MDB) rồi dashboard;
    (b) module AI truy vấn trực tiếp KPI đã tính từ `dds`, gửi tới LLM → AI chỉ nói dựa trên số đã tính, đối chiếu được với dashboard.
@@ -75,7 +77,7 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
 
 | Vùng | Lưu gì | Dùng để |
 |---|---|---|
-| **Control + Audit** (`etl_log`) | Thông tin **về** mỗi lần chạy: trạng thái, khoảng dữ liệu (`lset`, `cet`), số dòng đọc / thêm / cập nhật / loại, kết quả từng phép kiểm tra | **Audit**: biết pipeline chạy ổn không. **Control**: Incremental đọc lần chạy thành công gần nhất để chọn batch kế tiếp → chạy lại được |
+| **Control + Audit** (`etl_log`) | Thông tin **về** mỗi lần chạy: trạng thái, khoảng dữ liệu (`lset`, `cet`), số dòng đọc / thêm / cập nhật / loại, kết quả từng phép kiểm tra, kết quả từng seed / model / test của bước dbt | **Audit**: biết pipeline chạy ổn không. **Control**: Incremental đọc lần chạy thành công gần nhất để chọn batch kế tiếp → chạy lại được |
 | **DQ database** (`dq`) | **Chính các dòng dữ liệu lỗi**, giữ nguyên nội dung + lý do, từ 2 điểm kiểm tra (Mage, dbt test) | Người phụ trách xem dòng nào hỏng để sửa nguồn rồi nạp lại. `etl_log` chỉ **đếm**, không giữ nội dung |
 | **Metadata** | dbt docs (tự sinh: mô tả model, cột, test, sơ đồ lineage) + `data_dictionary.md`, `source_to_target_mapping.md` (nhóm viết) | Hiểu ý nghĩa dữ liệu, biết bảng nào được làm từ bảng nào |
 
@@ -85,6 +87,7 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
 |---|---|
 | Sao không đưa CSV thẳng vào Power BI? | (1) 9 bảng rời, dữ liệu bẩn – nối sai là doanh thu bị nhân lên (1 đơn nhiều sản phẩm × nhiều lần thanh toán); (2) làm sạch + test **một lần** ở dbt, mọi báo cáo dùng chung; (3) dữ liệu đến theo đợt → cần nạp thêm (incremental) và ghi lịch sử mỗi lần nạp |
 | Mage khác dbt chỗ nào? | Mage chuyển dữ liệu **từ ngoài vào** database (E, L); dbt biến đổi dữ liệu **bên trong** database (T) – dbt không tự đọc file CSV |
+| Mage và dbt nối với nhau thế nào? | Trong cùng 1 lần chạy: Mage nạp `staging` (commit) → block `dbt_build` gọi `dbt build` → dbt xong mới ghi `SUCCESS` (chốt LSET). dbt lỗi thì lần chạy `FAILED`, LSET đứng yên, lần sau nạp lại đúng batch đó (MERGE ra 0/0) rồi chạy dbt lại. Lập lịch ở Seminar 3 chỉ cần gắn trigger cho pipeline Mage là cả luồng chạy |
 | Mage kiểm tra chất lượng khác dbt test chỗ nào? | Mage kiểm tra **trước khi nạp** `staging` (đủ file, đúng cột, khóa không rỗng / không trùng, đúng kiểu dữ liệu) và loại dòng hỏng; dbt test kiểm tra **sau khi biến đổi**, chỉ phát hiện chứ không xóa dòng sai |
 | `etl_log` khác `dq` chỗ nào? | `etl_log` ghi **về** lần chạy (con số, trạng thái); `dq` giữ **chính dòng dữ liệu lỗi** |
 | dbt `store_failures` có thay được `rejected_rows` không? | Không – dòng Mage loại không bao giờ vào database nên dbt không thấy; `store_failures` còn ghi đè mỗi lần chạy, không giữ lịch sử |

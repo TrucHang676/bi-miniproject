@@ -3,7 +3,7 @@
 > Project dbt `olist_dw`: biến đổi schema `staging` (Mage nạp) thành kho `dds` (Galaxy schema) cho Power BI.
 > Công thức từng cột: [docs/source_to_target_mapping.md](../docs/source_to_target_mapping.md) · thiết kế kho: [docs/dw_design.md](../docs/dw_design.md).
 > **Quy tắc, mẫu code, số liệu nghiệm thu cho người viết model: [docs/dbt_rules.md](../docs/dbt_rules.md).**
-> Khởi tạo 23/10/2026: cấu hình, kết nối, nguồn, seed. Model BS-28 → BS-31 làm xong 24/10/2026: 20 model, 155 test (mục 4 – 6); đã chạy đủ 6 kịch bản kiểm thử B7 (mục 4).
+> Khởi tạo 23/10/2026: cấu hình, kết nối, nguồn, seed. Model BS-28 → BS-31 làm xong 24/10/2026: 20 model, 155 test (mục 4 – 6); đã chạy đủ 6 kịch bản kiểm thử B7 (mục 4). Từ 24/10/2026 (BS-34) pipeline Mage tự gọi `dbt build` sau mỗi lần nạp (mục 1).
 > Đối soát số liệu kho `dds` sau khi chạy: [sql/checks/02_dds_checks.sql](../sql/checks/02_dds_checks.sql) · xem test đang lỗi, demo test FAIL, kiểm khóa giữa 2 lần build: [sql/checks/03_dbt_test_demo.sql](../sql/checks/03_dbt_test_demo.sql).
 
 ## 1. Chạy dbt
@@ -19,7 +19,8 @@ docker compose exec mage dbt deps                      # cài dbt_utils đúng b
 docker compose exec mage dbt debug                     # phải ra: All checks passed!
 ```
 
-`staging` phải có dữ liệu trước khi build: chạy Mage `full_load` + 9 lần `incremental_load` ([setup_guide.md](../docs/setup_guide.md) mục 6.2).
+**Khi nạp dữ liệu không cần gõ lệnh dbt**: từ 24/10/2026 (BS-34) pipeline Mage tự chạy `dbt build` ngay sau khi nạp `staging` – `full_load` chạy `dbt build --full-refresh`, mỗi lần `incremental_load` chạy `dbt build`; dbt lỗi thì lần chạy `FAILED`, LSET không tiến; kết quả từng node ghi vào `etl_log.dbt_result` ([mage/README.md](../mage/README.md) mục Bước dbt). Vì vậy 4 lệnh "lần đầu" ở trên phải làm **trước** khi chạy pipeline Mage.
+Các lệnh dưới đây dùng khi sửa model / gỡ lỗi (không chạy trong lúc pipeline Mage đang chạy); `staging` phải có dữ liệu trước khi build.
 
 | Muốn… | `docker compose exec mage …` |
 |---|---|

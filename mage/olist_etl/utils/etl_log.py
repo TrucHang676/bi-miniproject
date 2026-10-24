@@ -1,4 +1,4 @@
-"""Ghi nhật ký vào schema etl_log (sql/init/02_etl_log.sql; ghi lúc nào: pipeline_rules.md A3, B5).
+"""Ghi nhật ký vào schema etl_log (sql/init/02_etl_log.sql, 05_dbt_log.sql; ghi lúc nào: pipeline_rules.md A3, B5, B12).
 
 Mọi hàm nhận 1 kết nối autocommit (db.connect(autocommit=True)): mỗi dòng log lưu ngay,
 nên khi phần nạp staging bị hoàn tác (rollback) thì log vẫn còn để biết chuyện gì đã xảy ra.
@@ -76,6 +76,60 @@ def last_success_run(conn):
     if row is None:
         return None
     return dict(zip(['run_id', 'pipeline_name', 'batch_id', 'lset', 'cet'], row))
+
+
+def last_staging_change_after(conn, run_id):
+    """Lần chạy mới nhất SAU run_id đã ghi xong staging (có bảng SUCCESS) mà không SUCCESS, hoặc None.
+
+    Xảy ra khi bước dbt lỗi, hoặc pipeline bị ngắt sau khi staging đã COMMIT: staging đã có batch của
+    lần chạy đó trong khi LSET vẫn lấy từ lần SUCCESS trước nó.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT r.run_id, r.load_type, r.batch_id
+            FROM etl_log.pipeline_run AS r
+            WHERE r.run_id > %s
+              AND r.status <> 'SUCCESS'
+              AND EXISTS (SELECT 1 FROM etl_log.table_load AS t
+                          WHERE t.run_id = r.run_id AND t.status = 'SUCCESS')
+            ORDER BY r.run_id DESC
+            LIMIT 1
+            """,
+            (run_id,),
+        )
+        row = cur.fetchone()
+    return dict(zip(['run_id', 'load_type', 'batch_id'], row)) if row else None
+
+
+def check_staging_in_sync(conn, last, rerun_last=False):
+    """Bước Get LSET / Set CET: dừng nếu staging đã đi trước LSET (BS-34).
+
+    last = lần SUCCESS gần nhất (last_success_run). Lần chạy sau nó đã COMMIT staging rồi mới lỗi
+    (ở bước dbt hoặc bị ngắt) thì:
+    * lần đó là Full Load   -> staging đã bị làm lại từ đầu, LSET cũ không còn đúng: báo lỗi, phải chạy lại full_load
+    * lần đó nạp batch khác batch của `last`:
+        - Incremental bình thường chọn lại đúng batch đó (LSET chưa tiến) -> cho chạy, trả về lần chạy đó
+        - rerun_last sẽ nạp batch CŨ HƠN đè lên, đưa đơn về trạng thái cũ (B2.3) -> báo lỗi
+    * lần đó chạy lại đúng batch của `last` -> staging không đổi, coi như khớp: trả về None
+    """
+    ahead = last_staging_change_after(conn, last['run_id'])
+    if ahead is None:
+        return None
+    if ahead['load_type'] == 'FULL':
+        raise ValueError(
+            f"Full Load run_id {ahead['run_id']} đã làm lại staging từ đầu nhưng chưa xong (lỗi ở bước dbt hoặc "
+            'bị ngắt giữa chừng): hãy chạy lại pipeline full_load trước khi chạy incremental_load'
+        )
+    if ahead['batch_id'] == last['batch_id']:
+        return None
+    if rerun_last:
+        raise ValueError(
+            f"Staging đã có batch {ahead['batch_id']} (run_id {ahead['run_id']} chưa xong: lỗi ở bước dbt hoặc bị ngắt): "
+            f"không nạp lại batch cũ hơn {last['batch_id']} đè lên. Hãy chạy incremental_load với rerun_last = false "
+            f"để nạp lại batch {ahead['batch_id']} và chạy dbt"
+        )
+    return ahead
 
 
 class StaleRunError(Exception):
@@ -230,6 +284,46 @@ def table_summary(conn, run_id):
         FROM etl_log.table_load
         WHERE run_id = %(run_id)s
         ORDER BY started_at, table_name
+        """,
+        conn,
+        params={'run_id': int(run_id)},
+    )
+
+
+# ---------- dbt_result: kết quả bước dbt build (sql/init/05_dbt_log.sql, dbt_runner.py) ----------
+
+def add_dbt_results(conn, run_id, rows):
+    """Ghi kết quả từng node của lần dbt build. rows = [dict theo cột của etl_log.dbt_result, ...].
+
+    started_at / finished_at là giờ UTC dạng '2026-10-25T03:00:00.123Z' (run_results.json): ép sang
+    timestamptz rồi Postgres tự đổi về giờ Việt Nam (múi giờ của DB) khi lưu vào cột TIMESTAMP.
+    Xóa dòng cũ của run_id trước: mỗi lần chạy chỉ giữ kết quả của lần dbt build sau cùng.
+    """
+    with conn.cursor() as cur:
+        cur.execute('DELETE FROM etl_log.dbt_result WHERE run_id = %s', (run_id,))
+        execute_values(
+            cur,
+            """
+            INSERT INTO etl_log.dbt_result (run_id, unique_id, resource_type, node_name, relation_name, status,
+                                            rows_affected, failures, execution_time, started_at, finished_at, message)
+            VALUES %s
+            """,
+            [(run_id, r['unique_id'], r['resource_type'], r['node_name'], r['relation_name'], r['status'],
+              r['rows_affected'], r['failures'], r['execution_time'], r['started_at'], r['finished_at'], r['message'])
+             for r in rows],
+            template='(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::timestamptz, %s::timestamptz, %s)',
+        )
+
+
+def dbt_summary(conn, run_id):
+    """Kết quả dbt của 1 lần chạy - để hiện trong Mage: seed, model (kèm số dòng) trước, test sau."""
+    return pd.read_sql(
+        """
+        SELECT run_id, resource_type, node_name, relation_name, status, rows_affected, failures, execution_time
+        FROM etl_log.dbt_result
+        WHERE run_id = %(run_id)s
+        ORDER BY CASE resource_type WHEN 'seed' THEN 1 WHEN 'model' THEN 2 ELSE 3 END,
+                 started_at NULLS LAST, node_name
         """,
         conn,
         params={'run_id': int(run_id)},

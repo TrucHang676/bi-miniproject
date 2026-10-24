@@ -7,10 +7,11 @@ if 'data_exporter' not in globals():
 
 @data_exporter
 def set_lset(summary, *args, **kwargs):
-    """Incremental - bước 4 (Set LSET): ghi lần chạy SUCCESS.
+    """Incremental - bước 5 (Set LSET): ghi lần chạy SUCCESS.
 
     Dòng pipeline_run này đã lưu cet, nên lần chạy sau đọc ra làm LSET mới (LSET mới = CET).
-    Chỉ chạy tới đây khi bước 3 thành công; lỗi thì bước 3 đã ghi FAILED và LSET giữ nguyên.
+    Chỉ chạy tới đây khi cả bước 3 (nạp staging) và bước 4 (dbt build) thành công; lỗi thì bước đó
+    đã ghi FAILED và LSET giữ nguyên -> LSET chỉ tiến khi dds đã có batch này.
     """
     if 'action' in summary.columns and summary['action'].iloc[0] == 'DONE':
         print('Đã nạp hết batch - không có gì để nạp, không ghi etl_log.pipeline_run')

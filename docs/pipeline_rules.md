@@ -4,7 +4,7 @@
 > Quy tắc gom từ: [decisions.md](decisions.md) (D1–D8 + bảng cuối), [data/batches/README.md](../data/batches/README.md) (định dạng file batch), [`sql/init/`](../sql/init/) (bảng đích), [architecture.md](architecture.md) (vị trí của Mage trong hệ thống).
 > Nếu thấy mâu thuẫn: `decisions.md` là gốc – báo nhóm để sửa file này.
 > **[Bắt buộc]** = nhóm đã chốt, muốn làm khác phải bàn lại · **[Gợi ý]** = cách đề xuất, làm khác được nếu ra cùng kết quả.
-> Cập nhật: 19/10/2026.
+> Cập nhật: 19/10/2026 · 24/10/2026: thêm **B12** – pipeline gọi dbt sau khi nạp staging (BS-34).
 
 ---
 
@@ -12,7 +12,7 @@
 
 ## A1. Pipeline Mage nằm ở đâu
 
-Mage là khâu **Stage ETL** của kiến trúc Single DDS: lấy file batch, kiểm tra, nạp vào `staging`, ghi lại mọi chuyện đã xảy ra. Làm sạch / dựng `dds` là việc của dbt, **không** làm trong Mage.
+Mage là khâu **Stage ETL** của kiến trúc Single DDS: lấy file batch, kiểm tra, nạp vào `staging`, ghi lại mọi chuyện đã xảy ra. Làm sạch / dựng `dds` là việc của dbt, **không** làm trong Mage – từ BS-34 Mage chỉ **gọi** dbt ở cuối mỗi lần chạy (B12).
 
 ```
 data/batches/<batch>/*.csv ──► Mage ──► staging (8 bảng)         ──► dbt ──► dds
@@ -85,7 +85,7 @@ Chạy được hết các kịch bản ở **B8** và số liệu khớp `manif
 - Nạp batch `FULL` (`seq = 1`): 8 file. Ghi `pipeline_run` với `load_type = 'FULL'`, `batch_id = 'FULL'`, `lset = NULL`, `cet = '2018-01-01 00:00:00'`.
 - **Mỗi lần chạy Full Load = làm lại từ đầu:** `TRUNCATE` cả 8 bảng `staging` rồi mới nạp `FULL`. **Không** xóa `etl_log`, `dq` (là lịch sử).
   Lý do: nếu chỉ MERGE `FULL` lên `staging` đã có các batch sau, đơn sẽ bị đưa về trạng thái cũ (VD đơn đã `delivered` ở batch `2018-02` bị trả về `shipped` như trong `FULL`).
-- Sau một lần Full Load làm lại, Incremental tự chạy lại từ `2018-01` (vì lần SUCCESS gần nhất giờ là `FULL` – B2.2), và dbt phải chạy `dbt build --full-refresh` để dựng lại các model `incremental`.
+- Sau một lần Full Load làm lại, Incremental tự chạy lại từ `2018-01` (vì lần SUCCESS gần nhất giờ là `FULL` – B2.2), và dbt phải chạy `dbt build --full-refresh` để dựng lại các model `incremental` (từ BS-34 block `dbt_build_full` tự chạy – B12).
 
 ### B2.2 Incremental Load – `incremental_load` [Bắt buộc]
 Làm đúng 4 bước của Bài 4 (slide 49, control flow slide 67):
@@ -108,7 +108,7 @@ Làm đúng 4 bước của Bài 4 (slide 49, control flow slide 67):
 ### B2.4 Xử lý lỗi [Bắt buộc]
 - Lỗi ở đâu cũng phải kết thúc bằng `pipeline_run.status = 'FAILED'` + `error_message` (thông báo lỗi ngắn gọn) + `finished_at`.
 - **LSET chỉ tiến khi SUCCESS.** Nạp lại một batch đã lỗi dở dang phải ra cùng kết quả cuối với nạp 1 lần trọn vẹn – MERGE theo khóa chính đảm bảo điều này. (Lưu ý: khi đó số `rows_inserted` của lần chạy lại sẽ nhỏ hơn manifest vì một phần đã vào ở lần lỗi – đúng, không phải lỗi.)
-- Không chạy dbt khi lần chạy gần nhất là `FAILED` (staging có thể đang dở batch).
+- Không chạy dbt khi lần chạy gần nhất là `FAILED` (staging có thể đang dở batch). Từ BS-34 dbt chỉ chạy trong cùng lần chạy, **sau khi** staging đã commit (B12).
 - [Gợi ý] Đầu mỗi lần chạy: đổi các dòng `pipeline_run` còn `RUNNING` (lần chạy cũ bị ngắt) thành `FAILED` với `error_message = 'Bị ngắt giữa chừng'`.
 - [Gợi ý] Gói mọi thay đổi `staging` của 1 batch trong **một transaction** (lỗi → ROLLBACK, staging như chưa chạy), còn `etl_log` / `dq` ghi bằng **kết nối riêng, autocommit** để lỗi vẫn còn log. Không bắt buộc vì quy tắc "LSET chỉ tiến khi SUCCESS + MERGE chạy lại được" đã đủ đúng; transaction chỉ giúp staging không dở dang trong lúc chờ chạy lại.
 
@@ -434,3 +434,29 @@ UNION ALL SELECT 'category_translation', count(*) FROM staging.category_translat
 | B10.5 – ảnh | Chụp DBeaver + Mage | Ảnh Mage ở `docs/images/pipeline_demo/`; kết quả truy vấn đưa vào báo cáo dạng bảng Word (số lấy thẳng từ `etl_log`) | Bảng dễ đọc hơn ảnh chụp lưới DBeaver |
 
 Kết quả 9 kịch bản B8: đều đạt (chi tiết số liệu trong báo cáo mục 6.1.6). Chạy thử nhanh không cần giao diện: `docker compose exec mage mage run /home/src/mage/olist_etl full_load` (thay `incremental_load` cho Incremental).
+
+## B12. Bước dbt trong pipeline – BS-34 (24/10/2026)
+
+> Ngay sau khi `staging` commit, pipeline gọi `dbt build` dựng `dds`; dbt xong mới ghi `SUCCESS`. Code: `mage/olist_etl/utils/dbt_runner.py`.
+> Mô tả + kết quả kiểm thử: [mage/README.md](../mage/README.md) mục Bước dbt · lý do chọn cách làm: bảng cuối [decisions.md](decisions.md) (24/10/2026).
+
+| # | Quy tắc | Vì sao |
+|---|---|---|
+| 1 | Thứ tự: `full_load` = `start_full_run` → `load_full_batch` → **`dbt_build_full`** → `finish_full_run`; `incremental_load` = `get_lset` → `set_cet` → `extract_load` → **`dbt_build`** → `set_lset` | Giống mẫu cô demo: nạp stage → dbt → chốt watermark. So với slide 67: thêm bước Transform giữa Extract + Load và Set LSET |
+| 2 | Full Load chạy `dbt build --full-refresh`; Incremental chạy `dbt build` | B2.1: staging làm lại từ đầu thì 2 dimension incremental (`dim_customer`, `dim_geography`) cũng dựng lại, khóa cấp lại từ 1 |
+| 3 | dbt lỗi (model lỗi, test FAIL, dbt không chạy được) → `pipeline_run` `FAILED` + `error_message`, **không** ghi `SUCCESS` → LSET không tiến | `SUCCESS` nghĩa là batch đã vào tới `dds`: không có chuyện log báo xong mà dashboard thiếu batch |
+| 4 | Staging **không** hoàn tác khi dbt lỗi (đã commit ở bước trước); `table_load` giữ `SUCCESS` | dbt dùng kết nối riêng nên chỉ thấy dữ liệu đã commit. MERGE chạy lại được: lần sau nạp lại đúng batch đó ra 0 INSERT / 0 UPDATE rồi chạy dbt lại |
+| 5 | Full Load lỗi ở bước dbt (hoặc bị ngắt sau khi staging commit) → `incremental_load` báo lỗi, phải chạy lại `full_load` | Staging đã bị TRUNCATE + nạp `FULL` nhưng lần SUCCESS gần nhất vẫn là lần cũ → LSET cũ làm Incremental nạp nhảy cóc, mất các tháng ở giữa |
+| 6 | Incremental lỗi ở bước dbt rồi chạy `rerun_last = true` → báo lỗi, phải chạy bình thường | Staging đã có batch mới hơn batch của lần SUCCESS: nạp lại batch cũ đè lên đưa đơn về trạng thái cũ (B2.3) |
+| 7 | Mỗi lần chạy ghi kết quả từng node dbt vào `etl_log.dbt_result` (`sql/init/05_dbt_log.sql`) | Control + Audit phủ cả 2 khâu ETL của Single DDS; dashboard ETL ở Seminar 3 vẽ được kết quả dbt theo batch |
+| 8 | Không gõ `dbt` tay trong lúc pipeline đang chạy | Hai lần dbt cùng dựng `dds` và cùng ghi `dbt/target/` |
+
+Kịch bản kiểm thử bổ sung cho B8 (kết quả: [mage/README.md](../mage/README.md) mục Bước dbt):
+
+| # | Kịch bản | Kết quả mong đợi |
+|---|---|---|
+| 10 | Full Load + 9 Incremental (có bước dbt) trên DB trống | Lần nào cũng `SUCCESS`, 177 node dbt đạt; số dòng 3 fact sau từng batch khớp [dbt/README.md](../dbt/README.md) mục 4 (kịch bản 3) |
+| 11 | dbt test FAIL ở 1 batch Incremental | `FAILED`, LSET không đổi, `error_message` nêu tên test + bảng `dq` chứa dòng vi phạm. Sửa dữ liệu → chạy lại → `SUCCESS` đúng batch đó |
+| 12 | dbt không chạy được (VD không tìm thấy `profiles.yml`) | `FAILED`, `error_message` = mấy dòng cuối log dbt; `dbt_result` không có dòng nào |
+| 13 | Full Load lỗi ở bước dbt rồi chạy Incremental | Bị chặn, báo chạy lại `full_load`. Chạy lại `full_load` → Incremental nạp lại từ `2018-01` |
+| 14 | Incremental lỗi ở bước dbt rồi chạy `rerun_last = true` | Bị chặn. Chạy bình thường → nạp lại đúng batch đó |

@@ -21,6 +21,8 @@ def get_lset(*args, **kwargs):
     * chưa có lần SUCCESS nào  -> báo lỗi: phải chạy full_load trước
     * cet IS NULL              -> đã nạp hết batch (lần gần nhất là 2018-09+): dừng, không ghi pipeline_run
     * biến rerun_last = true   -> chạy lại đúng batch của lần SUCCESS gần nhất (B2.3)
+    * staging đã đi trước LSET (lần chạy sau đã nạp staging nhưng lỗi ở bước dbt - B12) -> Full Load: báo lỗi,
+      phải chạy lại full_load; Incremental: nạp lại đúng batch đó (rerun_last = true thì báo lỗi)
     """
     rerun_last = _is_true(kwargs.get('rerun_last', False))
 
@@ -30,11 +32,15 @@ def get_lset(*args, **kwargs):
         if interrupted:
             print(f'Lần chạy bị ngắt giữa chừng -> FAILED: run_id {interrupted}')
         last = etl_log.last_success_run(conn)
+        ahead = etl_log.check_staging_in_sync(conn, last, rerun_last) if last else None
     finally:
         conn.close()
 
     if last is None:
         raise ValueError('Chưa có lần chạy SUCCESS nào trong etl_log.pipeline_run: hãy chạy pipeline full_load trước')
+    if ahead is not None:
+        print(f"run_id {ahead['run_id']} đã nạp staging batch {ahead['batch_id']} nhưng chưa xong (lỗi ở bước dbt hoặc "
+              'bị ngắt) -> nạp lại batch này (MERGE ra 0 INSERT / 0 UPDATE) rồi chạy dbt')
 
     if rerun_last:
         if last['batch_id'] == 'FULL':

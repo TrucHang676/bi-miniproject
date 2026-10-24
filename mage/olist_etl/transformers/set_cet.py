@@ -16,6 +16,7 @@ def set_cet(lset_info, *args, **kwargs):
     rồi mở lần chạy mới: etl_log.pipeline_run status RUNNING.
     Đã nạp hết batch (action DONE) -> không làm gì, không ghi pipeline_run.
     Lần SUCCESS gần nhất đã khác lúc get_lset đọc (output cũ của get_lset) -> dừng, không mở lần chạy.
+    Kiểm tra lại staging có đi trước LSET không (như get_lset) vì output cũ của get_lset không thấy các lần chạy sau nó.
     """
     info = lset_info.iloc[0]
     if info['action'] == 'DONE':
@@ -39,6 +40,7 @@ def set_cet(lset_info, *args, **kwargs):
                 f"run_id {info['last_run_id']} mà get_lset đã đọc: block đang nhận output cũ của get_lset "
                 '(chạy riêng block trong editor Mage). Hãy chạy cả pipeline: Triggers -> Run@once'
             )
+        etl_log.check_staging_in_sync(conn, last, info['action'] == 'RERUN')
         run_id = etl_log.start_run(conn, 'incremental_load', 'INCREMENTAL', batch['batch_id'],
                                    batch['lset'], batch['cet'], triggered_by)
     finally:

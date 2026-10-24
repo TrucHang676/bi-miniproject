@@ -7,9 +7,10 @@ if 'data_exporter' not in globals():
 
 @data_exporter
 def finish_full_run(summary, *args, **kwargs):
-    """Full Load - bước 3: đóng lần chạy, etl_log.pipeline_run -> SUCCESS.
+    """Full Load - bước 4: đóng lần chạy, etl_log.pipeline_run -> SUCCESS.
 
-    Chỉ chạy tới đây khi bước 2 thành công (lỗi thì bước 2 đã ghi FAILED và Mage dừng pipeline).
+    Chỉ chạy tới đây khi bước 2 (nạp staging) và bước 3 (dbt build --full-refresh) thành công
+    (lỗi thì bước đó đã ghi FAILED và Mage dừng pipeline).
     Sau bước này, cet = 2018-01-01 của lần chạy thành LSET cho Incremental kế tiếp (nạp 2018-01).
     """
     run_id = int(summary['run_id'].iloc[0])

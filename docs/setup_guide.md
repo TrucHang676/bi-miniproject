@@ -206,7 +206,7 @@ Kết quả đúng: `Core: installed: 1.8.7` và trong *Plugins* có `postgres: 
 
 ## 5. Khởi tạo Data Warehouse
 
-**Không cần chạy tay gì cả.** Lần đầu `docker compose up` (mục 3.4), Postgres **tự chạy** 5 script trong `sql/init/` theo thứ tự tên file:
+**Không cần chạy tay gì cả.** Lần đầu `docker compose up` (mục 3.4), Postgres **tự chạy** 6 script trong `sql/init/` theo thứ tự tên file:
 
 | File | Tạo gì |
 |---|---|
@@ -215,6 +215,7 @@ Kết quả đúng: `Core: installed: 1.8.7` và trong *Plugins* có `postgres: 
 | `02_etl_log.sql` | 3 bảng nhật ký ETL: `pipeline_run` (1 lần chạy) → `table_load` (từng bảng: số dòng thêm / cập nhật / bị loại) và `quality_check` (từng phép kiểm tra chất lượng) |
 | `03_dq.sql` | Bảng `dq.rejected_rows`: **nguyên nội dung** từng dòng Mage loại (dạng JSON) + lần chạy, phép kiểm tra, lý do – khóa ngoại về `etl_log.quality_check` |
 | `04_soft_delete.sql` | Xóa mềm đơn bị xóa ở nguồn: thêm cột `_is_deleted`, `_deleted_at` vào `staging.orders` và `rows_deleted` vào `etl_log.table_load` (viết dạng `ALTER ... ADD COLUMN IF NOT EXISTS`) – cách dùng: [pipeline_rules.md](pipeline_rules.md) B6 |
+| `05_dbt_log.sql` | Bảng `etl_log.dbt_result`: kết quả từng seed / model / test của bước dbt mà pipeline Mage gọi sau khi nạp staging (BS-34) – [pipeline_rules.md](pipeline_rules.md) B12 |
 
 Database sau khi khởi tạo:
 
@@ -222,7 +223,7 @@ Database sau khi khởi tạo:
 olist_dw
 ├── staging   8 bảng  – Mage nạp CSV vào (orders, order_items, order_payments, order_reviews,
 │                       customers, sellers, products, category_translation)
-├── etl_log   3 bảng  – Mage ghi nhật ký mỗi lần chạy (pipeline_run, table_load, quality_check)
+├── etl_log   4 bảng  – Mage ghi nhật ký mỗi lần chạy (pipeline_run, table_load, quality_check, dbt_result)
 ├── dq        1 bảng  – dòng dữ liệu lỗi Mage loại (rejected_rows); dbt test ghi thêm bảng khi bật store_failures
 ├── dds       trống   – dbt tạo dim / fact
 └── public    trống
@@ -230,7 +231,7 @@ olist_dw
 
 Vai trò từng schema theo kiến trúc Single DDS: [architecture.md](architecture.md).
 
-**Cơ chế:** `compose.yaml` gắn thư mục `sql/init/` vào thư mục khởi tạo `/docker-entrypoint-initdb.d` của image Postgres. Lần đầu tạo DB, Postgres chạy mọi file `.sql` trong đó (vì vậy tên file đánh số `00` → `04` để chạy đúng thứ tự).
+**Cơ chế:** `compose.yaml` gắn thư mục `sql/init/` vào thư mục khởi tạo `/docker-entrypoint-initdb.d` của image Postgres. Lần đầu tạo DB, Postgres chạy mọi file `.sql` trong đó (vì vậy tên file đánh số `00` → `05` để chạy đúng thứ tự).
 
 ⚠ Postgres **chỉ tự chạy khi volume dữ liệu còn trống** (lần dựng đầu tiên, hoặc sau `docker compose down -v`). Những lần `up` sau, script **không** chạy lại.
 
@@ -240,7 +241,7 @@ Vai trò từng schema theo kiến trúc Single DDS: [architecture.md](architect
 docker compose exec postgres psql -U olist_user -d olist_dw -f /sql/checks/00_check_init.sql
 ```
 
-Kết quả đúng: 19 dòng, cột `ket_qua` **đều là `PASS`** (4 schema, `unaccent`, encoding UTF8, múi giờ, 12 bảng đủ cột và có khóa chính). Dòng nào `FAIL` thì cột `thuc_te` cho biết thiếu gì.
+Kết quả đúng: 20 dòng, cột `ket_qua` **đều là `PASS`** (4 schema, `unaccent`, encoding UTF8, múi giờ, 13 bảng đủ cột và có khóa chính). Dòng nào `FAIL` thì cột `thuc_te` cho biết thiếu gì – VD dòng `etl_log.dbt_result` báo `0/12 cột` nghĩa là DB tạo trước khi repo có `05_dbt_log.sql` (BS-34) → chạy tay file đó theo mục 5.2.
 
 > `compose.yaml` gắn cả thư mục `sql/` của repo vào container tại `/sql` (chỉ đọc), nên file SQL nào trong repo cũng chạy được bằng `psql -f /sql/<đường dẫn>`. Có thể chạy trong DBeaver thay thế: dán cả file vào SQL Editor rồi Ctrl + Enter.
 
@@ -272,13 +273,15 @@ docker compose exec mage python scripts/split_batches.py
 ### 6.2. Data Ingestion (Mage.ai)
 
 > Chi tiết các block và cơ chế: [mage/README.md](../mage/README.md); quy tắc: [pipeline_rules.md](pipeline_rules.md).
+> **Từ 24/10/2026 (BS-34) mỗi lần chạy pipeline gồm cả bước dbt**: Mage nạp `staging` xong thì tự gọi `dbt build` dựng `dds`. Vì vậy máy phải làm xong phần **"Lần đầu trên mỗi máy" của mục 6.3** (có `dbt/profiles.yml`, đã `dbt deps`) **trước** khi chạy pipeline – thiếu thì block `dbt_build` báo lỗi đỏ.
 
 1. Mở Mage tại `http://localhost:6789` → **Pipelines**.
-2. **Full Load** (chạy trước, 1 lần): `full_load` → **Triggers** → **Run@once** → **Run now** → thẻ **Runs** đợi `completed`.
-3. **Incremental Load**: `incremental_load` → **Triggers** → **Run@once** → **Run now**. Mỗi lần chạy nạp **1** batch kế tiếp (2018-01 → … → 2018-09+); nạp hết = chạy 9 lần, chạy thêm thì báo "đã nạp hết batch".
+2. **Full Load** (chạy trước, 1 lần): `full_load` → **Triggers** → **Run@once** → **Run now** → thẻ **Runs** đợi `completed` (~1 phút: nạp staging rồi `dbt build --full-refresh`).
+3. **Incremental Load**: `incremental_load` → **Triggers** → **Run@once** → **Run now**. Mỗi lần chạy nạp **1** batch kế tiếp (2018-01 → … → 2018-09+) rồi `dbt build` cập nhật `dds`; nạp hết = chạy 9 lần, chạy thêm thì báo "đã nạp hết batch".
    - Chạy lại batch vừa nạp: trong hộp **Run@once** đổi biến `rerun_last` thành `true`.
    - Không bấm ▶ trên từng block để chạy lại: block nhận output cũ của block trước nên sẽ dừng với lỗi `StaleRunError` (cố ý chặn để không ghi đè lần chạy cũ).
-4. Kiểm tra kết quả: mở [`sql/checks/01_pipeline_demo.sql`](../sql/checks/01_pipeline_demo.sql) trong DBeaver – Q1 các lần chạy, Q2 từng bảng, Q3 kiểm tra chất lượng, Q4 dòng bị loại, Q5 số dòng staging (có ghi sẵn số mong đợi).
+   - Log của dbt (dòng `1 of 177 START …` → `Done. PASS=177 …`) xem ở log của block `dbt_build` / `dbt_build_full` trong thẻ **Runs**.
+4. Kiểm tra kết quả: mở [`sql/checks/01_pipeline_demo.sql`](../sql/checks/01_pipeline_demo.sql) trong DBeaver – Q1 các lần chạy, Q2 từng bảng, Q3 kiểm tra chất lượng, Q4 dòng bị loại, Q5 số dòng staging (có ghi sẵn số mong đợi), Q6 bước dbt của từng lần chạy, Q7 số dòng 9 bảng `dds` + node dbt lỗi của 1 lần chạy. Đối soát số liệu `dds`: `sql/checks/02_dds_checks.sql`.
 
 Không mở giao diện cũng chạy được: `docker compose exec mage mage run /home/src/mage/olist_etl full_load` (thay `incremental_load` cho Incremental).
 
@@ -297,7 +300,9 @@ docker compose exec mage dbt deps                      # cài package dbt_utils
 docker compose exec mage dbt debug                     # kết quả đúng: All checks passed!
 ```
 
-**Mỗi lần biến đổi** (sau khi Mage đã nạp `staging` – mục 6.2):
+**Khi nạp dữ liệu: không cần gõ gì** – từ 24/10/2026 (BS-34) pipeline Mage tự chạy `dbt build` ngay sau khi nạp `staging` (mục 6.2): `full_load` chạy `dbt build --full-refresh`, `incremental_load` chạy `dbt build`. dbt lỗi thì lần chạy ghi `FAILED` và LSET không tiến; kết quả từng seed / model / test nằm ở `etl_log.dbt_result`.
+
+**Chạy tay** (khi sửa model, gỡ lỗi – không chạy trong lúc pipeline Mage đang chạy):
 
 ```powershell
 docker compose exec mage dbt build      # seed -> model -> test, dbt tự xếp đúng thứ tự
@@ -305,7 +310,7 @@ docker compose exec mage dbt build      # seed -> model -> test, dbt tự xếp 
 
 - Dim / fact nằm trong schema `dds`; view trung gian của dbt nằm ở `dbt_stg`, `dbt_int`; dòng vi phạm dbt test nằm ở `dq`.
 - Kiểm tra kết quả bằng DBeaver: `sql/checks/02_dds_checks.sql` (số liệu `dds`, có số mong đợi); test FAIL thì `sql/checks/03_dbt_test_demo.sql` câu Q1 liệt kê test nào đang có dòng vi phạm.
-- Chạy lại Full Load (staging làm lại từ đầu) thì lần build kế tiếp thêm `--full-refresh`.
+- Chạy tay sau khi Full Load làm lại staging từ đầu thì thêm `--full-refresh` (pipeline `full_load` đã tự làm).
 - Tài liệu dbt: `docker compose exec mage dbt docs generate --static` → mở `dbt/target/static_index.html` bằng trình duyệt.
 
 ### 6.4. Power BI
@@ -361,3 +366,6 @@ pip install -r requirements.txt
 | dbt báo `dbt found 1 package(s) specified in packages.yml, but only 0 package(s) installed` | Chưa cài package (thư mục `dbt/dbt_packages/` không lên GitHub) | `docker compose exec mage dbt deps` |
 | `dbt build` báo `could not resize shared memory segment … No space left on device` (lúc có lúc không) | Container Postgres tạo trước khi `compose.yaml` có `shm_size: 256mb` – vẫn dùng 64 MB `/dev/shm` mặc định của Docker | `docker compose up -d` (tự tạo lại container, dữ liệu trong volume giữ nguyên); kiểm tra `docker compose exec postgres df -h /dev/shm` ra `256M` |
 | Gõ trong **Git Bash**: `mage run /home/src/mage/olist_etl full_load` báo `Pipeline full_load does not exist in repo_path /home/src/C:/Program Files/Git/home/src/...` | Git Bash tự đổi tham số dạng `/home/...` thành đường dẫn Windows trước khi gửi vào container | Chạy lệnh trong **PowerShell**, hoặc thêm `MSYS_NO_PATHCONV=1` trước lệnh: `MSYS_NO_PATHCONV=1 docker compose exec mage mage run /home/src/mage/olist_etl full_load` |
+| Pipeline Mage đỏ ở block `dbt_build` / `dbt_build_full` | Bước dbt báo lỗi: model lỗi, dbt test FAIL, hoặc dbt không chạy được (thiếu `profiles.yml` / package, thiếu bộ nhớ dùng chung…) | Đọc `error_message` của lần chạy (`01_pipeline_demo.sql` Q1) hoặc log của block. Lỗi môi trường → sửa theo các dòng dbt ở trên. Test FAIL → `error_message` có tên bảng `dq` chứa dòng vi phạm (`03_dbt_test_demo.sql`), sửa dữ liệu. Xong thì **Run@once** lại: Incremental tự nạp lại đúng batch đó (0 INSERT / 0 UPDATE) rồi chạy dbt |
+| `incremental_load` báo `Full Load run_id … đã làm lại staging từ đầu nhưng chưa xong` | Lần Full Load gần nhất lỗi ở bước dbt (hoặc bị ngắt sau khi nạp staging): staging đã làm lại từ đầu nhưng `dds` chưa dựng xong, LSET cũ không còn đúng | Sửa lỗi dbt rồi chạy lại `full_load` ([pipeline_rules.md](pipeline_rules.md) B12) |
+| `incremental_load` với `rerun_last = true` báo `Staging đã có batch … không nạp lại batch cũ hơn` | Lần Incremental trước đã nạp staging batch mới hơn nhưng lỗi ở bước dbt | Chạy lại với `rerun_last = false`: pipeline nạp lại đúng batch đó rồi chạy dbt |
