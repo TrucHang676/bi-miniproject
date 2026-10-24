@@ -7,6 +7,14 @@
 - Đây là bài nhóm (Nhóm 3: Trần Kim Yến, Nguyễn Nhựt Thanh, Nguyễn Thị Trúc Hằng – chủ repo): code/tài liệu phải đủ rõ để thành viên khác đọc hiểu, và phục vụ được báo cáo PDF + video demo. Thành viên khác cũng commit vào repo (VD NhutThanh viết `business_questions.md`, phác thảo dashboard; Kim Yến viết `dw_design.md` + sơ đồ `dds`) → trước khi sửa tài liệu nên `git pull` / xem `git log` để không ghi đè việc của bạn.
 - Commit: message bằng **tiếng Anh** (tiêu đề ngắn + gạch đầu dòng), **không** thêm dòng `Co-Authored-By: Claude` hay ghi chú AI nào.
 
+## ⚠ Việc mỗi máy phải làm sau khi pull (thay đổi môi trường)
+
+> **Dặn Claude:** đầu mỗi phiên, kiểm tra máy đang dùng đã áp dụng từng dòng dưới đây chưa (lệnh ở cột "Cách kiểm tra"). Chưa áp dụng thì **báo người dùng ngay** và hướng dẫn làm theo cột "Cần làm". Khi cả 3 thành viên đã áp dụng thì xóa dòng đó khỏi bảng.
+
+| Ngày – người sửa | Thay đổi | Vì sao phải sửa | Cần làm trên mỗi máy | Cách kiểm tra |
+|---|---|---|---|---|
+| 24/10/2026 – Thanh (lúc làm BS-31) | `compose.yaml`: service `postgres` thêm **`shm_size: 256mb`** | Docker mặc định chỉ cho container Postgres **64 MB** bộ nhớ dùng chung (`/dev/shm`). Khi chạy `dbt build`, dbt dựng song song 3 fact; với mỗi câu nối bảng lớn, Postgres chia việc cho nhiều tiến trình phụ và các tiến trình này trao đổi dữ liệu qua `/dev/shm` → vượt 64 MB → `dbt build` báo `Database Error in model fact_review … could not resize shared memory segment "/PostgreSQL.…" to 8388608 bytes: No space left on device`, kéo theo ~22 model / test phía sau bị SKIP. Lỗi **lúc có lúc không** (tùy lúc đó có bao nhiêu việc chạy cùng lúc) nên dễ tưởng code sai – thật ra **không phải lỗi code dbt**. Sau khi nâng lên 256 MB: build cả project 3 lần liên tiếp đều `PASS=177 ERROR=0` | `git pull` rồi **`docker compose up -d`**: Docker thấy cấu hình đổi nên tạo lại container `olist-postgres`. Dữ liệu nằm trong volume `pgdata` nên **không mất** – **không** chạy `docker compose down -v` (lệnh đó mới xóa dữ liệu). Không cần build lại image, không cần nạp lại staging | `docker compose exec postgres df -h /dev/shm` → cột Size phải là **`256M`** (chưa áp dụng thì ra `64M`). Sau đó `docker compose exec mage dbt build` → `ERROR=0` |
+
 ## Đề bài (tóm tắt từ `2627.Yêu cầu.pdf`)
 Xây dựng hệ thống BI hoàn chỉnh trên một dataset Kaggle:
 
