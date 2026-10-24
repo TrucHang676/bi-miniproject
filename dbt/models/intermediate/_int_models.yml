@@ -1,0 +1,136 @@
+version: 2
+
+# BS-29 - tầng intermediate của dbt (view, schema dbt_int): phép tính dùng chung cho nhiều dimension / fact,
+# viết 1 lần để 3 fact cho cùng kết quả. Đọc qua stg_ (ref) nên đơn đã xóa mềm tự bị loại (R10).
+# Macro dùng ở tầng này: normalize_city (R1, macros/normalize_city.sql, kiểm tra bằng tests/test_normalize_city.sql).
+# Quy tắc: docs/dbt_rules.md B3; công thức: docs/source_to_target_mapping.md (R1, R4, R6, R7, R9).
+
+models:
+  - name: int_orders
+    description: >
+      1 dòng = 1 đơn hàng chưa bị xóa (99.441 dòng, trong đó 98.199 đơn hợp lệ). Gắn khách thật
+      (customer_unique_id), bang + thành phố nơi nhận của chính đơn đã chuẩn hóa (R1) và cờ đơn hợp lệ (R4).
+    columns:
+      - name: order_id
+        description: Mã đơn hàng - khóa của model.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Mã khách theo đơn (cầu nối sang stg_customers).
+      - name: customer_unique_id
+        description: Khách hàng thực của đơn (D7) - khóa tự nhiên của dim_customer.
+        data_tests:
+          - not_null
+      - name: order_status
+        description: Trạng thái đơn tại batch đã nạp gần nhất (D8).
+      - name: order_purchase_timestamp
+        description: Thời điểm đặt mua - mốc chính, nguồn của purchase_date_key.
+      - name: order_approved_at
+        description: Thời điểm duyệt thanh toán; NULL nếu chưa duyệt.
+      - name: order_delivered_carrier_date
+        description: Thời điểm bàn giao cho đơn vị vận chuyển (cấp đơn).
+      - name: order_delivered_customer_date
+        description: Thời điểm khách nhận hàng (cấp đơn).
+      - name: order_estimated_delivery_date
+        description: Ngày giao dự kiến (DATE).
+      - name: customer_state
+        description: Mã bang nơi nhận hàng của chính đơn (vị trí tại thời điểm mua).
+        data_tests:
+          - not_null
+      - name: customer_city
+        description: >
+          Thành phố nơi nhận của chính đơn, ĐÃ chuẩn hóa theo R1 (normalize_city); không nhận ra thì 'Không xác định'.
+          Cùng biểu thức với dim_geography.city -> dùng tra geography_key (R5).
+        data_tests:
+          - not_null
+      - name: is_valid
+        description: TRUE = đơn hợp lệ (R4) - trạng thái khác canceled / unavailable VÀ có ít nhất 1 sản phẩm.
+        data_tests:
+          - not_null
+
+  - name: int_purchase_sessions
+    description: >
+      1 dòng = 1 đơn hợp lệ (98.199 dòng) kèm purchase_seq - lần mua thứ mấy của khách (R6): đơn cách đơn liền
+      trước của cùng khách <= 10 phút được gộp vào cùng lần mua (giỏ hàng nhiều người bán bị tách đơn - D7).
+    columns:
+      - name: order_id
+        description: Mã đơn hợp lệ - khóa của model.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_unique_id
+        description: Khách hàng thực.
+      - name: order_purchase_timestamp
+        description: Thời điểm đặt mua - thứ tự để đánh số lần mua.
+      - name: purchase_seq
+        description: >
+          Lần mua thứ mấy của khách (1, 2, 3…). Các đơn của cùng 1 giỏ hàng tách đơn có cùng giá trị.
+          Dùng cho fact_sales.purchase_seq (K5 theo kỳ) và dim_customer.purchase_count (= giá trị lớn nhất).
+        data_tests:
+          - not_null
+
+  - name: int_delivery_lines
+    description: >
+      1 dòng = 1 cặp (đơn, người bán) = 1 lượt bàn giao - giao hàng (100.010 dòng, 98.666 đơn); gồm cả đơn hủy
+      có sản phẩm. Tính 1 lần cho fact_delivery và fact_review: 4 measure số ngày (R7) và 3 thuộc tính trạng thái
+      (R9) để tra delivery_status_key. Mốc bàn giao / khách nhận ở CẤP ĐƠN, lặp lại ở mọi người bán của đơn
+      -> KPI cấp đơn (K6, K7, M4) tính theo order_id riêng biệt.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, seller_id]
+    columns:
+      - name: order_id
+        description: Mã đơn hàng.
+      - name: seller_id
+        description: Người bán bàn giao lượt này.
+      - name: customer_unique_id
+        description: Khách hàng thực của đơn.
+      - name: customer_state
+        description: Mã bang nơi nhận (của chính đơn).
+      - name: customer_city
+        description: Thành phố nơi nhận đã chuẩn hóa (R1) - dùng tra geography_key.
+      - name: seller_state
+        description: Mã bang người bán - so với customer_state để ra route_type.
+      - name: order_status
+        description: Trạng thái đơn tại batch đã nạp gần nhất (D8).
+      - name: order_purchase_timestamp
+        description: Thời điểm đặt mua.
+      - name: order_approved_at
+        description: Thời điểm duyệt thanh toán; NULL nếu chưa duyệt.
+      - name: shipping_limit_date
+        description: Hạn bàn giao của NGƯỜI BÁN này (MAX theo cặp đơn - người bán; mỗi cặp chỉ có 1 giá trị).
+      - name: delivered_carrier_date
+        description: Thời điểm bàn giao cho đơn vị vận chuyển (cấp đơn); NULL = chưa bàn giao.
+      - name: delivered_customer_date
+        description: Thời điểm khách nhận (cấp đơn); NULL = chưa giao.
+      - name: estimated_delivery_date
+        description: Ngày giao dự kiến (DATE).
+      - name: handover_delay_days
+        description: >
+          Ngày bàn giao - hạn bàn giao (ngày, dương = trễ) - R7, cấp người bán. NULL khi chưa bàn giao hoặc ngày
+          bàn giao trước ngày mua. Có giá trị âm rất lớn do shipping_limit_date bất thường -> dashboard dùng tỉ lệ K12.
+      - name: transit_days
+        description: Ngày khách nhận - ngày bàn giao (ngày) - R7, cấp đơn, dùng cho M4. Chỉ đơn delivered có đủ 2 mốc đúng thứ tự.
+      - name: delivery_days
+        description: Ngày khách nhận - thời điểm đặt (ngày) - R7, cấp đơn, dùng cho K7. Chỉ đơn delivered có ngày nhận.
+      - name: late_days
+        description: Ngày nhận - ngày dự kiến, so theo NGÀY (âm = giao sớm) - cấp đơn, đầu vào của delay_bucket.
+      - name: handover_status
+        description: Người bán bàn giao đúng hạn hay trễ (R9, so theo giờ) - K12, Q5.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['Đúng hạn', 'Trễ hạn', 'Chưa bàn giao', 'Không xác định']
+      - name: route_type
+        description: Tuyến giao - bang khách = bang người bán thì Nội bang, khác thì Liên bang (R9) - Q5.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['Nội bang', 'Liên bang', 'Không xác định']
+      - name: delay_bucket
+        description: Nhóm số ngày trễ của đơn (R9) - Q4; cấp cha là delivery_result trong dim_delivery_status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['Đúng hạn', 'Trễ 1–3 ngày', 'Trễ 4–7 ngày', 'Trễ 8–14 ngày', 'Trễ > 14 ngày', 'Chưa giao', 'Không xác định']
