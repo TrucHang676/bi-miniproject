@@ -1,0 +1,32 @@
+version: 2
+
+# Mô tả macro cho dbt docs (mục Macros của trang tài liệu).
+macros:
+  - name: normalize_city
+    description: >
+      R1 (docs/source_to_target_mapping.md mục 1) - chuẩn hóa tên thành phố qua 7 bước: B1 bỏ dấu + chữ thường + trim,
+      B2 cắt từ ký tự / \ , đầu tiên, B3 bỏ phần trong ngoặc, B4 '-' thành khoảng trắng, B5 gộp khoảng trắng,
+      B6 bỏ mã bang của chính dòng ở cuối, B7 trả NULL nếu chỉ còn mã bang / có @ / toàn chữ số.
+      Trả về MỘT BIỂU THỨC SQL (không phải câu select), gọi như một hàm. Dùng chung ở int_orders, dim_geography,
+      dim_customer, dim_seller để fact tra geography_key luôn khớp. Cần extension unaccent.
+      Kiểm tra bằng singular test tests/test_normalize_city.sql (10 ví dụ).
+    arguments:
+      - name: city
+        type: string
+        description: Tên cột (hoặc biểu thức SQL) chứa tên thành phố gốc, VD 'c.customer_city'.
+      - name: state
+        type: string
+        description: Tên cột mã bang của cùng dòng, VD 'c.customer_state' - dùng ở bước B6, B7.
+
+  - name: generate_schema_name
+    description: >
+      Ghi đè macro mặc định của dbt: model / seed / test vào ĐÚNG schema khai bằng +schema trong dbt_project.yml
+      (dbt_stg, dbt_int, dds, dq). Mặc định dbt ghép "<schema trong profiles.yml>_<+schema>" (VD dbt_stg_dds),
+      không khớp schema dds có sẵn do sql/init/00_schemas.sql tạo. Không khai +schema thì dùng schema của profiles.yml.
+    arguments:
+      - name: custom_schema_name
+        type: string
+        description: Giá trị +schema của node; None nếu không khai.
+      - name: node
+        type: object
+        description: Node đang dựng (dbt tự truyền vào, macro không dùng tới).

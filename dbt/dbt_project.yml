@@ -18,7 +18,10 @@ clean-targets: ["target", "dbt_packages"]
 # (mặc định dbt sẽ ghép thành "<schema trong profiles.yml>_<tên>", VD dbt_stg_dds).
 models:
   olist_dw:
-    staging:              # stg_ : 1 view / 1 bảng staging - ép kiểu, đổi tên cột, bỏ đơn đã xóa mềm (R10)
+    +persist_docs:        # ghi mô tả trong file yml thành COMMENT của bảng / cột trong Postgres -> DBeaver cũng thấy
+      relation: true
+      columns: true
+    staging:              # stg_ : 1 view / 1 bảng staging - chọn cột, đổi tên cột, bỏ đơn đã xóa mềm (R10)
       +schema: dbt_stg
       +materialized: view
     intermediate:         # int_ : phép tính dùng chung cho nhiều dim / fact (int_orders, int_delivery_lines...)
@@ -31,6 +34,9 @@ models:
 seeds:
   olist_dw:
     +schema: dbt_stg      # dữ liệu tham chiếu tự bổ sung - đầu vào của dimension (source_to_target_mapping.md 0.2)
+    +persist_docs:
+      relation: true
+      columns: true
     seed_brazil_states:
       +column_types:
         state_code: char(2)

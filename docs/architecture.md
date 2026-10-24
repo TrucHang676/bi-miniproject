@@ -54,7 +54,7 @@ Hướng dẫn chạy từng bước: [setup_guide.md](setup_guide.md).
 | DDS | Schema `dds`: 3 fact + 6 dim, lược đồ Galaxy | [dw_design.md](dw_design.md) | ✅ Thiết kế xong; dbt dựng đủ 9 bảng, số liệu khớp nghiệm thu (`sql/checks/02_dds_checks.sql`) |
 | Control + Audit | Schema `etl_log`: `pipeline_run`, `table_load`, `quality_check` | `sql/init/02_etl_log.sql`, [../mage/README.md](../mage/README.md) mục Ghi log | ✅ Mage ghi đủ 3 bảng ở mọi lần chạy; Incremental đọc `pipeline_run` để lấy LSET |
 | DQ database | Schema `dq`: dòng bị Mage loại (`rejected_rows`) + dòng vi phạm dbt test (`store_failures`) | [decisions.md](decisions.md) (bảng cuối, 19/10/2026), `sql/init/03_dq.sql` | ✅ Mage ghi dòng bị loại vào `rejected_rows`; dbt test lưu dòng vi phạm vào `dq` – mỗi test 1 bảng, 155 bảng (xem bằng `sql/checks/03_dbt_test_demo.sql`) |
-| Metadata | dbt docs, data dictionary, ánh xạ nguồn → đích | | Tài liệu ✅, dbt docs ⏳ |
+| Metadata | dbt docs, data dictionary, ánh xạ nguồn → đích | [../dbt/README.md](../dbt/README.md) mục 7, [data_dictionary.md](data_dictionary.md), [source_to_target_mapping.md](source_to_target_mapping.md) | ✅ Tài liệu xong; dbt docs: trang mở đầu, mô tả mọi cột model / seed, macro, exposure Dashboard Power BI, ảnh lineage; mô tả ghi cả vào `COMMENT` của bảng / cột trong Postgres |
 | MDB | Semantic model trong Power BI (quan hệ, DAX, hierarchy) | [../powerbi/README.md](../powerbi/README.md) | ⏳ |
 | Application | Dashboard Power BI (3 trang); module AI (tóm tắt, giải thích, hỏi đáp) | [../powerbi/README.md](../powerbi/README.md), [../ai/README.md](../ai/README.md) | ⏳ Mới phác thảo dashboard, chưa chọn LLM |
 

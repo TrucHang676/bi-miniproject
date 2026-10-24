@@ -1,0 +1,25 @@
+version: 2
+
+# Exposure = nơi DÙNG dữ liệu của dbt (ở đây: dashboard Power BI). Khai báo để sơ đồ lineage của dbt docs
+# đi tới tận dashboard và biết đổi bảng nào trong dds thì dashboard bị ảnh hưởng (dbt_rules.md B8).
+exposures:
+  - name: powerbi_dashboard
+    label: Dashboard Power BI
+    type: dashboard
+    maturity: low            # đang làm ở Seminar 2 – xong thì đổi thành medium / high
+    description: >
+      Semantic model Power BI nạp cả 9 bảng trong schema dds (powerbi/README.md). 3 trang: Tổng quan kinh doanh
+      (Q1, Q2), Giao hàng & trải nghiệm khách hàng (Q3, Q4), Người bán & vận chuyển (Q5, Q6) + trang ẩn
+      drill-through "Chi tiết người bán". Câu hỏi và KPI: docs/business_questions.md.
+    owner:
+      name: Nhóm 3
+    depends_on:
+      - ref('fact_sales')
+      - ref('fact_delivery')
+      - ref('fact_review')
+      - ref('dim_date')
+      - ref('dim_customer')
+      - ref('dim_geography')
+      - ref('dim_product')
+      - ref('dim_seller')
+      - ref('dim_delivery_status')

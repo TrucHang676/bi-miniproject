@@ -28,6 +28,9 @@ seeds:
       dim_product lấy bản dịch từ category_translation, không có thì lấy ở đây.
     columns:
       - name: product_category_name
+        description: Tên danh mục tiếng Bồ Đào Nha, khớp products.product_category_name (pc_gamer, portateis_cozinha_e_preparadores_de_alimentos).
         data_tests:
           - unique
           - not_null
+      - name: product_category_name_english
+        description: Tên danh mục tiếng Anh do nhóm tự dịch - dim_product.category_name_en lấy từ đây khi nguồn không có bản dịch.

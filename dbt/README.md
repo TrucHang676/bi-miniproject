@@ -28,7 +28,7 @@ docker compose exec mage dbt debug                     # phải ra: All checks p
 | 1 model và mọi model phía sau nó | `dbt build --select stg_orders+` |
 | Chỉ test dữ liệu nguồn | `dbt test --select source:staging` |
 | Sau khi chạy lại Full Load (staging làm lại từ đầu) | `dbt build --full-refresh` – dựng lại cả model `incremental` |
-| Tài liệu + sơ đồ lineage | `dbt docs generate --static` → mở `dbt/target/static_index.html` bằng trình duyệt |
+| Tài liệu + sơ đồ lineage (mục 7) | `dbt docs generate --static` → mở `dbt/target/static_index.html` bằng trình duyệt |
 
 ## 2. Cấu trúc và schema đích
 
@@ -38,7 +38,7 @@ docker compose exec mage dbt debug                     # phải ra: All checks p
 | `models/intermediate/` | `int_` | view | `dbt_int` | Phép tính dùng chung cho nhiều dim / fact: `int_orders`, `int_purchase_sessions`, `int_delivery_lines` |
 | `models/marts/` | `dim_`, `fact_` | table (`dim_customer`, `dim_geography`: incremental) | `dds` | 6 dimension + 3 fact – Power BI chỉ đọc schema này |
 | `seeds/` | `seed_` | table | `dbt_stg` | Dữ liệu tham chiếu nhóm tự bổ sung |
-| `macros/` | | | | `generate_schema_name`: dùng đúng tên schema ở cột trên (mặc định dbt ghép thành `dbt_stg_dds`) |
+| `macros/` | | | | `generate_schema_name`: dùng đúng tên schema ở cột trên (mặc định dbt ghép thành `dbt_stg_dds`); `normalize_city`: chuẩn hóa tên thành phố (R1). Mô tả cho dbt docs: `_macros.yml` |
 | `tests/` | | | | Test viết tay (singular test), VD test xóa mềm R10 |
 | dbt test | | table | `dq` | `store_failures`: dòng vi phạm của mỗi test vào 1 bảng, ghi đè ở mỗi lần chạy |
 
@@ -163,6 +163,21 @@ Done. PASS=8 WARN=0 ERROR=1 SKIP=0 TOTAL=9
 
 Bảng lỗi có đúng 1 dòng `from_field = demo_orphan_order`. `TOTAL=9` = 8 test nguồn + `assert_no_deleted_orders_in_facts` (test này cũng đọc `staging.orders` nên được chọn theo). Xóa dòng demo, chạy lại → `PASS=9`, bảng lỗi trống lại. Tên bảng lỗi giống nhau ở mọi máy (máy Thanh, máy Hằng).
 
-## 7. Lineage graph
+## 7. Tài liệu dbt (dbt docs) và lineage
+
+`docker compose exec mage dbt docs generate --static` → mở `dbt/target/static_index.html` bằng trình duyệt (1 file, không cần chạy server). Thư mục `dbt/target/` không lên GitHub nên mỗi máy tự generate, sau khi đã `dbt build`. Trong kiến trúc Single DDS, đây là phần **Metadata**.
+
+| Trang docs có gì | Lấy từ |
+|---|---|
+| Trang mở đầu (Overview): các tầng – schema, grain 3 fact, cách đọc trang, lệnh chạy | `models/overview.md` (khối `{% docs __overview__ %}`) |
+| Mỗi model / seed: mô tả, **mọi** cột có mô tả (176 / 176 cột), test của từng cột, code SQL (*Source* / *Compiled*) | file yml cạnh model, `seeds/_seeds.yml` |
+| 2 macro: mô tả + tham số, model nào đang dùng | `macros/_macros.yml` |
+| Exposure **Dashboard Power BI**: 9 bảng `dds` → dashboard. Lineage đi tới tận Power BI; trang exposure liệt kê bảng dashboard dùng – đổi / xóa cột ở các bảng này thì báo người làm Power BI | `models/marts/_exposures.yml` (`maturity: low` – dashboard đang làm, xong thì nâng lên) |
+| Bảng nguồn `staging`: mô tả cấp bảng; mô tả từng cột xem ở model `stg_` cùng tên cột hoặc [docs/data_dictionary.md](../docs/data_dictionary.md) | `models/staging/_sources.yml` |
+
+- Mô tả còn được ghi thành **`COMMENT`** của bảng / cột trong Postgres (`+persist_docs` trong `dbt_project.yml`, cập nhật ở mỗi lần build): 22 bảng / view trong `dds`, `dbt_stg`, `dbt_int` và 176 cột → mở DBeaver cũng đọc được ý nghĩa cột (tab *Columns*, cột *Comment*) mà không cần mở trang docs.
+- Xem lineage: nút tròn ở góc dưới bên phải. Muốn ẩn test cho gọn: ô *resources* ở thanh dưới → bỏ chọn `test` → *Update Graph*.
+
+Ảnh lineage dưới đây (model + seed + source, ẩn test) xuất trước khi có exposure nên chưa có nút *Dashboard Power BI* – sơ đồ trong trang docs hiện tại có thêm nút này ở cuối.
 
 ![Lineage](../docs/images/dbt_lineage.png)
