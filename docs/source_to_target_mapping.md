@@ -298,7 +298,7 @@ Thứ tự các danh sách (cũng là thứ tự số `*_sort`):
 - **Nguồn:** `staging.order_reviews`, `staging.order_items`, `staging.orders`, `staging.customers` (qua `int_orders`, `int_delivery_lines`)
 - **Lọc / JOIN / gộp:**
   1. `order_reviews LEFT JOIN (SELECT DISTINCT order_id, seller_id FROM order_items) USING (order_id)` – review của đơn nhiều người bán được nhân cho mỗi người bán (Q6 cần điểm theo người bán). 759 dòng của đơn không có sản phẩm không có người bán → `seller_key = -1` (đơn unavailable 591, canceled 162, created 3, invoiced 2, shipped 1).
-  2. `LEFT JOIN int_delivery_lines USING (order_id, seller_id)` → `delivery_status_key`. Với 759 dòng không có người bán: tính R9 ở cấp đơn với `handover_status = 'Không xác định'`, `route_type = 'Không xác định'` (đều ra `delay_bucket = 'Chưa giao'` vì không đơn nào `delivered`).
+  2. `LEFT JOIN int_delivery_lines USING (order_id, seller_id)` → `delivery_status_key`. Với 759 dòng không có người bán (không có lượt giao hàng): `order_status` lấy từ đơn, `handover_status = 'Không xác định'`, `route_type = 'Không xác định'`, `delay_bucket = 'Chưa giao'` nếu đơn chưa `delivered`, ngược lại `'Không xác định'` (đơn không có sản phẩm mà ghi đã giao là dữ liệu bất thường). Dữ liệu thật: cả 759 dòng đều `'Chưa giao'` (unavailable 591, canceled 162, created 3, invoiced 2, shipped 1).
   3. `ROW_NUMBER()` theo đơn → `is_latest_review`; lookup ngày (R3), khách và địa lý (R5) qua `int_orders`.
 - **Cách nạp:** materialized `table` – dựng lại toàn bộ mỗi lần chạy (đã chốt 18/10/2026: `is_latest_review` của review cũ phải đổi khi review mới đến ở batch sau; `delivery_status_key` thuộc khóa đổi theo batch)
 

@@ -1,0 +1,263 @@
+version: 2
+
+# BS-31 - 3 fact trong schema dds (Power BI đọc schema này). Thiết kế: docs/dw_design.md mục 2, 6, 7;
+# công thức từng cột: docs/source_to_target_mapping.md mục 3; quy tắc dbt: docs/dbt_rules.md B5.
+# Cả 3 fact dựng lại toàn bộ mỗi lần chạy (table). Khóa chính = các khóa ngoại + mã đơn / mã đánh giá
+# (degenerate dimension), không có khóa thay thế riêng cho fact.
+# Test viết tay trong dbt/tests/: assert_no_deleted_orders_in_facts (xóa mềm R10),
+# assert_one_latest_review_per_order (1 điểm / đơn), assert_facts_match_sources (không nhân dòng, không mất dòng).
+
+models:
+  # ---------------------------------------------------------------------------------------------------------
+  - name: fact_sales
+    description: >
+      Bán hàng. 1 dòng = 1 sản phẩm do 1 người bán bán trong 1 đơn hợp lệ (đơn không hủy, không hết hàng,
+      có sản phẩm - R4); các đơn vị cùng sản phẩm gộp thành cột quantity. 101.953 dòng.
+      Dùng cho trang 1 (Q1, Q2) và doanh thu người bán (Q6): K1-K5, K10, K11, K13, M1-M3, M5.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, purchase_date_key, customer_key, geography_key, product_key, seller_key]
+      - dbt_utils.expression_is_true:      # trong 1 nhóm giá như nhau -> gộp không làm sai doanh thu
+          expression: "revenue = quantity * unit_price"
+    columns:
+      - name: order_id
+        description: >
+          Mã đơn hàng, giữ lại trong fact (degenerate dimension) vì có 87 trường hợp cùng khách mua cùng sản phẩm
+          của cùng người bán trong cùng ngày ở 2 đơn khác nhau. Số đơn (K2) = DISTINCTCOUNT(order_id).
+        data_tests: [not_null]
+      - name: purchase_date_key
+        description: Ngày đặt hàng (YYYYMMDD) -> dim_date. Mọi phân tích theo thời gian của trang 1 dùng ngày này.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: customer_key
+        description: Khách hàng thực -> dim_customer; -1 nếu không tra được. Số khách (K4) = DISTINCTCOUNT(customer_key).
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+      - name: geography_key
+        description: Nơi nhận hàng của chính đơn này (vị trí lúc mua) -> dim_geography. Dùng cho bản đồ doanh thu theo bang (Q2).
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_geography')
+              field: geography_key
+      - name: product_key
+        description: Sản phẩm -> dim_product. Dùng cho top 10 danh mục (Q2).
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_key
+      - name: seller_key
+        description: Người bán -> dim_seller. Người bán hoạt động (K10) = DISTINCTCOUNT(seller_key).
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_seller')
+              field: seller_key
+      - name: purchase_seq
+        description: >
+          Đơn này là lần mua thứ mấy của khách (R6: các đơn cách nhau <= 10 phút tính là 1 lần mua).
+          K5 trong một kỳ = số khách có từ 2 giá trị purchase_seq khác nhau / K4.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+      - name: quantity
+        description: Số đơn vị sản phẩm của dòng (số dòng order_items được gộp). Cộng được theo mọi chiều.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+      - name: unit_price
+        description: Đơn giá (BRL). Không cộng được; giá bình quân = SUM(revenue) / SUM(quantity).
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: false
+      - name: revenue
+        description: >
+          Doanh thu của dòng = quantity x unit_price (BRL), KHÔNG gồm phí vận chuyển. Doanh thu (K1) = SUM(revenue).
+          Tổng 01/2017 - 08/2018: 13.449.529,68 BRL.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: false
+      - name: freight_value
+        description: Tổng phí vận chuyển phân bổ cho dòng (BRL). Cộng được theo mọi chiều. Chưa câu hỏi nào dùng trực tiếp.
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+
+  # ---------------------------------------------------------------------------------------------------------
+  - name: fact_delivery
+    description: >
+      Giao hàng. 1 dòng = 1 cặp (đơn, người bán): người bán bàn giao cho đơn vị vận chuyển rồi hàng tới khách.
+      Gồm mọi đơn có sản phẩm, kể cả đơn hủy. Accumulating snapshot: dòng thay đổi khi batch sau mang mốc mới.
+      100.010 dòng, 98.666 đơn. Dùng cho trang 2 (Q3, Q4) và trang 3 (Q5, Q6): K6, K7, K12, M4, M5.
+      Cách đếm: K6, K7, M4 tính theo order_id riêng biệt (mốc ngày ở cấp đơn, lặp lại ở đơn nhiều người bán);
+      K12 tính theo từng dòng.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, purchase_date_key, customer_key, geography_key, seller_key, delivery_status_key]
+      - dbt_utils.expression_is_true:      # 2 measure cùng điều kiện tính: đơn delivered có ngày nhận
+          expression: "(late_days is null) = (delivery_days is null)"
+    columns:
+      - name: order_id
+        description: Mã đơn hàng (degenerate dimension).
+        data_tests: [not_null]
+      - name: purchase_date_key
+        description: Ngày đặt hàng (YYYYMMDD) -> dim_date. Q3, Q5 phân tích theo tháng đặt hàng.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: customer_key
+        description: Khách hàng thực -> dim_customer.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+      - name: geography_key
+        description: Nơi nhận hàng của đơn -> dim_geography. Q3 tính tỉ lệ giao trễ theo bang nơi nhận.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_geography')
+              field: geography_key
+      - name: seller_key
+        description: Người bán bàn giao lượt này -> dim_seller.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_seller')
+              field: seller_key
+      - name: delivery_status_key
+        description: >
+          Trạng thái của lượt giao hàng -> dim_delivery_status (trạng thái đơn, bàn giao đúng hạn / trễ,
+          nội bang / liên bang, nhóm số ngày trễ). Đổi theo batch khi đơn có mốc mới.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_delivery_status')
+              field: delivery_status_key
+      - name: order_purchase_timestamp
+        description: Thời điểm đặt mua.
+      - name: order_approved_at
+        description: Thời điểm duyệt thanh toán; NULL nếu chưa duyệt.
+      - name: shipping_limit_date
+        description: Hạn bàn giao của người bán này.
+      - name: delivered_carrier_date
+        description: Thời điểm bàn giao cho đơn vị vận chuyển (cấp đơn); NULL nếu chưa bàn giao.
+      - name: delivered_customer_date
+        description: Thời điểm khách nhận hàng (cấp đơn); NULL nếu chưa giao.
+      - name: estimated_delivery_date
+        description: Ngày giao dự kiến báo cho khách lúc mua.
+      - name: handover_delay_days
+        description: >
+          Số ngày bàn giao trễ so với hạn (dương = trễ, âm = sớm), tính riêng cho từng người bán.
+          Có giá trị âm rất lớn vì vài hạn bàn giao ở nguồn sai (tới năm 2020) -> dashboard dùng tỉ lệ K12, không lấy trung bình cột này.
+      - name: transit_days
+        description: Số ngày vận chuyển = ngày khách nhận - ngày bàn giao (cấp đơn). M4 = trung bình theo order_id riêng biệt.
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+      - name: delivery_days
+        description: Số ngày giao = ngày khách nhận - thời điểm đặt (cấp đơn). K7 = trung bình theo order_id riêng biệt.
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+      - name: late_days
+        description: Số ngày khách nhận sau ngày dự kiến, so theo ngày (âm = giao sớm). Là căn cứ chia nhóm số ngày trễ.
+
+  # ---------------------------------------------------------------------------------------------------------
+  - name: fact_review
+    description: >
+      Đánh giá. 1 dòng = 1 lượt đánh giá cho 1 đơn, gắn với 1 người bán của đơn đó; đơn nhiều người bán thì mỗi
+      người bán nhận cùng điểm. 100.568 dòng từ 99.224 lượt đánh giá; 759 dòng của đơn không có sản phẩm có
+      seller_key = -1. Dùng cho Q4, Q6: K8, K9, M5.
+      Cách tính: điểm chung (K8, K9) lọc is_latest_review = TRUE và lấy 1 điểm / order_id; điểm theo người bán
+      (Q6) lấy theo seller_key.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [review_id, order_id, purchase_date_key, answer_date_key, customer_key, geography_key, seller_key, delivery_status_key]
+    columns:
+      - name: review_id
+        description: Mã phiếu đánh giá. Không duy nhất một mình (1 phiếu cho cả giỏ hàng bị tách đơn) nên khóa giữ cả order_id.
+        data_tests: [not_null]
+      - name: order_id
+        description: Mã đơn được đánh giá.
+        data_tests: [not_null]
+      - name: purchase_date_key
+        description: Ngày đặt hàng của đơn (YYYYMMDD) -> dim_date. Q4 so điểm với tỉ lệ giao trễ của cùng tháng đặt hàng.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: answer_date_key
+        description: Ngày khách trả lời đánh giá (YYYYMMDD) -> dim_date (vai trò thứ hai của dim_date).
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: customer_key
+        description: Khách đánh giá -> dim_customer.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+      - name: geography_key
+        description: Nơi nhận hàng của đơn -> dim_geography.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_geography')
+              field: geography_key
+      - name: seller_key
+        description: Người bán của đơn -> dim_seller; -1 khi đơn không có sản phẩm.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_seller')
+              field: seller_key
+      - name: delivery_status_key
+        description: >
+          Trạng thái giao hàng của lượt (đơn, người bán) được đánh giá -> dim_delivery_status. Nhờ cột này xem được
+          điểm theo nhóm số ngày trễ (Q4) và theo việc người bán bàn giao trễ hay không (Q6).
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_delivery_status')
+              field: delivery_status_key
+      - name: review_creation_date
+        description: Ngày gửi phiếu khảo sát cho khách.
+      - name: review_answer_timestamp
+        description: Thời điểm khách trả lời; dùng để chọn đánh giá mới nhất của đơn.
+      - name: has_comment
+        description: >
+          TRUE khi tiêu đề hoặc nội dung bình luận có ít nhất 1 chữ cái (R8). Ô chỉ có dấu chấm, dấu sao, chữ số,
+          emoji coi như không có bình luận. Nội dung bình luận không đưa vào dds.
+        data_tests: [not_null]
+      - name: is_latest_review
+        description: >
+          TRUE = đánh giá trả lời muộn nhất của đơn (547 đơn có hơn 1 đánh giá). Mỗi đơn có đúng 1 đánh giá TRUE.
+          Lọc cột này để mỗi đơn chỉ lấy 1 điểm khi tính K8, K9.
+        data_tests: [not_null]
+      - name: review_score
+        description: Điểm hài lòng 1-5 sao. Không cộng được, chỉ lấy trung bình.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2, 3, 4, 5]
+              quote: false
