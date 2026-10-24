@@ -1,0 +1,256 @@
+version: 2
+
+# BS-30 - 6 dimension trong schema dds (Power BI đọc schema này). Thiết kế: docs/dw_design.md mục 5;
+# công thức từng cột: docs/source_to_target_mapping.md mục 2; quy tắc dbt: docs/dbt_rules.md B4.
+# Khóa thay thế INT (R2), giữ khóa tự nhiên; member -1 "Không xác định" (trừ dim_date, dim_delivery_status).
+# dim_geography, dim_customer: incremental delete+insert, khóa không đổi qua các batch.
+# Test "đúng 1 dòng -1" ở tests/assert_dim_unknown_members.sql.
+
+models:
+  # ---------------------------------------------------------------------------------------------------------
+  - name: dim_date
+    description: >
+      1 dòng = 1 ngày dương lịch, 01/01/2016 -> 31/12/2018 (1.096 dòng). Tự sinh, SCD Type 0, không có dòng -1.
+      Phân cấp Ngày -> Tháng -> Quý -> Năm. Role-playing: ngày đặt hàng (3 fact) và ngày trả lời đánh giá (fact_review).
+    data_tests:
+      - dbt_utils.expression_is_true:
+          expression: "date_key = to_char(full_date, 'YYYYMMDD')::int"
+      - dbt_utils.expression_is_true:
+          expression: "year_month = year * 100 + month"
+      - dbt_utils.expression_is_true:
+          expression: "is_weekend = (day_of_week in (6, 7))"
+    columns:
+      - name: date_key
+        description: Khóa dạng YYYYMMDD (VD 20180315) - R3.
+        data_tests: [unique, not_null]
+      - name: full_date
+        description: Ngày (khóa tự nhiên).
+        data_tests: [unique, not_null]
+      - name: day_of_month
+        description: Ngày trong tháng 1-31.
+      - name: day_of_week
+        description: Thứ theo ISO - 1 = Thứ Hai … 7 = Chủ nhật.
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6, 7]
+              quote: false
+      - name: day_name
+        description: Tên thứ tiếng Việt - Power BI sắp theo day_of_week.
+        data_tests:
+          - accepted_values:
+              values: ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ nhật']
+      - name: is_weekend
+        description: TRUE = Thứ Bảy hoặc Chủ nhật.
+        data_tests: [not_null]
+      - name: month
+        description: Tháng 1-12 - trục X của biểu đồ so sánh cùng kỳ (Q1).
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+              quote: false
+      - name: month_name
+        description: "'Tháng 1' … 'Tháng 12' - Power BI sắp theo month."
+      - name: year_month
+        description: YYYYMM - khóa duy nhất của cấp Tháng (không gộp 03/2017 với 03/2018).
+      - name: quarter
+        description: Quý 1-4.
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4]
+              quote: false
+      - name: year
+        description: Năm 2016-2018.
+        data_tests:
+          - accepted_values:
+              values: [2016, 2017, 2018]
+              quote: false
+      - name: is_analysis_period
+        description: TRUE với 01/2017 - 08/2018 - phạm vi phân tích xu hướng (99,6% số đơn), bộ lọc mặc định của dashboard.
+        data_tests: [not_null]
+
+  # ---------------------------------------------------------------------------------------------------------
+  - name: dim_delivery_status
+    description: >
+      1 dòng = 1 tổ hợp trạng thái giao hàng (672 dòng = 8 x 4 x 3 x 7). Junk dimension sinh tĩnh đủ mọi tổ hợp,
+      SCD Type 0, không có dòng -1. Phân cấp Nhóm số ngày trễ -> Kết quả giao. Dùng chung cho fact_delivery, fact_review.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_status, handover_status, route_type, delay_bucket]
+      - dbt_utils.expression_is_true:
+          expression: "(delivery_result = 'Trễ hạn') = (delay_bucket like 'Trễ%')"
+    columns:
+      - name: delivery_status_key
+        description: Khóa = thứ tự cố định của 4 danh sách giá trị (1…672).
+        data_tests: [unique, not_null]
+      - name: order_status
+        description: Trạng thái đơn tại batch đang nạp (D8).
+        data_tests:
+          - accepted_values:
+              values: ['created', 'approved', 'invoiced', 'processing', 'shipped', 'delivered', 'canceled', 'unavailable']
+      - name: handover_status
+        description: Người bán bàn giao cho vận chuyển đúng hạn / trễ (R9) - K12, Q5.
+        data_tests:
+          - accepted_values:
+              values: ['Đúng hạn', 'Trễ hạn', 'Chưa bàn giao', 'Không xác định']
+      - name: route_type
+        description: Nội bang / Liên bang - bang khách so với bang người bán (R9) - Q5.
+        data_tests:
+          - accepted_values:
+              values: ['Nội bang', 'Liên bang', 'Không xác định']
+      - name: delay_bucket
+        description: Nhóm số ngày trễ so với ngày dự kiến (R9) - Q4. Thứ tự hiển thị làm bằng cột DAX + Sort by column.
+        data_tests:
+          - accepted_values:
+              values: ['Đúng hạn', 'Trễ 1–3 ngày', 'Trễ 4–7 ngày', 'Trễ 8–14 ngày', 'Trễ > 14 ngày', 'Chưa giao', 'Không xác định']
+      - name: delivery_result
+        description: Cấp cha của delay_bucket. K6 = 'Trễ hạn' / ('Đúng hạn' + 'Trễ hạn') theo order_id riêng biệt.
+        data_tests:
+          - accepted_values:
+              values: ['Đúng hạn', 'Trễ hạn', 'Chưa giao', 'Không xác định']
+
+  # ---------------------------------------------------------------------------------------------------------
+  - name: dim_product
+    description: >
+      1 dòng = 1 sản phẩm (32.951 dòng + 1 dòng -1). Phân cấp Sản phẩm -> Danh mục. SCD Type 1.
+      Dựng lại toàn bộ mỗi lần chạy; khóa ổn định vì products chỉ nạp ở Full Load (D3).
+    data_tests:
+      - dbt_utils.expression_is_true:
+          expression: "coalesce(weight_g, 1) > 0 and coalesce(length_cm, 1) > 0 and coalesce(height_cm, 1) > 0 and coalesce(width_cm, 1) > 0"
+      - dbt_utils.expression_is_true:      # nhóm khối lượng phải khớp khối lượng
+          expression: "product_key = -1 or (weight_g is null) = (weight_class = 'Không rõ')"
+    columns:
+      - name: product_key
+        description: Khóa thay thế (R2) - row_number theo product_id; -1 = Không xác định.
+        data_tests: [unique, not_null]
+      - name: product_id
+        description: Mã sản phẩm nguồn (khóa tự nhiên).
+        data_tests: [unique, not_null]
+      - name: category_name_pt
+        description: Danh mục tiếng Bồ Đào Nha; 610 sản phẩm thiếu danh mục -> 'unknown'.
+        data_tests: [not_null]
+      - name: category_name_en
+        description: Danh mục tiếng Anh - hiển thị trên dashboard (Q2). 2 danh mục thiếu bản dịch lấy từ seed.
+        data_tests: [not_null]
+      - name: weight_g
+        description: Khối lượng (gram); 0 -> NULL (lỗi nhập liệu).
+      - name: length_cm
+        description: Chiều dài (cm); 0 -> NULL.
+      - name: height_cm
+        description: Chiều cao (cm); 0 -> NULL.
+      - name: width_cm
+        description: Chiều rộng (cm); 0 -> NULL.
+      - name: weight_class
+        description: Nhóm khối lượng; cận dưới thuộc nhóm trên (500 g -> '0,5–2 kg').
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['< 0,5 kg', '0,5–2 kg', '2–5 kg', '5–10 kg', '≥ 10 kg', 'Không rõ', 'Không xác định']
+      - name: photos_qty
+        description: Số ảnh sản phẩm.
+      - name: name_length
+        description: Số ký tự của tên sản phẩm (nguồn không có tên thật).
+      - name: description_length
+        description: Số ký tự mô tả sản phẩm.
+
+  # ---------------------------------------------------------------------------------------------------------
+  - name: dim_seller
+    description: >
+      1 dòng = 1 người bán (3.095 dòng + 1 dòng -1). Phân cấp Người bán -> Thành phố -> Bang -> Vùng. SCD Type 1.
+      Dòng -1 dùng cho 759 dòng fact_review của đơn không có sản phẩm. K10 đếm trên fact, không đếm bảng này.
+    columns:
+      - name: seller_key
+        description: Khóa thay thế (R2) - row_number theo seller_id; -1 = Không xác định.
+        data_tests: [unique, not_null]
+      - name: seller_id
+        description: Mã người bán nguồn (khóa tự nhiên).
+        data_tests: [unique, not_null]
+      - name: seller_city
+        description: Thành phố người bán chuẩn hóa R1; 7 dòng không phải tên thành phố -> 'Không xác định'.
+        data_tests: [not_null]
+      - name: seller_state
+        description: Mã bang người bán (23 bang) - so với bang khách để ra route_type.
+        data_tests:
+          - relationships:
+              to: ref('seed_brazil_states')
+              field: state_code
+      - name: seller_region
+        description: Vùng của bang người bán (seed).
+        data_tests:
+          - accepted_values:
+              values: ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul', 'Không xác định']
+
+  # ---------------------------------------------------------------------------------------------------------
+  - name: dim_geography
+    description: >
+      1 dòng = 1 thành phố (chuẩn hóa R1) của 1 bang - nơi nhận hàng (4.309 dòng + 1 dòng -1).
+      Phân cấp Thành phố -> Bang -> Vùng. SCD Type 0. Incremental: chỉ thêm tổ hợp mới, khóa cũ giữ nguyên.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [state_code, city]
+    columns:
+      - name: geography_key
+        description: Khóa thay thế (R2), nối tiếp qua các batch; -1 = Không xác định.
+        data_tests: [unique, not_null]
+      - name: state_code
+        description: Mã bang (khóa tự nhiên, cùng với city); dòng -1 để NULL.
+        data_tests:
+          - relationships:
+              to: ref('seed_brazil_states')
+              field: state_code
+      - name: city
+        description: Thành phố đã chuẩn hóa R1 (khóa tự nhiên, cùng với state_code).
+        data_tests: [not_null]
+      - name: state_name
+        description: Tên bang có dấu (seed), VD São Paulo.
+        data_tests: [not_null]
+      - name: region
+        description: Vùng (seed) - cấp trên cùng để drill-down bản đồ (Q2).
+        data_tests:
+          - accepted_values:
+              values: ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul', 'Không xác định']
+
+  # ---------------------------------------------------------------------------------------------------------
+  - name: dim_customer
+    description: >
+      1 dòng = 1 khách hàng thực - customer_unique_id (96.096 dòng + 1 dòng -1). Phân cấp Khách hàng -> Thành phố
+      -> Bang -> Vùng. SCD Type 1: địa chỉ theo đơn gần nhất (mọi đơn, kể cả hủy). Incremental: khách cũ giữ khóa,
+      thuộc tính được ghi đè; khách mới nhận khóa nối tiếp. Vị trí TẠI LÚC MUA nằm ở fact qua dim_geography.
+    data_tests:
+      - dbt_utils.expression_is_true:      # khách chưa có đơn hợp lệ <=> không có ngày mua đầu tiên
+          expression: "customer_key = -1 or (first_purchase_date is null) = (purchase_count = 0)"
+      - dbt_utils.expression_is_true:      # loại khách phải khớp số lần mua
+          expression: "customer_key = -1 or customer_type = case when purchase_count = 0 then 'Chưa có đơn hợp lệ' when purchase_count = 1 then 'Mua một lần' else 'Mua lại' end"
+    columns:
+      - name: customer_key
+        description: Khóa thay thế (R2), không đổi qua các batch; -1 = Không xác định.
+        data_tests: [unique, not_null]
+      - name: customer_unique_id
+        description: Mã khách hàng thực (khóa tự nhiên) - KHÔNG dùng customer_id (1 mã = 1 đơn).
+        data_tests: [unique, not_null]
+      - name: customer_city
+        description: Thành phố của đơn gần nhất, chuẩn hóa R1 (SCD 1).
+        data_tests: [not_null]
+      - name: customer_state
+        description: Bang của đơn gần nhất (SCD 1); dòng -1 để NULL.
+        data_tests:
+          - relationships:
+              to: ref('seed_brazil_states')
+              field: state_code
+      - name: customer_region
+        description: Vùng của bang (seed).
+        data_tests:
+          - accepted_values:
+              values: ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul', 'Không xác định']
+      - name: first_purchase_date
+        description: Ngày mua đầu tiên (đơn hợp lệ); NULL khi khách không có đơn hợp lệ.
+      - name: purchase_count
+        description: Số LẦN mua hợp lệ - đơn cách nhau <= 10 phút gộp thành 1 lần (R6); 0 nếu không có đơn hợp lệ.
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+      - name: customer_type
+        description: Mua một lần / Mua lại / Chưa có đơn hợp lệ (theo toàn bộ lịch sử; K5 theo kỳ tính từ fact_sales).
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['Chưa có đơn hợp lệ', 'Mua một lần', 'Mua lại', 'Không xác định']
