@@ -1,0 +1,162 @@
+version: 2
+
+# BS-28 - tầng staging của dbt (view, schema dbt_stg): 1 model / 1 bảng staging do Mage nạp.
+# Việc của stg_: chọn cột, bỏ cột kỹ thuật (_batch_id, _loaded_at, _is_deleted, _deleted_at), đổi tên cột sai
+# chính tả, bỏ đơn đã xóa mềm (R10). Không làm sạch giá trị ở đây (R1, R8 đặt ở model dùng nó) để stg_ đối chiếu
+# 1-1 được với staging. Khóa chính không test lại: staging đã có ràng buộc PRIMARY KEY, view lọc bớt dòng
+# không làm trùng khóa. Quy tắc: docs/dbt_rules.md B2; công thức: docs/source_to_target_mapping.md.
+
+models:
+  - name: stg_orders
+    description: >
+      1 dòng = 1 đơn hàng chưa bị xóa ở nguồn (R10). 99.441 dòng khi nạp đủ 10 batch và chưa xóa đơn nào.
+      Các mốc chưa xảy ra tại thời điểm nạp batch là NULL; đơn cũ được cập nhật ở batch sau (D8).
+    columns:
+      - name: order_id
+        description: Mã đơn hàng (hash 32 ký tự). Khóa chính.
+      - name: customer_id
+        description: Mã khách THEO ĐƠN (mỗi đơn 1 mã riêng) - nối sang stg_customers để lấy customer_unique_id.
+      - name: order_status
+        description: Trạng thái đơn tại batch đã nạp gần nhất (D8).
+        data_tests:
+          - accepted_values:
+              values: ['created', 'approved', 'invoiced', 'processing', 'shipped', 'delivered', 'canceled', 'unavailable']
+      - name: order_purchase_timestamp
+        description: Thời điểm khách đặt mua - mốc thời gian chính để phân tích, không bao giờ NULL.
+        data_tests:
+          - not_null
+      - name: order_approved_at
+        description: Thời điểm thanh toán được duyệt; NULL nếu chưa duyệt.
+      - name: order_delivered_carrier_date
+        description: Thời điểm người bán bàn giao cho đơn vị vận chuyển (cấp đơn); NULL nếu chưa bàn giao.
+      - name: order_delivered_customer_date
+        description: Thời điểm khách nhận hàng (cấp đơn); NULL nếu chưa giao.
+      - name: order_estimated_delivery_date
+        description: Ngày giao dự kiến báo cho khách lúc mua (kiểu DATE) - so trễ hạn theo NGÀY.
+
+  - name: stg_order_items
+    description: >
+      1 dòng = 1 đơn vị sản phẩm trong 1 đơn (chưa gộp). 112.650 dòng. Khóa (order_id, order_item_id).
+      Chỉ giữ dòng của đơn còn trong stg_orders (R10).
+    columns:
+      - name: order_id
+        description: Mã đơn hàng.
+      - name: order_item_id
+        description: Số thứ tự đơn vị sản phẩm trong đơn (1..n). Mua 3 cái cùng loại = 3 dòng.
+      - name: product_id
+        description: Mã sản phẩm.
+      - name: seller_id
+        description: Mã người bán dòng này.
+      - name: shipping_limit_date
+        description: Hạn chót người bán phải bàn giao cho đơn vị vận chuyển (có vài giá trị bất thường tới 2020).
+      - name: price
+        description: Giá bán 1 đơn vị (BRL) - cơ sở tính doanh thu K1.
+      - name: freight_value
+        description: Phí vận chuyển phân bổ cho dòng (BRL).
+
+  - name: stg_order_payments
+    description: >
+      1 dòng = 1 lần thanh toán của đơn. 103.886 dòng. Khóa (order_id, payment_sequential).
+      Chưa bảng dds nào dùng (không có fact_payment) - giữ cho đủ tầng. Chỉ giữ dòng của đơn còn trong stg_orders (R10).
+    columns:
+      - name: order_id
+        description: Mã đơn hàng.
+      - name: payment_sequential
+        description: Thứ tự phương thức thanh toán trong đơn (80 đơn bị đứt quãng - không dùng để đếm).
+      - name: payment_type
+        description: Phương thức thanh toán.
+        data_tests:
+          - accepted_values:
+              values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+      - name: payment_installments
+        description: Số kỳ trả góp (0-24; 2 dòng = 0).
+      - name: payment_value
+        description: Số tiền thanh toán (BRL) - không dùng tính doanh thu (lệch tiền hàng ở 249 đơn).
+
+  - name: stg_order_reviews
+    description: >
+      1 dòng = 1 đánh giá cho 1 đơn. 99.224 dòng. Khóa (review_id, order_id) - review_id KHÔNG duy nhất
+      (789 mã dùng chung cho giỏ hàng tách đơn). Chỉ giữ dòng của đơn còn trong stg_orders (R10).
+    columns:
+      - name: review_id
+        description: Mã phiếu khảo sát hài lòng.
+      - name: order_id
+        description: Mã đơn được đánh giá.
+      - name: review_score
+        description: Điểm hài lòng 1-5 sao.
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4, 5]
+              quote: false        # cột số: so sánh không đặt trong ngoặc kép
+      - name: review_comment_title
+        description: Tiêu đề bình luận (tiếng Bồ Đào Nha), chưa làm sạch - làm sạch theo R8 ở fact_review.
+      - name: review_comment_message
+        description: Nội dung bình luận (tiếng Bồ Đào Nha), chưa làm sạch - làm sạch theo R8 ở fact_review.
+      - name: review_creation_date
+        description: Ngày gửi phiếu khảo sát cho khách.
+      - name: review_answer_timestamp
+        description: Thời điểm khách trả lời - quyết định review vào batch nào (D8) và thứ tự is_latest_review.
+        data_tests:
+          - not_null
+
+  - name: stg_customers
+    description: >
+      1 dòng = 1 customer_id = địa chỉ nhận hàng của 1 đơn. 99.441 dòng. Khách thật là customer_unique_id (D7).
+      KHÔNG lọc xóa mềm - dimension giữ thành viên.
+    columns:
+      - name: customer_id
+        description: Mã khách theo đơn - khóa chính, dùng nối với stg_orders.
+      - name: customer_unique_id
+        description: Mã khách hàng thực (96.096 giá trị) - khóa tự nhiên của dim_customer.
+        data_tests:
+          - not_null
+      - name: customer_zip_code_prefix
+        description: 5 số đầu mã bưu chính nơi nhận (chuỗi, giữ số 0 đầu). Không đưa vào dds (không nạp geolocation).
+      - name: customer_city
+        description: Thành phố nơi nhận, chưa chuẩn hóa - chuẩn hóa theo R1 ở tầng sau.
+      - name: customer_state
+        description: Mã bang nơi nhận (27 bang).
+
+  - name: stg_sellers
+    description: 1 dòng = 1 người bán. 3.095 dòng. Chỉ nạp ở Full Load (D3).
+    columns:
+      - name: seller_id
+        description: Mã người bán - khóa chính.
+      - name: seller_zip_code_prefix
+        description: 5 số đầu mã bưu chính người bán (chuỗi). Không đưa vào dds.
+      - name: seller_city
+        description: Thành phố người bán, chưa chuẩn hóa - chuẩn hóa theo R1 ở dim_seller.
+      - name: seller_state
+        description: Mã bang người bán (23 bang).
+
+  - name: stg_products
+    description: >
+      1 dòng = 1 sản phẩm. 32.951 dòng. Chỉ nạp ở Full Load (D3).
+      Đã đổi tên 2 cột sai chính tả của nguồn (*_lenght -> *_length, chốt 17/10/2026).
+    columns:
+      - name: product_id
+        description: Mã sản phẩm - khóa chính.
+      - name: product_category_name
+        description: Danh mục (tiếng Bồ Đào Nha); NULL ở 610 sản phẩm -> 'unknown' ở dim_product.
+      - name: product_name_length
+        description: Số ký tự của tên sản phẩm (nguồn không có tên thật). Đổi tên từ product_name_lenght.
+      - name: product_description_length
+        description: Số ký tự mô tả sản phẩm. Đổi tên từ product_description_lenght.
+      - name: product_photos_qty
+        description: Số ảnh sản phẩm.
+      - name: product_weight_g
+        description: Khối lượng (gram); 4 sản phẩm = 0, 2 NULL -> xử lý ở dim_product.
+      - name: product_length_cm
+        description: Chiều dài (cm).
+      - name: product_height_cm
+        description: Chiều cao (cm).
+      - name: product_width_cm
+        description: Chiều rộng (cm).
+
+  - name: stg_category_translation
+    description: 1 dòng = 1 danh mục với bản dịch tiếng Anh. 71 dòng. Thiếu 2 danh mục -> seed_category_translation_extra.
+    columns:
+      - name: product_category_name
+        description: Tên danh mục tiếng Bồ Đào Nha - khóa chính.
+      - name: product_category_name_english
+        description: Tên danh mục tiếng Anh - hiển thị trên dashboard.
