@@ -1,5 +1,7 @@
 # Power BI – Semantic Model & Dashboard
 
+> Yêu cầu và cách làm Semantic Model (BS-35): [docs/powerbi_rules.md](../docs/powerbi_rules.md).
+
 ## Semantic Model
 
 ### Relationships
