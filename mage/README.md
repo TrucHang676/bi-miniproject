@@ -127,6 +127,8 @@ Kiểm thử (24/10/2026, máy Hằng, DB tạm `olist_test` đã xóa sau khi t
 
 ## Lưu ý khi lập lịch (Seminar 3)
 
+> Kế hoạch đầy đủ (trigger nào, cài đặt, kịch bản kiểm thử): [docs/schedule_rules.md](../docs/schedule_rules.md).
+
 - Cột `pipeline_run.triggered_by` lấy từ biến `triggered_by` (mặc định `manual`). Khi tạo trigger chạy theo lịch, thêm runtime variable `triggered_by = schedule` cho trigger đó để dashboard ETL phân biệt được lần chạy tay và lần chạy theo lịch.
 - Pipeline không tự khóa chống chạy chồng: hai lần `incremental_load` chạy cùng lúc có thể cùng đọc một LSET. Khi lập lịch, để khoảng cách giữa các lần chạy dài hơn thời gian một lần chạy (~1 phút kể cả bước dbt – mục [Bước dbt](#bước-dbt-bs-34)) và không bấm Run@once trong lúc trigger đang chạy. Mỗi lần chạy mới cũng đổi mọi dòng còn `RUNNING` thành `FAILED`, nên chạy chồng sẽ làm sai trạng thái lần chạy kia.
 
