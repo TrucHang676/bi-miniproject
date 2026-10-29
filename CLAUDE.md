@@ -104,7 +104,7 @@ bi-miniproject/               # Repo chính của nhóm (thư mục chứa file 
 ├── dbt/                      # models/staging → intermediate → marts; seeds; tests; macros
 ├── powerbi/                  # .pbix, measures.dax; README.md có phác thảo bố cục 3 trang
 ├── ai/                       # prompts/ (summary, explain_trend, qa), outputs/ (cặp KPI đầu vào – kết quả AI)
-└── docs/                     # dataset, business_questions, data_dictionary, data_profiling, decisions, dw_design, source_to_target_mapping, setup_guide, architecture, pipeline_rules (Mage – Yến), dbt_rules (dbt – Thanh), schedule_rules (lập lịch – Seminar 3); report/, demo/, images/
+└── docs/                     # dataset, business_questions, data_dictionary, data_profiling, decisions, dw_design, source_to_target_mapping, setup_guide, architecture, pipeline_rules (Mage – Yến), dbt_rules (dbt – Thanh), schedule_rules (lập lịch – Seminar 3), powerbi_rules (Semantic Model – quy tắc), semantic_model (Semantic Model – hồ sơ bàn giao BS-40); report/, demo/, images/
 ```
 Mỗi thư mục có `README.md` dạng template – khi làm xong phần nào thì điền vào template tương ứng thay vì tạo tài liệu mới.
 
