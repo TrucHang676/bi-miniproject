@@ -4,7 +4,7 @@
 
 ## Semantic Model
 
-File: `powerbi/olist_dashboard.pbix` (cùng nội dung với file chung của nhóm trên OneDrive `Dashboard seminar [Group-3].pbix`). Power BI Desktop bản Microsoft Store 2.159.
+File: `Dashboard seminar [Group-3].pbix` trên OneDrive của nhóm (file `.pbix` ~29 MB, kèm dữ liệu, **không lên Git** – `.gitignore`; trong repo chỉ có `measures.dax` + tài liệu). Power BI Desktop bản Microsoft Store 2.159.
 
 ![Model view](../docs/images/powerbi_model.png)
 

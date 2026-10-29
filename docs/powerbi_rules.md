@@ -70,7 +70,7 @@ docker compose up -d
 - Model view đúng hình sao (B3): 3 fact, 6 dim, 16 quan hệ (15 active + 1 inactive), không có quan hệ 2 chiều, không có nhiều–nhiều.
 - Đủ 18 measure, tất cả số ở B6 khớp (hoặc lệch có ghi lý do trong `powerbi/README.md`).
 - Kiểm thử B7 đạt.
-- Đã push `.pbix`, `measures.dax`, README, ảnh Model view; đã báo người làm dashboard.
+- Đã đưa `.pbix` lên OneDrive nhóm; đã push `measures.dax`, README, ảnh Model view; đã báo người làm dashboard.
 
 ---
 
@@ -331,8 +331,8 @@ Số dòng 9 bảng: B2. Số nào lệch → ghi số ra được + nguyên nh�
 ## B8. Git và phối hợp [Bắt buộc]
 
 - `git pull` trước khi làm; commit theo task, message tiếng Anh (VD `Add Power BI semantic model (BS-35)`).
-- Commit: `powerbi/olist_dashboard.pbix`, `powerbi/measures.dax`, `powerbi/README.md`, `docs/images/powerbi_model.png`. **Không** commit file khóa `*.pbix.lock`, `.pbi/` (đã `.gitignore`).
-- File `.pbix` lưu dữ liệu đã Import → trước khi commit, kiểm tra đã Refresh trên `dds` đủ 10 batch (B6), không phải DB đang demo xóa đơn.
+- Commit: `powerbi/measures.dax`, `powerbi/README.md`, `docs/images/powerbi_model.png`. File `.pbix` **không** lên Git (`.gitignore`, chốt 29/10/2026 – file ~29 MB kèm dữ liệu): bản dùng chung để trên OneDrive nhóm (`Dashboard seminar [Group-3].pbix`). Không commit file khóa `*.pbix.lock`, `.pbi/`.
+- File `.pbix` lưu dữ liệu đã Import → trước khi đưa lên OneDrive, kiểm tra đã Refresh trên `dds` đủ 10 batch (B6), không phải DB đang demo xóa đơn.
 - Đổi tên / thêm measure sau khi đã giao → báo người làm dashboard (visual dùng measure cũ sẽ báo lỗi).
 - Thiếu cột / số `dds` sai → báo người làm dbt (Thanh), không sửa bù trong Power BI (B1). Định nghĩa KPI chưa rõ → hỏi nhóm, chốt vào `decisions.md`.
 

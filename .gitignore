@@ -51,6 +51,8 @@ docs/report/*.docx
 *.pbix.lock
 .pbi/localSettings.json
 .pbi/cache.abf
+# File .pbix (~29 MB, kèm dữ liệu) không lên Git – bản dùng chung của nhóm nằm trên OneDrive
+*.pbix
 
 # ===== Video demo (nặng, chỉ lưu link trong docs/demo) =====
 *.mp4
