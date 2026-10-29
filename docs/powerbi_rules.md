@@ -155,7 +155,7 @@ Trục tháng liên tục (01/2017 … 08/2018) dùng `year_month` (không gộp
 
 ### B4.3 Sort by column [Bắt buộc]
 
-Theo bảng "Cột sắp xếp" trong [powerbi/README.md](../powerbi/README.md): `month_name` theo `month`, `day_name` theo `day_of_week`, `delay_bucket` theo cột DAX `delay_bucket_order` (chép nguyên công thức ở README). Kiểm tra: bảng `delay_bucket` + `delay_bucket_order` không có dòng nào ra 99.
+Theo bảng "Cột sắp xếp" trong [powerbi/README.md](../powerbi/README.md): `month_name` theo `month`, `day_name` theo `day_of_week`, `delay_bucket` theo cột DAX `delay_bucket_order` (chép nguyên công thức ở README). Kiểm tra: bảng `delay_bucket` + `delay_bucket_order` ra đúng 1–7 theo thứ tự Đúng hạn → … → Không xác định (công thức tính theo khóa, lý do ở README – bảng cuối `decisions.md`, 29/10/2026).
 
 ### B4.4 Ẩn cột và định dạng [Gợi ý]
 
@@ -293,7 +293,7 @@ Lọc **01/2017 – 08/2018** (`dim_date[is_analysis_period] = TRUE`), không l�
 | K3 Giá trị đơn TB | ≈ 137,4 BRL | = K1 / K2 |
 | K4 Số khách hàng | ≈ 94.707 | CSV |
 | K5 Tỉ lệ khách mua lại | 2,27% | dds |
-| K6 Tỉ lệ giao trễ | **6.534 / 96.470 = 6,77%** | dds |
+| K6 Tỉ lệ giao trễ | **6.531 / 96.203 = 6,79%** (bỏ lọc: 6.534 / 96.470 = 6,77%) | dds |
 | K7 Thời gian giao TB | ≈ 12,5 ngày | CSV |
 | K8 Điểm đánh giá TB | 4,09 | dds |
 | K9 Tỉ lệ đánh giá tiêu cực | 14,63% (bỏ lọc: 14,69%) | dds |

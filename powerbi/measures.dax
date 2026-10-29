@@ -1,0 +1,178 @@
+// =============================================================================
+// measures.dax - toàn bộ measure + cột tính của Semantic Model Power BI (BS-35 / BS-40)
+// Nguồn sự thật là model trong .pbix; file này là bản sao lưu để review / đối chiếu.
+// Đổi measure trong Power BI thì cập nhật cả file này. Quy ước: docs/powerbi_rules.md B5.
+// Mỗi khối bắt đầu bằng dòng '// ----'; dòng tiếp theo ghi mã KPI | thư mục hiển thị | định dạng.
+// Chuỗi 'Trễ hạn', 'Đúng hạn', ... phải giống từng ký tự giá trị dbt sinh ra (dim_delivery_status).
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// CỘT TÍNH  [dim_delivery_status]  |  ẩn  |  Sort by column của delay_bucket  |  công thức giống powerbi/README.md
+// Không tham chiếu delay_bucket (tránh circular dependency); phụ thuộc thứ tự 7 nhóm trong dim_delivery_status.sql.
+// Kiểm tra nhanh: bảng delay_bucket + delay_bucket_order phải ra đúng 1-7: Đúng hạn, Trễ 1–3, Trễ 4–7, Trễ 8–14, Trễ > 14, Chưa giao, Không xác định.
+dim_delivery_status[delay_bucket_order] = MOD ( dim_delivery_status[delivery_status_key] - 1, 7 ) + 1
+
+// #############################################################################
+// THƯ MỤC HIỂN THỊ: 0 Phụ
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [Phụ]  Số đơn giao trễ  |  thư mục: 0 Phụ  |  định dạng: #,0
+// Phụ (tử số K6). Số đơn (order_id riêng biệt) có delivery_result = 'Trễ hạn'.
+Số đơn giao trễ = CALCULATE ( DISTINCTCOUNT ( fact_delivery[order_id] ), dim_delivery_status[delivery_result] = "Trễ hạn" )
+
+// -----------------------------------------------------------------------------
+// [Phụ]  Số đơn đã giao  |  thư mục: 0 Phụ  |  định dạng: #,0
+// Phụ (mẫu số K6). Số đơn (order_id riêng biệt) có delivery_result là 'Đúng hạn' hoặc 'Trễ hạn'.
+Số đơn đã giao = CALCULATE ( DISTINCTCOUNT ( fact_delivery[order_id] ), dim_delivery_status[delivery_result] IN { "Đúng hạn", "Trễ hạn" } )
+
+// #############################################################################
+// THƯ MỤC HIỂN THỊ: 1 Tổng quan
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [K1]  Doanh thu  |  thư mục: 1 Tổng quan  |  định dạng: #,0.00
+// K1. Tổng giá trị hàng bán của đơn hợp lệ, không gồm phí vận chuyển (BRL) = SUM(fact_sales[revenue]).
+Doanh thu = SUM ( fact_sales[revenue] )
+
+// -----------------------------------------------------------------------------
+// [K2]  Số đơn  |  thư mục: 1 Tổng quan  |  định dạng: #,0
+// K2. Số đơn hợp lệ = DISTINCTCOUNT(order_id) trên fact_sales (1 đơn có thể nhiều dòng).
+Số đơn = DISTINCTCOUNT ( fact_sales[order_id] )
+
+// -----------------------------------------------------------------------------
+// [K3]  Giá trị đơn TB  |  thư mục: 1 Tổng quan  |  định dạng: #,0.00
+// K3. Giá trị đơn trung bình (AOV) = K1 / K2 (BRL/đơn).
+Giá trị đơn TB = DIVIDE ( [Doanh thu], [Số đơn] )
+
+// -----------------------------------------------------------------------------
+// [K4]  Số khách hàng  |  thư mục: 1 Tổng quan  |  định dạng: #,0
+// K4. Số khách thực (customer_unique_id) có đơn hợp lệ trong kỳ = DISTINCTCOUNT(customer_key).
+Số khách hàng = DISTINCTCOUNT ( fact_sales[customer_key] )
+
+// -----------------------------------------------------------------------------
+// [K5]  Tỉ lệ khách mua lại  |  thư mục: 1 Tổng quan  |  định dạng: 0.00%
+// K5. % khách có từ 2 lần mua trở lên trong kỳ (các đơn cách nhau <= 10 phút gộp thành 1 lần mua - R6) / K4.
+Tỉ lệ khách mua lại =
+    VAR KhachMuaLai =
+        COUNTROWS (
+            FILTER (
+                VALUES ( fact_sales[customer_key] ),
+                CALCULATE ( DISTINCTCOUNT ( fact_sales[purchase_seq] ) ) >= 2
+            )
+        )
+    RETURN DIVIDE ( KhachMuaLai, [Số khách hàng] )
+
+// -----------------------------------------------------------------------------
+// [M1]  Doanh thu cùng kỳ  |  thư mục: 1 Tổng quan  |  định dạng: #,0.00
+// M1. Doanh thu cùng kỳ năm trước (SAMEPERIODLASTYEAR); BLANK nếu kỳ đang xét không nằm trong 01-08/2018.
+Doanh thu cùng kỳ =
+    VAR TrongKy =
+        MIN ( dim_date[full_date] ) >= DATE ( 2018, 1, 1 )
+            && MAX ( dim_date[full_date] ) <= DATE ( 2018, 8, 31 )
+    RETURN IF ( TrongKy, CALCULATE ( [Doanh thu], SAMEPERIODLASTYEAR ( dim_date[full_date] ) ) )
+
+// -----------------------------------------------------------------------------
+// [M2]  % tăng trưởng cùng kỳ  |  thư mục: 1 Tổng quan  |  định dạng: 0.00%
+// M2. % tăng trưởng doanh thu so với cùng kỳ = (K1 - M1) / M1; BLANK khi M1 BLANK.
+% tăng trưởng cùng kỳ = DIVIDE ( [Doanh thu] - [Doanh thu cùng kỳ], [Doanh thu cùng kỳ] )
+
+// -----------------------------------------------------------------------------
+// [M3]  % tổng doanh thu  |  thư mục: 1 Tổng quan  |  định dạng: 0.00%
+// M3. Tỉ trọng doanh thu = K1 / K1 toàn bộ (bỏ lọc danh mục và bang).
+% tổng doanh thu = DIVIDE ( [Doanh thu], CALCULATE ( [Doanh thu], ALL ( dim_product ), ALL ( dim_geography ) ) )
+
+// #############################################################################
+// THƯ MỤC HIỂN THỊ: 2 Giao hàng
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [K6]  Tỉ lệ giao trễ  |  thư mục: 2 Giao hàng  |  định dạng: 0.00%
+// K6. % đơn đã giao mà khách nhận sau ngày giao dự kiến (so theo ngày) = đơn trễ / đơn đã giao, đếm theo order_id.
+Tỉ lệ giao trễ = DIVIDE ( [Số đơn giao trễ], [Số đơn đã giao] )
+
+// -----------------------------------------------------------------------------
+// [K7]  Thời gian giao TB  |  thư mục: 2 Giao hàng  |  định dạng: 0.00
+// K7. Số ngày trung bình từ lúc đặt đến lúc khách nhận; mỗi đơn tính 1 lần (đơn đã giao).
+Thời gian giao TB =
+    CALCULATE (
+        AVERAGEX ( VALUES ( fact_delivery[order_id] ), CALCULATE ( MAX ( fact_delivery[delivery_days] ) ) ),
+        dim_delivery_status[delivery_result] IN { "Đúng hạn", "Trễ hạn" }
+    )
+
+// -----------------------------------------------------------------------------
+// [K8]  Điểm đánh giá TB  |  thư mục: 2 Giao hàng  |  định dạng: 0.00
+// K8. Điểm hài lòng trung bình (1-5 sao); mỗi đơn lấy 1 điểm (is_latest_review = TRUE).
+Điểm đánh giá TB =
+    CALCULATE (
+        AVERAGEX ( VALUES ( fact_review[order_id] ), CALCULATE ( MAX ( fact_review[review_score] ) ) ),
+        fact_review[is_latest_review] = TRUE ()
+    )
+
+// -----------------------------------------------------------------------------
+// [K9]  Tỉ lệ đánh giá tiêu cực  |  thư mục: 2 Giao hàng  |  định dạng: 0.00%
+// K9. % đơn bị đánh giá 1-2 sao / đơn có đánh giá (mỗi đơn 1 điểm - đánh giá mới nhất).
+Tỉ lệ đánh giá tiêu cực =
+    VAR DonCoReview =
+        CALCULATE ( DISTINCTCOUNT ( fact_review[order_id] ), fact_review[is_latest_review] = TRUE () )
+    VAR DonTieuCuc =
+        CALCULATE (
+            DISTINCTCOUNT ( fact_review[order_id] ),
+            fact_review[is_latest_review] = TRUE (),
+            fact_review[review_score] <= 2
+        )
+    RETURN DIVIDE ( DonTieuCuc, DonCoReview )
+
+// #############################################################################
+// THƯ MỤC HIỂN THỊ: 3 Người bán
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [K10]  Số người bán hoạt động  |  thư mục: 3 Người bán  |  định dạng: #,0
+// K10. Số người bán có ít nhất 1 đơn hợp lệ trong kỳ; đếm trên fact_sales, không đếm dòng dim_seller (D3).
+Số người bán hoạt động = DISTINCTCOUNT ( fact_sales[seller_key] )
+
+// -----------------------------------------------------------------------------
+// [K11]  Doanh thu TB mỗi người bán  |  thư mục: 3 Người bán  |  định dạng: #,0.00
+// K11. Doanh thu bình quân mỗi người bán = K1 / K10 (BRL).
+Doanh thu TB mỗi người bán = DIVIDE ( [Doanh thu], [Số người bán hoạt động] )
+
+// -----------------------------------------------------------------------------
+// [K12]  Tỉ lệ bàn giao trễ  |  thư mục: 3 Người bán  |  định dạng: 0.00%
+// K12. % lượt (đơn, người bán) giao cho vận chuyển sau hạn shipping_limit_date; tính theo dòng fact_delivery.
+Tỉ lệ bàn giao trễ =
+    DIVIDE (
+        CALCULATE ( COUNTROWS ( fact_delivery ), dim_delivery_status[handover_status] = "Trễ hạn" ),
+        CALCULATE ( COUNTROWS ( fact_delivery ), dim_delivery_status[handover_status] IN { "Đúng hạn", "Trễ hạn" } )
+    )
+
+// -----------------------------------------------------------------------------
+// [K13]  Tỷ trọng doanh thu top 10% người bán  |  thư mục: 3 Người bán  |  định dạng: 0.00%
+// K13. Doanh thu của 10% người bán dẫn đầu / K1 (10% làm tròn lên - ROUNDUP; xem decisions.md).
+Tỷ trọng doanh thu top 10% người bán =
+    VAR SoTop = ROUNDUP ( [Số người bán hoạt động] * 0.1, 0 )
+    VAR TopNB = TOPN ( SoTop, VALUES ( fact_sales[seller_key] ), [Doanh thu], DESC )
+    RETURN DIVIDE ( CALCULATE ( [Doanh thu], TopNB ), [Doanh thu] )
+
+// -----------------------------------------------------------------------------
+// [M4]  Thời gian vận chuyển TB  |  thư mục: 3 Người bán  |  định dạng: 0.00
+// M4. Số ngày trung bình từ lúc người bán bàn giao đến lúc khách nhận; mỗi đơn tính 1 lần (đơn đã giao).
+Thời gian vận chuyển TB =
+    CALCULATE (
+        AVERAGEX ( VALUES ( fact_delivery[order_id] ), CALCULATE ( MAX ( fact_delivery[transit_days] ) ) ),
+        dim_delivery_status[delivery_result] IN { "Đúng hạn", "Trễ hạn" }
+    )
+
+// -----------------------------------------------------------------------------
+// [M5]  Cờ người bán cần xử lý  |  thư mục: 3 Người bán  |  định dạng: 0
+// M5. 1 nếu người bán có >= 30 đơn và (K8 < 3,5 hoặc K12 > 10%), ngược lại 0; dùng làm filter visual (tính trong ngữ cảnh 1 người bán).
+Cờ người bán cần xử lý =
+    VAR Diem = [Điểm đánh giá TB]
+    VAR TreBG = [Tỉ lệ bàn giao trễ]
+    RETURN
+        IF (
+            [Số đơn] >= 30
+                && ( ( NOT ISBLANK ( Diem ) && Diem < 3.5 ) || ( NOT ISBLANK ( TreBG ) && TreBG > 0.1 ) ),
+            1,
+            0
+        )
