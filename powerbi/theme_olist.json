@@ -25,13 +25,19 @@
     },
     "*": {
       "*": {
-        "background": [{ "show": false }],
-        "border": [{ "show": false }],
+        "background": [{ "show": true, "color": { "solid": { "color": "#FFFFFF" } }, "transparency": 0 }],
+        "border": [{ "show": true, "color": { "solid": { "color": "#FFFFFF" } }, "radius": 20 }],
         "dropShadow": [{ "show": false }],
         "title": [{ "fontColor": { "solid": { "color": "#121316" } }, "fontSize": 12, "fontFamily": "Segoe UI Semibold" }],
         "legend": [{ "labelColor": { "solid": { "color": "#4A4E57" } }, "fontSize": 9 }],
         "categoryAxis": [{ "labelColor": { "solid": { "color": "#8B9099" } }, "fontSize": 9 }],
         "valueAxis": [{ "labelColor": { "solid": { "color": "#8B9099" } }, "fontSize": 9, "gridlineColor": { "solid": { "color": "#EEF0F3" } }, "gridlineStyle": "solid" }]
+      }
+    },
+    "textbox": {
+      "*": {
+        "background": [{ "show": false }],
+        "border": [{ "show": false }]
       }
     }
   }
