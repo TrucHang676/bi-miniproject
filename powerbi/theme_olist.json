@@ -1,0 +1,38 @@
+{
+  "name": "Olist Lime Soft",
+  "dataColors": ["#A9B8F8", "#C8E62A", "#121316", "#6F80EC", "#4A4E57", "#8B9099", "#B5BAC2", "#EF6F61"],
+  "background": "#FFFFFF",
+  "foreground": "#121316",
+  "tableAccent": "#C8E62A",
+  "good": "#1D5E12",
+  "neutral": "#F6C343",
+  "bad": "#D9483B",
+  "minimum": "#EEF1FE",
+  "center": "#A9B8F8",
+  "maximum": "#3A47C4",
+  "textClasses": {
+    "callout": { "fontSize": 24, "fontFace": "Segoe UI Semibold", "color": "#121316" },
+    "title": { "fontSize": 12, "fontFace": "Segoe UI Semibold", "color": "#121316" },
+    "header": { "fontSize": 12, "fontFace": "Segoe UI Semibold", "color": "#121316" },
+    "label": { "fontSize": 9, "fontFace": "Segoe UI", "color": "#4A4E57" }
+  },
+  "visualStyles": {
+    "page": {
+      "*": {
+        "background": [{ "color": { "solid": { "color": "#E9EBEF" } }, "transparency": 0 }],
+        "outspace": [{ "color": { "solid": { "color": "#E9EBEF" } }, "transparency": 0 }]
+      }
+    },
+    "*": {
+      "*": {
+        "background": [{ "show": false }],
+        "border": [{ "show": false }],
+        "dropShadow": [{ "show": false }],
+        "title": [{ "fontColor": { "solid": { "color": "#121316" } }, "fontSize": 12, "fontFamily": "Segoe UI Semibold" }],
+        "legend": [{ "labelColor": { "solid": { "color": "#4A4E57" } }, "fontSize": 9 }],
+        "categoryAxis": [{ "labelColor": { "solid": { "color": "#8B9099" } }, "fontSize": 9 }],
+        "valueAxis": [{ "labelColor": { "solid": { "color": "#8B9099" } }, "fontSize": 9, "gridlineColor": { "solid": { "color": "#EEF0F3" } }, "gridlineStyle": "solid" }]
+      }
+    }
+  }
+}
