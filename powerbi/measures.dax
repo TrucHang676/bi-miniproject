@@ -83,6 +83,142 @@ Doanh thu cùng kỳ =
 % tổng doanh thu = DIVIDE ( [Doanh thu], CALCULATE ( [Doanh thu], ALL ( dim_product ), ALL ( dim_geography ) ) )
 
 // #############################################################################
+// THƯ MỤC HIỂN THỊ: 1 Tổng quan\Thẻ KPI  (thêm 30/10/2026 khi dựng trang 1)
+// Measure trả về CHỮ để hiển thị trên 5 thẻ KPI (Card new). Chỉ dùng trên thẻ,
+// KHÔNG gọi trong công thức khác: so sánh / chia với chữ sẽ lỗi hoặc ra số sai.
+// Dòng "so cùng kỳ" = 01-08/2018 so với 01-08/2017 trên cùng các tháng đang chọn:
+// KEEPFILTERS giữ lựa chọn Tháng; năm 2017 thay năm đang chọn; Vùng, Bang không đụng tới.
+// Chọn Năm 2017 hoặc tháng 9-12 -> "Không có cùng kỳ để so" (2016 thưa dữ liệu, 9-12/2018 chưa có).
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [Thẻ K1]  Doanh thu (thẻ)  |  thư mục: 1 Tổng quan\Thẻ KPI  |  định dạng: chữ
+// Hiển thị trên thẻ K1: doanh thu đổi sang triệu, dạng chữ kiểu Việt (13,45 tr). Chỉ dùng trên thẻ, không dùng trong công thức khác.
+Doanh thu (thẻ) = FORMAT ( [Doanh thu] / 1000000, "#,0.00", "vi-VN" ) & " tr"
+
+// -----------------------------------------------------------------------------
+// [Thẻ K2]  Số đơn (thẻ)  |  thư mục: 1 Tổng quan\Thẻ KPI  |  định dạng: chữ
+// Hiển thị trên thẻ K2: số đơn dạng chữ có dấu chấm ngăn nghìn (97.905). Chỉ dùng trên thẻ, không dùng trong công thức khác.
+Số đơn (thẻ) = FORMAT ( DISTINCTCOUNT ( fact_sales[order_id] ), "#,0", "vi-VN" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ K4]  Số khách hàng (thẻ)  |  thư mục: 1 Tổng quan\Thẻ KPI  |  định dạng: chữ
+// Hiển thị trên thẻ K4: số khách dạng chữ có dấu chấm ngăn nghìn (94.703). Chỉ dùng trên thẻ, không dùng trong công thức khác.
+Số khách hàng (thẻ) = FORMAT ( DISTINCTCOUNT ( fact_sales[customer_key] ), "#,0", "vi-VN" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ K1]  Doanh thu so cùng kỳ  |  thư mục: 1 Tổng quan\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K1: % và chênh lệch doanh thu 2018 so với 2017 trên cùng các tháng 1-8 đang chọn; theo lọc Tháng, Vùng, Bang; trả về "Không có cùng kỳ để so" khi chọn 2017 hoặc tháng 9-12. Chỉ dùng trên thẻ.
+Doanh thu so cùng kỳ =
+    VAR _nay = CALCULATE ( [Doanh thu], KEEPFILTERS ( dim_date[year] = 2018 ), KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _truoc = CALCULATE ( [Doanh thu], dim_date[year] = 2017, KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _tang = DIVIDE ( _nay - _truoc, _truoc )
+    RETURN
+        IF ( ISBLANK ( _nay ) || ISBLANK ( _truoc ), "Không có cùng kỳ để so",
+            IF ( _tang >= 0, "↑ ", "↓ " ) & FORMAT ( _tang, "+0%;-0%", "vi-VN" ) & " và "
+                & FORMAT ( ( _nay - _truoc ) / 1000000, "+#,0.00;-#,0.00", "vi-VN" ) & " tr so cùng kỳ" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ K2]  Số đơn so cùng kỳ  |  thư mục: 1 Tổng quan\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K2: % và chênh lệch số đơn 2018 so với 2017 trên cùng các tháng 1-8 đang chọn; theo lọc Tháng, Vùng, Bang. Chỉ dùng trên thẻ.
+Số đơn so cùng kỳ =
+    VAR _nay = CALCULATE ( [Số đơn], KEEPFILTERS ( dim_date[year] = 2018 ), KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _truoc = CALCULATE ( [Số đơn], dim_date[year] = 2017, KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _tang = DIVIDE ( _nay - _truoc, _truoc )
+    RETURN
+        IF ( ISBLANK ( _nay ) || ISBLANK ( _truoc ), "Không có cùng kỳ để so",
+            IF ( _tang >= 0, "↑ ", "↓ " ) & FORMAT ( _tang, "+0%;-0%", "vi-VN" ) & " và "
+                & FORMAT ( _nay - _truoc, "+#,0;-#,0", "vi-VN" ) & " đơn" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ K3]  Giá trị đơn so cùng kỳ  |  thư mục: 1 Tổng quan\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K3: % và chênh lệch giá trị đơn TB 2018 so với 2017 trên cùng các tháng 1-8 đang chọn; theo lọc Tháng, Vùng, Bang. Chỉ dùng trên thẻ.
+Giá trị đơn so cùng kỳ =
+    VAR _nay = CALCULATE ( [Giá trị đơn TB], KEEPFILTERS ( dim_date[year] = 2018 ), KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _truoc = CALCULATE ( [Giá trị đơn TB], dim_date[year] = 2017, KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _tang = DIVIDE ( _nay - _truoc, _truoc )
+    RETURN
+        IF ( ISBLANK ( _nay ) || ISBLANK ( _truoc ), "Không có cùng kỳ để so",
+            IF ( _tang >= 0, "↑ ", "↓ " ) & FORMAT ( _tang, "+0.0%;-0.0%", "vi-VN" ) & " và "
+                & FORMAT ( _nay - _truoc, "+#,0.00;-#,0.00", "vi-VN" ) & " BRL" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ K4]  Số khách hàng so cùng kỳ  |  thư mục: 1 Tổng quan\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K4: % và chênh lệch số khách 2018 so với 2017 trên cùng các tháng 1-8 đang chọn; theo lọc Tháng, Vùng, Bang. Chỉ dùng trên thẻ.
+Số khách hàng so cùng kỳ =
+    VAR _nay = CALCULATE ( [Số khách hàng], KEEPFILTERS ( dim_date[year] = 2018 ), KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _truoc = CALCULATE ( [Số khách hàng], dim_date[year] = 2017, KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _tang = DIVIDE ( _nay - _truoc, _truoc )
+    RETURN
+        IF ( ISBLANK ( _nay ) || ISBLANK ( _truoc ), "Không có cùng kỳ để so",
+            IF ( _tang >= 0, "↑ ", "↓ " ) & FORMAT ( _tang, "+0%;-0%", "vi-VN" ) & " và "
+                & FORMAT ( _nay - _truoc, "+#,0;-#,0", "vi-VN" ) & " khách" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ K5]  Khách mua 1 lần  |  thư mục: 1 Tổng quan\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K5: 1 - K5, % khách chỉ mua 1 lần trong kỳ. Chỉ dùng trên thẻ.
+Khách mua 1 lần = "↓ " & FORMAT ( 1 - [Tỉ lệ khách mua lại], "0.0%", "vi-VN" ) & " chỉ mua 1 lần"
+
+// #############################################################################
+// THƯ MỤC HIỂN THỊ: 1 Tổng quan\Định dạng  (thêm 30/10/2026 khi dựng trang 1)
+// Measure trả về mã màu / số nhóm cho conditional formatting (Format -> fx -> Field value).
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu danh mục  |  thư mục: 1 Tổng quan\Định dạng  |  định dạng: chữ
+// Màu thanh biểu đồ Top 10 danh mục: top 3 theo doanh thu (K1) màu vàng chanh, còn lại màu tím. Cột xếp hạng phải trùng cột trục Y của biểu đồ.
+Màu danh mục =
+    IF (
+        RANKX ( ALLSELECTED ( dim_product[category_name_en] ), [Doanh thu] ) <= 3,
+        "#C8E62A",
+        "#A9B8F8"
+    )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Nhóm tỉ trọng bang  |  thư mục: 1 Tổng quan\Định dạng  |  định dạng: 0
+// Nhóm màu bản đồ bang theo M3: 5 = > 12%, 4 = 5-12%, 3 = 2-5%, 2 = 1-2%, 1 = < 1%. Shape map tô theo nhóm (Min 1 #EEF1FE, giữa 3 #A9B8F8, Max 5 #3A47C4), khớp chú thích "Theo bang".
+Nhóm tỉ trọng bang =
+    VAR _p = [% tổng doanh thu]
+    RETURN
+        SWITCH (
+            TRUE (),
+            ISBLANK ( _p ), BLANK (),
+            _p > 0.12, 5,
+            _p > 0.05, 4,
+            _p > 0.02, 3,
+            _p > 0.01, 2,
+            1
+        )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu so cùng kỳ doanh thu  |  thư mục: 1 Tổng quan\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K1 theo ký tự đầu: "↓" giảm -> đỏ, "K" (Không có cùng kỳ) -> xám, còn lại tăng -> xanh.
+Màu so cùng kỳ doanh thu =
+    VAR _t = LEFT ( [Doanh thu so cùng kỳ], 1 )
+    RETURN SWITCH ( _t, "↓", "#D9483B", "K", "#8B9099", "#1D5E12" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu so cùng kỳ số đơn  |  thư mục: 1 Tổng quan\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K2, cùng quy tắc với Màu so cùng kỳ doanh thu.
+Màu so cùng kỳ số đơn =
+    VAR _t = LEFT ( [Số đơn so cùng kỳ], 1 )
+    RETURN SWITCH ( _t, "↓", "#D9483B", "K", "#8B9099", "#1D5E12" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu so cùng kỳ giá trị đơn  |  thư mục: 1 Tổng quan\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K3, cùng quy tắc với Màu so cùng kỳ doanh thu.
+Màu so cùng kỳ giá trị đơn =
+    VAR _t = LEFT ( [Giá trị đơn so cùng kỳ], 1 )
+    RETURN SWITCH ( _t, "↓", "#D9483B", "K", "#8B9099", "#1D5E12" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu so cùng kỳ khách hàng  |  thư mục: 1 Tổng quan\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K4, cùng quy tắc với Màu so cùng kỳ doanh thu.
+Màu so cùng kỳ khách hàng =
+    VAR _t = LEFT ( [Số khách hàng so cùng kỳ], 1 )
+    RETURN SWITCH ( _t, "↓", "#D9483B", "K", "#8B9099", "#1D5E12" )
+
+// #############################################################################
 // THƯ MỤC HIỂN THỊ: 2 Giao hàng
 // #############################################################################
 
