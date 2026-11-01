@@ -272,7 +272,7 @@ Tỉ lệ giao trễ (thẻ) = FORMAT ( [Tỉ lệ giao trễ], "0.0%", "vi-VN" 
 
 // -----------------------------------------------------------------------------
 // [Thẻ]  Thời gian giao TB (thẻ)  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
-// Số trên thẻ K7 (12,5); đơn vị ngày ghi ở tiêu đề thẻ vì Card (new) cắt đuôi chữ g, y. Chỉ dùng trên thẻ.
+// Số trên thẻ K7 (12,5). Chữ "ngày" là hộp chữ riêng đặt cạnh số vì Card (new) cắt đuôi chữ g, y. Chỉ dùng trên thẻ.
 Thời gian giao TB (thẻ) = FORMAT ( [Thời gian giao TB], "0.0", "vi-VN" )
 
 // -----------------------------------------------------------------------------
