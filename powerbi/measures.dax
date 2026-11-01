@@ -272,8 +272,8 @@ Tỉ lệ giao trễ (thẻ) = FORMAT ( [Tỉ lệ giao trễ], "0.0%", "vi-VN" 
 
 // -----------------------------------------------------------------------------
 // [Thẻ]  Thời gian giao TB (thẻ)  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
-// Số trên thẻ K7 (12,5 ngày). Chỉ dùng trên thẻ.
-Thời gian giao TB (thẻ) = FORMAT ( [Thời gian giao TB], "0.0", "vi-VN" ) & " ngày"
+// Số trên thẻ K7 (12,5); đơn vị ngày ghi ở tiêu đề thẻ vì Card (new) cắt đuôi chữ g, y. Chỉ dùng trên thẻ.
+Thời gian giao TB (thẻ) = FORMAT ( [Thời gian giao TB], "0.0", "vi-VN" )
 
 // -----------------------------------------------------------------------------
 // [Thẻ]  Điểm đánh giá TB (thẻ)  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
@@ -293,8 +293,8 @@ Giao trễ so mục tiêu =
     RETURN
         SWITCH ( TRUE (),
             ISBLANK ( _v ), "Chưa có đơn đã giao",
-            _v > 0.10, "↑ Vượt ngưỡng cảnh báo 10%",
-            _v > 0.05, "↑ Cao hơn mục tiêu 5%",
+            _v > 0.10, "⚠ Vượt ngưỡng cảnh báo 10%",
+            _v > 0.05, "⚠ Cao hơn mục tiêu 5%",
             "✓ Đạt mục tiêu (từ 5% trở xuống)" )
 
 // -----------------------------------------------------------------------------
@@ -310,8 +310,8 @@ Thời gian giao ghi chú = "Từ lúc đặt đến khi khách nhận"
     RETURN
         SWITCH ( TRUE (),
             ISBLANK ( _v ), "Chưa có đánh giá",
-            _v < 3.5, "↓ Dưới ngưỡng cảnh báo 3,5★",
-            _v < 4, "↓ Thấp hơn mục tiêu 4,0★",
+            _v < 3.5, "⚠ Dưới ngưỡng cảnh báo 3,5★",
+            _v < 4, "⚠ Thấp hơn mục tiêu 4,0★",
             "✓ Đạt mục tiêu (từ 4,0★ trở lên)" )
 
 // -----------------------------------------------------------------------------
@@ -322,8 +322,8 @@ Thời gian giao ghi chú = "Từ lúc đặt đến khi khách nhận"
     RETURN
         SWITCH ( TRUE (),
             ISBLANK ( _v ), "Chưa có đánh giá",
-            _v > 0.20, "↑ Vượt ngưỡng cảnh báo 20%",
-            _v > 0.10, "↑ Cao hơn mục tiêu 10%",
+            _v > 0.20, "⚠ Vượt ngưỡng cảnh báo 20%",
+            _v > 0.10, "⚠ Cao hơn mục tiêu 10%",
             "✓ Đạt mục tiêu (từ 10% trở xuống)" )
 
 // -----------------------------------------------------------------------------
