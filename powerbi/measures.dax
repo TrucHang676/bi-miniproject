@@ -261,7 +261,7 @@ Tỉ lệ đánh giá tiêu cực =
 
 // #############################################################################
 // THƯ MỤC HIỂN THỊ: 2 Giao hàng\Thẻ KPI, 2 Giao hàng\Định dạng  (thêm 01/11/2026 khi dựng trang 2)
-// Measure trả về CHỮ / mã màu chỉ dùng trên thẻ KPI và trong Format -> fx -> Field value,
+// Measure trả về CHỮ / mã màu chỉ dùng trên thẻ KPI, tooltip và trong Format -> fx -> Field value,
 // KHÔNG gọi trong công thức khác. Ngưỡng K6, K8, K9 theo business_questions.md mục 6.
 // #############################################################################
 
@@ -294,8 +294,8 @@ Giao trễ so mục tiêu =
         SWITCH ( TRUE (),
             ISBLANK ( _v ), "Chưa có đơn đã giao",
             _v > 0.10, "↑ Vượt ngưỡng cảnh báo 10%",
-            _v > 0.05, "↑ Trên mục tiêu 5% · cảnh báo > 10%",
-            "✓ Đạt mục tiêu ≤ 5%" )
+            _v > 0.05, "↑ Cao hơn mục tiêu 5%",
+            "✓ Đạt mục tiêu (từ 5% trở xuống)" )
 
 // -----------------------------------------------------------------------------
 // [Thẻ]  Thời gian giao ghi chú  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
@@ -311,8 +311,8 @@ Thời gian giao ghi chú = "Từ lúc đặt đến khi khách nhận"
         SWITCH ( TRUE (),
             ISBLANK ( _v ), "Chưa có đánh giá",
             _v < 3.5, "↓ Dưới ngưỡng cảnh báo 3,5★",
-            _v < 4, "↓ Dưới mục tiêu 4,0★ · cảnh báo < 3,5★",
-            "✓ Đạt mục tiêu ≥ 4,0★" )
+            _v < 4, "↓ Thấp hơn mục tiêu 4,0★",
+            "✓ Đạt mục tiêu (từ 4,0★ trở lên)" )
 
 // -----------------------------------------------------------------------------
 // [Thẻ]  Đánh giá tiêu cực so mục tiêu  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
@@ -323,8 +323,8 @@ Thời gian giao ghi chú = "Từ lúc đặt đến khi khách nhận"
         SWITCH ( TRUE (),
             ISBLANK ( _v ), "Chưa có đánh giá",
             _v > 0.20, "↑ Vượt ngưỡng cảnh báo 20%",
-            _v > 0.10, "↑ Trên mục tiêu 10% · cảnh báo > 20%",
-            "✓ Đạt mục tiêu ≤ 10%" )
+            _v > 0.10, "↑ Cao hơn mục tiêu 10%",
+            "✓ Đạt mục tiêu (từ 10% trở xuống)" )
 
 // -----------------------------------------------------------------------------
 // [Định dạng]  Màu giao trễ so mục tiêu  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
@@ -366,6 +366,25 @@ Màu cột mức trễ = IF ( SELECTEDVALUE ( dim_delivery_status[delivery_resul
 // [Phụ]  Điểm TB toàn sàn  |  thư mục: 2 Giao hàng  |  định dạng: 0.00
 // K8 bỏ lọc trạng thái giao hàng (vẫn theo Năm, Tháng, Vùng): đường TB sàn trên biểu đồ điểm theo mức trễ.
 Điểm TB toàn sàn = CALCULATE ( [Điểm đánh giá TB], REMOVEFILTERS ( dim_delivery_status ) )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Nhãn tháng  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
+// Tháng dạng mm/yyyy cho câu tooltip của biểu đồ theo tháng (trang 2).
+Nhãn tháng = FORMAT ( MAX ( dim_date[full_date] ), "MM/yyyy" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Giao trễ đến 10%  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: 0.0%
+// Phần tỉ lệ giao trễ tính tới ngưỡng 10% (đoạn tím của thanh trong biểu đồ bang).
+Giao trễ đến 10% =
+    VAR _v = [Tỉ lệ giao trễ]
+    RETURN IF ( NOT ISBLANK ( _v ), MIN ( _v, 0.10 ) )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Giao trễ vượt 10%  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: 0.0%
+// Phần tỉ lệ giao trễ vượt ngưỡng 10% (đoạn đỏ của thanh trong biểu đồ bang).
+Giao trễ vượt 10% =
+    VAR _v = [Tỉ lệ giao trễ]
+    RETURN IF ( NOT ISBLANK ( _v ), MAX ( _v - 0.10, 0 ) )
 
 // #############################################################################
 // THƯ MỤC HIỂN THỊ: 3 Người bán
