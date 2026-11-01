@@ -260,6 +260,114 @@ Tỉ lệ đánh giá tiêu cực =
     RETURN DIVIDE ( DonTieuCuc, DonCoReview )
 
 // #############################################################################
+// THƯ MỤC HIỂN THỊ: 2 Giao hàng\Thẻ KPI, 2 Giao hàng\Định dạng  (thêm 01/11/2026 khi dựng trang 2)
+// Measure trả về CHỮ / mã màu chỉ dùng trên thẻ KPI và trong Format -> fx -> Field value,
+// KHÔNG gọi trong công thức khác. Ngưỡng K6, K8, K9 theo business_questions.md mục 6.
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Tỉ lệ giao trễ (thẻ)  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
+// Số trên thẻ K6, chữ kiểu Việt (6,8%). Chỉ dùng trên thẻ.
+Tỉ lệ giao trễ (thẻ) = FORMAT ( [Tỉ lệ giao trễ], "0.0%", "vi-VN" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Thời gian giao TB (thẻ)  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
+// Số trên thẻ K7 (12,5 ngày). Chỉ dùng trên thẻ.
+Thời gian giao TB (thẻ) = FORMAT ( [Thời gian giao TB], "0.0", "vi-VN" ) & " ngày"
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Điểm đánh giá TB (thẻ)  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
+// Số trên thẻ K8 (4,09 ★). Chỉ dùng trên thẻ.
+Điểm đánh giá TB (thẻ) = FORMAT ( [Điểm đánh giá TB], "0.00", "vi-VN" ) & " ★"
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Tỉ lệ đánh giá tiêu cực (thẻ)  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
+// Số trên thẻ K9 (14,6%). Chỉ dùng trên thẻ.
+Tỉ lệ đánh giá tiêu cực (thẻ) = FORMAT ( [Tỉ lệ đánh giá tiêu cực], "0.0%", "vi-VN" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Giao trễ so mục tiêu  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K6: so với mục tiêu <= 5%, cảnh báo > 10% (business_questions.md mục 6).
+Giao trễ so mục tiêu =
+    VAR _v = [Tỉ lệ giao trễ]
+    RETURN
+        SWITCH ( TRUE (),
+            ISBLANK ( _v ), "Chưa có đơn đã giao",
+            _v > 0.10, "↑ Vượt ngưỡng cảnh báo 10%",
+            _v > 0.05, "↑ Trên mục tiêu 5% · cảnh báo > 10%",
+            "✓ Đạt mục tiêu ≤ 5%" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Thời gian giao ghi chú  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K7 (K7 không có ngưỡng).
+Thời gian giao ghi chú = "Từ lúc đặt đến khi khách nhận"
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Điểm đánh giá so mục tiêu  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K8: so với mục tiêu >= 4,0, cảnh báo < 3,5.
+Điểm đánh giá so mục tiêu =
+    VAR _v = [Điểm đánh giá TB]
+    RETURN
+        SWITCH ( TRUE (),
+            ISBLANK ( _v ), "Chưa có đánh giá",
+            _v < 3.5, "↓ Dưới ngưỡng cảnh báo 3,5★",
+            _v < 4, "↓ Dưới mục tiêu 4,0★ · cảnh báo < 3,5★",
+            "✓ Đạt mục tiêu ≥ 4,0★" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Đánh giá tiêu cực so mục tiêu  |  thư mục: 2 Giao hàng\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K9: so với mục tiêu <= 10%, cảnh báo > 20%.
+Đánh giá tiêu cực so mục tiêu =
+    VAR _v = [Tỉ lệ đánh giá tiêu cực]
+    RETURN
+        SWITCH ( TRUE (),
+            ISBLANK ( _v ), "Chưa có đánh giá",
+            _v > 0.20, "↑ Vượt ngưỡng cảnh báo 20%",
+            _v > 0.10, "↑ Trên mục tiêu 10% · cảnh báo > 20%",
+            "✓ Đạt mục tiêu ≤ 10%" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu giao trễ so mục tiêu  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K6 (nền vàng chanh): xanh đạt, cam trên mục tiêu, đỏ vượt cảnh báo.
+Màu giao trễ so mục tiêu =
+    VAR _v = [Tỉ lệ giao trễ]
+    RETURN SWITCH ( TRUE (), ISBLANK ( _v ), "#8B9099", _v > 0.10, "#B42318", _v > 0.05, "#9A3412", "#1D5E12" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu ghi chú thẻ  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
+// Màu chữ xám cho dòng phụ không có ngưỡng (thẻ K7).
+Màu ghi chú thẻ = "#4A4E57"
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu điểm đánh giá so mục tiêu  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K8 (nền trắng).
+Màu điểm đánh giá so mục tiêu =
+    VAR _v = [Điểm đánh giá TB]
+    RETURN SWITCH ( TRUE (), ISBLANK ( _v ), "#8B9099", _v < 3.5, "#D9483B", _v < 4, "#9A3412", "#1D5E12" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu đánh giá tiêu cực so mục tiêu  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K9 (nền đen nên dùng tông sáng).
+Màu đánh giá tiêu cực so mục tiêu =
+    VAR _v = [Tỉ lệ đánh giá tiêu cực]
+    RETURN SWITCH ( TRUE (), ISBLANK ( _v ), "#B5BAC2", _v > 0.20, "#EF6F61", _v > 0.10, "#F6C343", "#C8E62A" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu giao trễ theo ngưỡng  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
+// Màu thanh / cột theo K6: vượt 10% đỏ cam, còn lại tím (biểu đồ bang và cột theo tháng).
+Màu giao trễ theo ngưỡng = IF ( [Tỉ lệ giao trễ] > 0.10, "#EF6F61", "#A9B8F8" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu cột mức trễ  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
+// Màu cột biểu đồ điểm theo mức trễ: Đúng hạn xanh chanh, nhóm trễ đỏ cam (đúng ở cả 2 cấp drill).
+Màu cột mức trễ = IF ( SELECTEDVALUE ( dim_delivery_status[delivery_result] ) = "Đúng hạn", "#C8E62A", "#EF6F61" )
+
+// -----------------------------------------------------------------------------
+// [Phụ]  Điểm TB toàn sàn  |  thư mục: 2 Giao hàng  |  định dạng: 0.00
+// K8 bỏ lọc trạng thái giao hàng (vẫn theo Năm, Tháng, Vùng): đường TB sàn trên biểu đồ điểm theo mức trễ.
+Điểm TB toàn sàn = CALCULATE ( [Điểm đánh giá TB], REMOVEFILTERS ( dim_delivery_status ) )
+
+// #############################################################################
 // THƯ MỤC HIỂN THỊ: 3 Người bán
 // #############################################################################
 
