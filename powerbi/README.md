@@ -60,10 +60,22 @@ MOD ( dim_delivery_status[delivery_status_key] - 1, 7 ) + 1
 > ⚠ Công thức **phụ thuộc thứ tự các danh sách trong `dbt/models/marts/dim_delivery_status.sql`**: đổi thứ tự, thêm hoặc bớt nhóm `delay_bucket` ở dbt thì phải sửa số `7` (và kiểm tra lại) ở đây.
 > Kiểm tra nhanh: tạo bảng gồm `delay_bucket` + `delay_bucket_order` – phải ra đúng 1–7 theo thứ tự Đúng hạn → Trễ 1–3 → Trễ 4–7 → Trễ 8–14 → Trễ > 14 → Chưa giao → Không xác định.
 
+### Cột tính thêm cho trang 3
+Hai cột chỉ để hiển thị, không có trong `dds`; công thức đầy đủ ở đầu `measures.dax`.
+
+| Cột | Công thức | Dùng ở |
+|---|---|---|
+| `dim_seller[seller_label]` | 6 ký tự đầu `seller_id` · thành phố – bang; dòng -1 = "Không xác định". Olist ẩn danh người bán nên không có tên cửa hàng; 6 ký tự đầu không trùng giữa 3.096 người bán | Scatter Q6, bảng top 10, trường drill-through của trang ẩn |
+| `dim_product[category_name_vi]` | `SWITCH` 74 bản dịch tay từ `category_name_en`; danh mục chưa có bản dịch giữ tiếng Anh | Bảng danh mục ở trang ẩn Chi tiết người bán |
+
 ### Measures (DAX)
 > Toàn bộ DAX được sao lưu trong `measures.dax`.
 
-20 measure trong bảng `_Measures` (18 KPI / measure bổ trợ + 2 measure phụ). Mô tả đầy đủ nằm ở ô *Description* của từng measure; định nghĩa nghiệp vụ: [business_questions.md](../docs/business_questions.md) mục 6.
+77 measure trong bảng `_Measures` (đo ngày 03/11/2026, sau khi xong trang 3):
+- 27 measure ở thư mục chính `0 Phụ`, `1 Tổng quan`, `2 Giao hàng`, `3 Người bán` – liệt kê ở bảng dưới, trừ `Điểm TB toàn sàn` (K8 bỏ lọc trạng thái giao hàng, đường TB sàn trang 2);
+- 50 measure hiển thị ở thư mục con `Thẻ KPI` (số và dòng phụ trên thẻ, dạng chữ), `Định dạng` (màu theo ngưỡng) và `Tiêu đề` (câu kết luận Q5, Q6 – còn trong model nhưng không gắn vào biểu đồ). Không dùng trong công thức khác.
+
+Mô tả đầy đủ nằm ở ô *Description* của từng measure; định nghĩa nghiệp vụ: [business_questions.md](../docs/business_questions.md) mục 6.
 
 | Measure | Mã | Thư mục | Mô tả ngắn | Dùng ở trang |
 |---------|----|---------|-----------|--------------|
@@ -87,6 +99,12 @@ MOD ( dim_delivery_status[delivery_status_key] - 1, 7 ) + 1
 | `Tỷ trọng doanh thu top 10% người bán` | K13 | 3 Người bán | Doanh thu của 10% người bán dẫn đầu / K1 (`ROUNDUP`) | 3 (thẻ) |
 | `Thời gian vận chuyển TB` | M4 | 3 Người bán | Số ngày từ bàn giao đến khi khách nhận (mỗi đơn 1 lần) | 3 (Q5) |
 | `Cờ người bán cần xử lý` | M5 | 3 Người bán | 1 nếu ≥ 30 đơn và (K8 < 3,5 hoặc K12 > 10%) | 3 (Q6, trang ẩn Chi tiết người bán) |
+| `Số người bán ≥ 30 đơn` | Q6 | 3 Người bán | Số người bán có từ 30 đơn hợp lệ trở lên | – (mẫu số `Tiêu đề Q6`) |
+| `Số người bán cần xử lý` | Q6 | 3 Người bán | Số người bán có M5 = 1 | – (tử số `Tiêu đề Q6`) |
+| `Doanh thu NB cần xử lý` | Q6 | 3 Người bán | Doanh thu của người bán có M5 = 1, BLANK với người bán trong ngưỡng | 3 (bảng top 10: Top N, data bar) |
+| `Tỉ trọng doanh thu NB cần xử lý` | Q6 | 3 Người bán | Doanh thu NB cần xử lý / K1 (bỏ lọc `seller_id` ở mẫu số) | – (`Tiêu đề Q6`) |
+| `Cảnh báo người bán` | Q6 | 3 Người bán | Ngưỡng bị vượt của 1 người bán, VD "Trễ 30% · 3,49★" | 3 (bảng top 10, tooltip scatter) |
+| `Người bán đang xem` | – | 3 Người bán | Mã, thành phố, bang của người bán được drill-through | – (chưa gắn visual; trang ẩn dùng `Người bán ghi chú`) |
 
 ### Nghiệm thu B6 (đo ngày 29/10/2026)
 `dds` đủ 10 batch (`etl_log` run_id 66 = batch `2018-09+`), model Import từ Postgres; kiểm bằng truy vấn DAX tự động vào engine của Power BI Desktop, đối chiếu thêm với SQL tính thẳng trên `dds`. Lọc `dim_date[is_analysis_period] = TRUE` (01/2017 – 08/2018) trừ khi ghi "bỏ lọc".
@@ -243,13 +261,16 @@ MOD ( dim_delivery_status[delivery_status_key] - 1, 7 ) + 1
 
 | Câu | Biểu đồ | Visual Power BI | Trục / giá trị |
 |---|---|---|---|
-| Q5 | (1) | Clustered column chart | X = người bán bàn giao đúng hạn / trễ, Legend = nội bang / liên bang, Y = Tỉ lệ giao trễ |
-| Q5 | (2) | Line chart 2 trục | X = tháng, Y = Tỉ lệ người bán bàn giao trễ, Secondary Y = Thời gian vận chuyển TB (M4) |
-| Q6 | (1) | Scatter chart + 2 constant line | Values = seller, X = Tỉ lệ bàn giao trễ, Y = Điểm TB, Size = Doanh thu; filter: số đơn ≥ 30 |
-| Q6 | (2) | Clustered bar chart | Y = seller (Top N = 10 theo Doanh thu), X = Doanh thu; filter M5 = 1; tooltip: Điểm TB, % bàn giao trễ |
+| Q5 | (1) | Clustered column chart | X = người bán bàn giao đúng hạn / trễ (`handover_status`), Legend = nội bang / liên bang (`route_type`), Y = Tỉ lệ giao trễ |
+| Q5 | (2) | Line and clustered column chart | X = tháng, cột = Tỉ lệ bàn giao trễ (K12, đỏ ở tháng có K6 > 10%), đường = Thời gian vận chuyển TB (M4, trục phải) |
+| Q6 | (1) | Scatter chart + 2 constant line (10%, 3,5) | Values = `seller_label`, X = Tỉ lệ bàn giao trễ, Y = Điểm TB, Size = Doanh thu; filter visual: Số đơn ≥ 30; màu chấm = `Màu người bán` (M5 = 1 đỏ) |
+| Q6 | (2) | Table (thay bar chart trong phác thảo) | Cột: người bán (`seller_label`), Vượt ngưỡng (`Cảnh báo người bán`), Doanh thu (data bar); Top N = 10 theo `Doanh thu NB cần xử lý` |
 
-**Trang ẩn "Chi tiết người bán"** (drill-through, không tính vào 3 trang chính): thẻ doanh thu, số đơn, điểm TB, tỉ lệ bàn giao trễ
-của 1 người bán + biểu đồ đường điểm TB theo tháng + bảng danh mục người bán đó đang bán.
+Slicer trang 3: Năm, Tháng (đồng bộ với trang 1, 2) + Bang người bán (`dim_seller[seller_state]`).
+
+**Trang ẩn "Chi tiết người bán"** (drill-through theo `seller_label`, chuột phải 1 người bán ở scatter hoặc bảng top 10; không tính vào 3 trang chính):
+nút Quay lại, 4 thẻ (doanh thu, số đơn, điểm TB, tỉ lệ bàn giao trễ) của người bán đó + combo bàn giao trễ / điểm TB theo tháng
++ cột tỉ lệ giao trễ theo khâu bàn giao + bảng danh mục (`category_name_vi`) người bán đó đang bán.
 
 ## Ảnh chụp
 ![Overview](../docs/images/dashboard_overview.png)

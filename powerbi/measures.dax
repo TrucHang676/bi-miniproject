@@ -12,6 +12,103 @@
 // Kiểm tra nhanh: bảng delay_bucket + delay_bucket_order phải ra đúng 1-7: Đúng hạn, Trễ 1–3, Trễ 4–7, Trễ 8–14, Trễ > 14, Chưa giao, Không xác định.
 dim_delivery_status[delay_bucket_order] = MOD ( dim_delivery_status[delivery_status_key] - 1, 7 ) + 1
 
+// -----------------------------------------------------------------------------
+// CỘT TÍNH  [dim_seller]  |  hiện  |  thêm 03/11/2026 cho trang 3 (scatter, bảng top 10) và trường drill-through trang ẩn
+// Nhãn người bán: 6 ký tự đầu seller_id (3.096 người bán không trùng) · thành phố – bang; dòng -1 = 'Không xác định'.
+// Olist ẩn danh người bán nên không có tên cửa hàng. Không có trong dds.
+dim_seller[seller_label] =
+    IF (
+        dim_seller[seller_key] = -1,
+        "Không xác định",
+        LEFT ( dim_seller[seller_id], 6 ) & " · "
+            & UPPER ( LEFT ( dim_seller[seller_city], 1 ) ) & MID ( dim_seller[seller_city], 2, 200 )
+            & " – " & dim_seller[seller_state]
+    )
+
+// -----------------------------------------------------------------------------
+// CỘT TÍNH  [dim_product]  |  hiện  |  thêm 03/11/2026 cho bảng danh mục ở trang ẩn Chi tiết người bán
+// Tên danh mục tiếng Việt, dịch tay từ category_name_en (74 bản dịch + 'Không xác định' của dòng -1);
+// danh mục mới chưa có bản dịch giữ nguyên tiếng Anh. Không có trong dds (chốt làm ở Power BI vì hạn 05/11).
+dim_product[category_name_vi] =
+    SWITCH (
+        dim_product[category_name_en],
+        "agro_industry_and_commerce", "Nông nghiệp & thương mại",
+        "air_conditioning", "Điều hòa không khí",
+        "art", "Nghệ thuật",
+        "arts_and_craftmanship", "Đồ thủ công mỹ nghệ",
+        "audio", "Âm thanh",
+        "auto", "Phụ kiện ô tô",
+        "baby", "Đồ cho em bé",
+        "bed_bath_table", "Chăn ga, đồ tắm & bàn ăn",
+        "books_general_interest", "Sách phổ thông",
+        "books_imported", "Sách nhập khẩu",
+        "books_technical", "Sách chuyên ngành",
+        "cds_dvds_musicals", "CD, DVD nhạc kịch",
+        "christmas_supplies", "Đồ trang trí Giáng sinh",
+        "cine_photo", "Máy quay & máy ảnh",
+        "computers", "Máy tính",
+        "computers_accessories", "Phụ kiện máy tính",
+        "consoles_games", "Máy chơi game",
+        "construction_tools_construction", "Dụng cụ xây dựng",
+        "construction_tools_lights", "Đèn & thiết bị chiếu sáng",
+        "construction_tools_safety", "Thiết bị an toàn lao động",
+        "cool_stuff", "Đồ độc lạ",
+        "costruction_tools_garden", "Dụng cụ xây dựng sân vườn",
+        "costruction_tools_tools", "Dụng cụ cầm tay",
+        "diapers_and_hygiene", "Tã & đồ vệ sinh",
+        "drinks", "Đồ uống",
+        "dvds_blu_ray", "DVD & Blu-ray",
+        "electronics", "Điện tử",
+        "fashio_female_clothing", "Thời trang nữ",
+        "fashion_bags_accessories", "Túi xách & phụ kiện",
+        "fashion_childrens_clothes", "Quần áo trẻ em",
+        "fashion_male_clothing", "Thời trang nam",
+        "fashion_shoes", "Giày dép",
+        "fashion_sport", "Đồ thể thao",
+        "fashion_underwear_beach", "Đồ lót & đồ bơi",
+        "fixed_telephony", "Điện thoại bàn",
+        "flowers", "Hoa",
+        "food", "Thực phẩm",
+        "food_drink", "Thực phẩm & đồ uống",
+        "furniture_bedroom", "Nội thất phòng ngủ",
+        "furniture_decor", "Nội thất & trang trí",
+        "furniture_living_room", "Nội thất phòng khách",
+        "furniture_mattress_and_upholstery", "Nệm & vải bọc",
+        "garden_tools", "Dụng cụ làm vườn",
+        "health_beauty", "Sức khỏe & làm đẹp",
+        "home_appliances", "Đồ gia dụng",
+        "home_appliances_2", "Đồ gia dụng (nhóm 2)",
+        "home_comfort_2", "Tiện nghi gia đình (nhóm 2)",
+        "home_confort", "Tiện nghi gia đình",
+        "home_construction", "Xây dựng nhà cửa",
+        "housewares", "Đồ dùng trong nhà",
+        "industry_commerce_and_business", "Công nghiệp & kinh doanh",
+        "kitchen_dining_laundry_garden_furniture", "Nội thất bếp, phòng ăn, giặt & sân vườn",
+        "la_cuisine", "Đồ bếp cao cấp",
+        "luggage_accessories", "Vali & phụ kiện du lịch",
+        "market_place", "Hàng tổng hợp",
+        "music", "Âm nhạc",
+        "musical_instruments", "Nhạc cụ",
+        "office_furniture", "Nội thất văn phòng",
+        "party_supplies", "Đồ dùng tiệc",
+        "pc_gamer", "Máy tính chơi game",
+        "perfumery", "Nước hoa",
+        "pet_shop", "Đồ thú cưng",
+        "portable_kitchen_and_food_preparers", "Dụng cụ chế biến thực phẩm",
+        "security_and_services", "An ninh & dịch vụ",
+        "signaling_and_security", "Biển báo & an ninh",
+        "small_appliances", "Thiết bị điện nhỏ",
+        "small_appliances_home_oven_and_coffee", "Lò nướng & máy pha cà phê",
+        "sports_leisure", "Thể thao & giải trí",
+        "stationery", "Văn phòng phẩm",
+        "tablets_printing_image", "Máy tính bảng & in ấn",
+        "telephony", "Điện thoại di động",
+        "toys", "Đồ chơi",
+        "unknown", "Chưa phân loại",
+        "watches_gifts", "Đồng hồ & quà tặng",
+        dim_product[category_name_en]
+    )
+
 // #############################################################################
 // THƯ MỤC HIỂN THỊ: 0 Phụ
 // #############################################################################
@@ -439,3 +536,181 @@ Cờ người bán cần xử lý =
             1,
             0
         )
+
+// -----------------------------------------------------------------------------
+// Các measure dưới đây thêm 03/11/2026 khi dựng trang 3 (Q6 và trang ẩn Chi tiết người bán).
+
+// -----------------------------------------------------------------------------
+// [Q6]  Số người bán ≥ 30 đơn  |  thư mục: 3 Người bán  |  định dạng: #,0
+// Q6. Số người bán có từ 30 đơn hợp lệ trở lên trong kỳ (mẫu số của tiêu đề Q6).
+Số người bán ≥ 30 đơn = COUNTROWS ( FILTER ( VALUES ( dim_seller[seller_id] ), [Số đơn] >= 30 ) )
+
+// -----------------------------------------------------------------------------
+// [Q6]  Số người bán cần xử lý  |  thư mục: 3 Người bán  |  định dạng: #,0
+// Q6. Số người bán có M5 = 1 (≥ 30 đơn và điểm TB < 3,5 hoặc bàn giao trễ > 10%).
+Số người bán cần xử lý = COUNTROWS ( FILTER ( VALUES ( dim_seller[seller_id] ), [Cờ người bán cần xử lý] = 1 ) )
+
+// -----------------------------------------------------------------------------
+// [Q6]  Doanh thu NB cần xử lý  |  thư mục: 3 Người bán  |  định dạng: #,0
+// Q6. Doanh thu của các người bán có M5 = 1; BLANK với người bán trong ngưỡng. Dùng cho Top N và data bar của bảng 10 người bán cần xử lý trước.
+Doanh thu NB cần xử lý = SUMX ( VALUES ( dim_seller[seller_id] ), IF ( [Cờ người bán cần xử lý] = 1, [Doanh thu] ) )
+
+// -----------------------------------------------------------------------------
+// [Q6]  Tỉ trọng doanh thu NB cần xử lý  |  thư mục: 3 Người bán  |  định dạng: 0.00%
+// Q6. Doanh thu của người bán có M5 = 1 / K1 của mọi người bán đang lọc (bỏ lọc từng người bán, nên không đổi khi visual chỉ giữ người bán ≥ 30 đơn).
+Tỉ trọng doanh thu NB cần xử lý = DIVIDE ( [Doanh thu NB cần xử lý], CALCULATE ( [Doanh thu], REMOVEFILTERS ( dim_seller[seller_id] ) ) )
+
+// -----------------------------------------------------------------------------
+// [Q6]  Cảnh báo người bán  |  thư mục: 3 Người bán  |  định dạng: chữ
+// Q6. Chữ nêu ngưỡng bị vượt của 1 người bán, VD "Trễ 30% · 3,49★"; trống nếu trong ngưỡng. Dùng làm cột trong bảng và tooltip.
+Cảnh báo người bán =
+    VAR _tre = [Tỉ lệ bàn giao trễ]
+    VAR _diem = [Điểm đánh giá TB]
+    VAR _a = IF ( _tre > 0.10, "Trễ " & FORMAT ( _tre, "0%", "vi-VN" ) )
+    VAR _b = IF ( NOT ISBLANK ( _diem ) && _diem < 3.5, FORMAT ( _diem, "0.00", "vi-VN" ) & "★" )
+    RETURN IF ( _a <> "" && _b <> "", _a & " · " & _b, _a & _b )
+
+// -----------------------------------------------------------------------------
+// [Trang ẩn]  Người bán đang xem  |  thư mục: 3 Người bán  |  định dạng: chữ
+// Trang ẩn Chi tiết người bán: mã, thành phố, bang của người bán được drill-through.
+Người bán đang xem =
+    VAR _id = SELECTEDVALUE ( dim_seller[seller_id] )
+    RETURN IF ( ISBLANK ( _id ), "Chọn 1 người bán (chuột phải → Drill through)", "Người bán " & _id & " · " & SELECTEDVALUE ( dim_seller[seller_city] ) & " – " & SELECTEDVALUE ( dim_seller[seller_state] ) )
+
+// #############################################################################
+// THƯ MỤC HIỂN THỊ: 3 Người bán\Thẻ KPI, 3 Người bán\Định dạng, 3 Người bán\Tiêu đề  (thêm 03/11/2026 khi dựng trang 3)
+// Measure trả về CHỮ / mã màu chỉ dùng trên thẻ KPI, tiêu đề, tooltip và trong Format -> fx -> Field value,
+// KHÔNG gọi trong công thức khác. Ngưỡng K12 theo business_questions.md mục 6; K13 không có ngưỡng số -> dòng phụ chỉ nêu số người bán; màu theo bảng màu trang 1.
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Số người bán hoạt động (thẻ)  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Hiển thị trên thẻ K10: số người bán dạng chữ có dấu chấm ngăn nghìn (3.029). Chỉ dùng trên thẻ.
+Số người bán hoạt động (thẻ) = FORMAT ( [Số người bán hoạt động], "#,0", "vi-VN" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Người bán hoạt động ghi chú  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K10: % và chênh lệch số người bán hoạt động 2018 so với 2017 trên cùng các tháng 1-8 đang chọn (cùng cách Số đơn so cùng kỳ của trang 1); theo lọc Tháng, Bang người bán; trả về "Không có cùng kỳ để so" khi chọn 2017 hoặc tháng 9-12. Chỉ dùng trên thẻ.
+Người bán hoạt động ghi chú =
+    VAR _nay = CALCULATE ( [Số người bán hoạt động], KEEPFILTERS ( dim_date[year] = 2018 ), KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _truoc = CALCULATE ( [Số người bán hoạt động], dim_date[year] = 2017, KEEPFILTERS ( dim_date[month] <= 8 ) )
+    VAR _tang = DIVIDE ( _nay - _truoc, _truoc )
+    RETURN
+        IF ( ISBLANK ( _nay ) || ISBLANK ( _truoc ), "Không có cùng kỳ để so",
+            IF ( _tang >= 0, "↑ ", "↓ " ) & FORMAT ( _tang, "+0%;-0%", "vi-VN" ) & " và "
+                & FORMAT ( _nay - _truoc, "+#,0;-#,0", "vi-VN" ) & " người bán so cùng kỳ" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Doanh thu TB mỗi người bán (thẻ)  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Hiển thị trên thẻ K11: 4.440 BRL. Chỉ dùng trên thẻ.
+Doanh thu TB mỗi người bán (thẻ) = FORMAT ( [Doanh thu TB mỗi người bán], "#,0", "vi-VN" ) & " BRL"
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Doanh thu TB mỗi người bán ghi chú  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K11: trung vị doanh thu mỗi người bán hoạt động (thấp hơn nhiều so với trung bình vì doanh thu dồn vào nhóm bán lớn - xem K13). Chỉ dùng trên thẻ.
+Doanh thu TB mỗi người bán ghi chú =
+    VAR _tv = MEDIANX ( VALUES ( fact_sales[seller_key] ), [Doanh thu] )
+    RETURN IF ( ISBLANK ( _tv ), "Chưa có doanh thu", "Trung vị chỉ " & FORMAT ( _tv, "#,0", "vi-VN" ) & " BRL" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Tỉ lệ bàn giao trễ (thẻ)  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Hiển thị trên thẻ K12: 8,9%. Chỉ dùng trên thẻ.
+Tỉ lệ bàn giao trễ (thẻ) = FORMAT ( [Tỉ lệ bàn giao trễ], "0.0%", "vi-VN" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Bàn giao trễ so mục tiêu  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K12 theo ngưỡng K12 (≤ 5% tốt, > 10% cảnh báo), cùng kiểu Giao trễ so mục tiêu của trang 2.
+Bàn giao trễ so mục tiêu =
+    VAR _v = [Tỉ lệ bàn giao trễ]
+    RETURN
+        SWITCH ( TRUE (),
+            ISBLANK ( _v ), "Chưa có lượt bàn giao",
+            _v > 0.10, "⚠ Vượt ngưỡng cảnh báo 10%",
+            _v > 0.05, "⚠ Cao hơn mục tiêu 5%",
+            "✓ Đạt mục tiêu (từ 5% trở xuống)" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Tỷ trọng top 10% người bán (thẻ)  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Hiển thị trên thẻ K13: 67,4%. Chỉ dùng trên thẻ.
+Tỷ trọng top 10% người bán (thẻ) = FORMAT ( [Tỷ trọng doanh thu top 10% người bán], "0.0%", "vi-VN" )
+
+// -----------------------------------------------------------------------------
+// [Thẻ]  Top 10% người bán ghi chú  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Dòng phụ thẻ K13: số người bán thuộc nhóm 10% dẫn đầu (ROUNDUP như K13) / số người bán hoạt động. Chỉ dùng trên thẻ.
+Top 10% người bán ghi chú =
+    VAR _n = [Số người bán hoạt động]
+    RETURN
+        IF ( ISBLANK ( _n ), "Chưa có doanh thu",
+            FORMAT ( ROUNDUP ( _n * 0.1, 0 ), "#,0", "vi-VN" ) & " / " & FORMAT ( _n, "#,0", "vi-VN" ) & " người bán dẫn đầu" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu bàn giao trễ so mục tiêu  |  thư mục: 3 Người bán\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K12 theo bảng màu trang 1: trên mục tiêu 5% -> đỏ, đạt -> xanh, chưa có -> xám.
+Màu bàn giao trễ so mục tiêu =
+    VAR _v = [Tỉ lệ bàn giao trễ]
+    RETURN SWITCH ( TRUE (), ISBLANK ( _v ), "#8B9099", _v > 0.05, "#D9483B", "#1D5E12" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu top 10% người bán  |  thư mục: 3 Người bán\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K13 (thẻ nền đen): đỏ san hô như dòng phụ thẻ nền đen của trang 1 (doanh thu dồn vào nhóm nhỏ người bán).
+Màu top 10% người bán = "#EF6F61"
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu người bán  |  thư mục: 3 Người bán\Định dạng  |  định dạng: chữ
+// Màu chấm scatter Q6: M5 = 1 đỏ san hô, trong ngưỡng tím nhạt.
+Màu người bán = IF ( [Cờ người bán cần xử lý] = 1, "#EF6F61", "#A9B8F8" )
+
+// -----------------------------------------------------------------------------
+// [Tiêu đề]  Tiêu đề Q5  |  thư mục: 3 Người bán\Tiêu đề  |  định dạng: chữ
+// Câu kết luận Q5 theo bộ lọc: tỉ lệ giao trễ khi người bán bàn giao trễ so với bàn giao đúng hạn.
+Tiêu đề Q5 =
+    VAR _tre = CALCULATE ( [Tỉ lệ giao trễ], dim_delivery_status[handover_status] = "Trễ hạn" )
+    VAR _dung = CALCULATE ( [Tỉ lệ giao trễ], dim_delivery_status[handover_status] = "Đúng hạn" )
+    RETURN
+        IF ( ISBLANK ( _tre ) || ISBLANK ( _dung ), "Chưa đủ dữ liệu bàn giao",
+            "Bàn giao trễ → " & FORMAT ( _tre, "0.0%", "vi-VN" ) & " đơn giao trễ, gấp "
+                & FORMAT ( DIVIDE ( _tre, _dung ), "0.0", "vi-VN" ) & " lần bàn giao đúng hạn ("
+                & FORMAT ( _dung, "0.0%", "vi-VN" ) & ")" )
+
+// -----------------------------------------------------------------------------
+// [Tiêu đề]  Tiêu đề Q6  |  thư mục: 3 Người bán\Tiêu đề  |  định dạng: chữ
+// Câu kết luận Q6 theo bộ lọc: số người bán vượt ngưỡng / số người bán ≥ 30 đơn và tỉ trọng doanh thu của họ.
+Tiêu đề Q6 =
+    FORMAT ( [Số người bán cần xử lý], "#,0", "vi-VN" ) & "/" & FORMAT ( [Số người bán ≥ 30 đơn], "#,0", "vi-VN" )
+        & " người bán (≥ 30 đơn) vượt ít nhất 1 ngưỡng, chiếm "
+        & FORMAT ( [Tỉ trọng doanh thu NB cần xử lý], "0.0%", "vi-VN" ) & " doanh thu"
+
+// -----------------------------------------------------------------------------
+// [Trang ẩn]  Doanh thu NB (thẻ)  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Trang ẩn Chi tiết người bán: doanh thu của người bán đang xem, dạng chữ (187.924 BRL). Chỉ dùng trên thẻ.
+Doanh thu NB (thẻ) = FORMAT ( [Doanh thu], "#,0", "vi-VN" ) & " BRL"
+
+// -----------------------------------------------------------------------------
+// [Trang ẩn]  Người bán ghi chú  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Trang ẩn Chi tiết người bán: thành phố – bang của người bán đang xem (dòng phụ thẻ doanh thu).
+Người bán ghi chú =
+    VAR _c = SELECTEDVALUE ( dim_seller[seller_city] )
+    VAR _s = SELECTEDVALUE ( dim_seller[seller_state] )
+    RETURN IF ( ISBLANK ( _s ), "Chưa chọn người bán", _c & " – " & _s )
+
+// -----------------------------------------------------------------------------
+// [Trang ẩn]  Số đơn ghi chú  |  thư mục: 3 Người bán\Thẻ KPI  |  định dạng: chữ
+// Trang ẩn Chi tiết người bán: dòng phụ thẻ số đơn.
+Số đơn ghi chú = "Đơn hợp lệ trong kỳ"
+
+// -----------------------------------------------------------------------------
+// [Trang ẩn]  Màu ghi chú thẻ tối  |  thư mục: 3 Người bán\Định dạng  |  định dạng: chữ
+// Màu chữ xám nhạt cho dòng phụ không có ngưỡng trên thẻ nền đen.
+Màu ghi chú thẻ tối = "#B5BAC2"
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu so cùng kỳ người bán  |  thư mục: 3 Người bán\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K10 theo ký tự đầu, cùng quy tắc Màu so cùng kỳ của trang 1: "↓" giảm -> đỏ, "K" (Không có cùng kỳ) -> xám, còn lại tăng -> xanh.
+Màu so cùng kỳ người bán =
+    VAR _t = LEFT ( [Người bán hoạt động ghi chú], 1 )
+    RETURN SWITCH ( _t, "↓", "#D9483B", "K", "#8B9099", "#1D5E12" )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu trung vị doanh thu NB  |  thư mục: 3 Người bán\Định dạng  |  định dạng: chữ
+// Màu dòng phụ thẻ K11 (trung vị thấp hơn nhiều trung bình -> đỏ như dòng giảm của trang 1).
+Màu trung vị doanh thu NB = "#D9483B"
