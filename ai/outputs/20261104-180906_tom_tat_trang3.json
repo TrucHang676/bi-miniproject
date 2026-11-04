@@ -1,0 +1,398 @@
+{
+  "thoi_gian": "2026-11-04T18:09:06",
+  "che_do": "tom_tat",
+  "bieu_do": "trang3",
+  "bo_loc": "năm 2018, tháng 3",
+  "dich_vu": "Gemini",
+  "model": "gemini-3.5-flash",
+  "model_loi_truoc": [],
+  "cau_hoi": "",
+  "goi_so_lieu_dau_vao": {
+    "trang": "Trang 3 – Người bán & vận chuyển",
+    "bo_loc": "năm 2018, tháng 3",
+    "the_kpi": {
+      "K10": {
+        "ten": "Số người bán hoạt động",
+        "gia_tri": 993,
+        "ghi_chu": "+103% và +503 người bán so cùng kỳ tháng 03 (490 → 993)"
+      },
+      "K11": {
+        "ten": "Doanh thu TB mỗi người bán",
+        "gia_tri": 987.9668,
+        "ghi_chu": "trung vị chỉ 360 BRL"
+      },
+      "K12": {
+        "ten": "Tỉ lệ bàn giao trễ",
+        "gia_tri": 0.0841,
+        "ghi_chu": "mục tiêu ≤ 5%, cảnh báo > 10%"
+      },
+      "K13": {
+        "ten": "Tỷ trọng doanh thu top 10% người bán",
+        "gia_tri": 0.5725,
+        "ghi_chu": "100 / 993 người bán dẫn đầu"
+      }
+    },
+    "bieu_do": {
+      "Q5_1": {
+        "bieu_do": "Tỉ lệ giao trễ theo khâu bàn giao",
+        "cau_hoi_nghiep_vu": "Q5. Người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến là do người bán bàn giao chậm hay do vận chuyển kéo dài?",
+        "so_lieu_ket_luan": {
+          "ti_le_tre_moi_tuyen": {
+            "Đúng hạn": 0.1751,
+            "Trễ hạn": 0.3456
+          },
+          "ban_giao_tre_gap_so_lan": 1.9737
+        },
+        "don_vi_cot": {
+          "ban_giao": "Người bán bàn giao",
+          "tuyen": "Tuyến",
+          "don_da_giao": "Đơn đã giao",
+          "don_tre": "Đơn giao trễ",
+          "ti_le_tre": "Tỉ lệ giao trễ"
+        },
+        "bang_so_lieu": [
+          {
+            "ban_giao": "Đúng hạn",
+            "tuyen": "Nội bang",
+            "don_da_giao": 2371,
+            "don_tre": 168,
+            "ti_le_tre": 0.0709
+          },
+          {
+            "ban_giao": "Đúng hạn",
+            "tuyen": "Liên bang",
+            "don_da_giao": 4049,
+            "don_tre": 955,
+            "ti_le_tre": 0.2359
+          },
+          {
+            "ban_giao": "Trễ hạn",
+            "tuyen": "Nội bang",
+            "don_da_giao": 215,
+            "don_tre": 50,
+            "ti_le_tre": 0.2326
+          },
+          {
+            "ban_giao": "Trễ hạn",
+            "tuyen": "Liên bang",
+            "don_da_giao": 381,
+            "don_tre": 156,
+            "ti_le_tre": 0.4094
+          }
+        ],
+        "so_dong_bang": 4
+      },
+      "Q5_2": {
+        "bieu_do": "Bàn giao trễ và thời gian vận chuyển theo tháng",
+        "cau_hoi_nghiep_vu": "Q5. Người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến là do người bán bàn giao chậm hay do vận chuyển kéo dài?",
+        "so_lieu_ket_luan": {
+          "thang_dot_bien_K6_tren_10": [
+            {
+              "ky": "02/2018",
+              "ti_le_tre": 0.1413,
+              "ti_le_ban_giao_tre": 0.1221,
+              "van_chuyen_tb": 13.3834
+            },
+            {
+              "ky": "03/2018",
+              "ti_le_tre": 0.1896,
+              "ti_le_ban_giao_tre": 0.0841,
+              "van_chuyen_tb": 12.9678
+            }
+          ],
+          "trung_binh_cong_cac_thang_con_lai": {
+            "ti_le_ban_giao_tre": 0.0788,
+            "van_chuyen_tb": 7.6541
+          },
+          "thang_dang_xem": [
+            {
+              "ky": "03/2018",
+              "ti_le_tre": 0.1896,
+              "ti_le_ban_giao_tre": 0.0841,
+              "van_chuyen_tb": 12.9678
+            }
+          ]
+        },
+        "don_vi_cot": {
+          "ky": "Tháng",
+          "ti_le_ban_giao_tre": "Tỉ lệ bàn giao trễ",
+          "van_chuyen_tb": "Thời gian vận chuyển TB (ngày)",
+          "don_da_giao": "Đơn đã giao",
+          "don_tre": "Đơn giao trễ",
+          "ti_le_tre": "Tỉ lệ giao trễ"
+        },
+        "bang_so_lieu": [
+          {
+            "ky": "01/2018",
+            "ti_le_ban_giao_tre": 0.1011,
+            "van_chuyen_tb": 10.4833,
+            "don_da_giao": 7069,
+            "don_tre": 403,
+            "ti_le_tre": 0.057
+          },
+          {
+            "ky": "02/2018",
+            "ti_le_ban_giao_tre": 0.1221,
+            "van_chuyen_tb": 13.3834,
+            "don_da_giao": 6555,
+            "don_tre": 926,
+            "ti_le_tre": 0.1413
+          },
+          {
+            "ky": "03/2018",
+            "ti_le_ban_giao_tre": 0.0841,
+            "van_chuyen_tb": 12.9678,
+            "don_da_giao": 7003,
+            "don_tre": 1328,
+            "ti_le_tre": 0.1896
+          },
+          {
+            "ky": "04/2018",
+            "ti_le_ban_giao_tre": 0.0589,
+            "van_chuyen_tb": 8.6716,
+            "don_da_giao": 6798,
+            "don_tre": 306,
+            "ti_le_tre": 0.045
+          },
+          {
+            "ky": "05/2018",
+            "ti_le_ban_giao_tre": 0.0654,
+            "van_chuyen_tb": 8.7346,
+            "don_da_giao": 6749,
+            "don_tre": 443,
+            "ti_le_tre": 0.0656
+          },
+          {
+            "ky": "06/2018",
+            "ti_le_ban_giao_tre": 0.0673,
+            "van_chuyen_tb": 6.684,
+            "don_da_giao": 6096,
+            "don_tre": 71,
+            "ti_le_tre": 0.0116
+          },
+          {
+            "ky": "07/2018",
+            "ti_le_ban_giao_tre": 0.0883,
+            "van_chuyen_tb": 6.1369,
+            "don_da_giao": 6156,
+            "don_tre": 208,
+            "ti_le_tre": 0.0338
+          },
+          {
+            "ky": "08/2018",
+            "ti_le_ban_giao_tre": 0.0915,
+            "van_chuyen_tb": 5.2144,
+            "don_da_giao": 6351,
+            "don_tre": 393,
+            "ti_le_tre": 0.0619
+          }
+        ],
+        "so_dong_bang": 8
+      },
+      "Q6_1": {
+        "bieu_do": "Người bán có ≥ 30 đơn",
+        "cau_hoi_nghiep_vu": "Q6. Trong người bán có từ 30 đơn, ai có điểm TB < 3,5 hoặc bàn giao trễ > 10%, và 10 người nào doanh thu lớn nhất cần ưu tiên xử lý?",
+        "so_lieu_ket_luan": {
+          "nguong": "≥ 30 đơn và (điểm TB < 3,5 hoặc bàn giao trễ > 10%)",
+          "so_nguoi_ban_hoat_dong": 993,
+          "so_nguoi_ban_tu_30_don": 46,
+          "ti_trong_doanh_thu_nhom_tu_30_don": 0.3245,
+          "so_nguoi_ban_can_xu_ly": 19,
+          "trong_do_diem_duoi_3_5": 10,
+          "trong_do_ban_giao_tre_tren_10": 13,
+          "trong_do_vi_pham_ca_hai": 4,
+          "ti_trong_doanh_thu_nguoi_ban_can_xu_ly": 0.1486
+        },
+        "don_vi_cot": {
+          "nguoi_ban": "Người bán",
+          "so_don": "Số đơn",
+          "doanh_thu": "Doanh thu (BRL)",
+          "diem_tb": "Điểm đánh giá TB (★)",
+          "ti_le_ban_giao_tre": "Tỉ lệ bàn giao trễ",
+          "canh_bao": "Vượt ngưỡng",
+          "can_xu_ly": "Vượt ngưỡng (M5)"
+        },
+        "bang_so_lieu": [
+          {
+            "nguoi_ban": "7d13fc · Ribeirao preto – SP",
+            "so_don": 102,
+            "doanh_thu": 27727.45,
+            "diem_tb": 3.5248,
+            "ti_le_ban_giao_tre": 0.1569,
+            "canh_bao": "Trễ 16%",
+            "can_xu_ly": true
+          },
+          {
+            "nguoi_ban": "7c67e1 · Itaquaquecetuba – SP",
+            "so_don": 139,
+            "doanh_thu": 25569.97,
+            "diem_tb": 3.3986,
+            "ti_le_ban_giao_tre": 0.3237,
+            "canh_bao": "Trễ 32% · 3,40★",
+            "can_xu_ly": true
+          },
+          {
+            "nguoi_ban": "4869f7 · Guariba – SP",
+            "so_don": 115,
+            "doanh_thu": 25545.9,
+            "diem_tb": 3.5446,
+            "ti_le_ban_giao_tre": 0.0087,
+            "canh_bao": "",
+            "can_xu_ly": false
+          },
+          {
+            "nguoi_ban": "955fee · Sao paulo – SP",
+            "so_don": 154,
+            "doanh_thu": 13982.41,
+            "diem_tb": 3.7778,
+            "ti_le_ban_giao_tre": 0.0,
+            "canh_bao": "",
+            "can_xu_ly": false
+          },
+          {
+            "nguoi_ban": "da8622 · Piracicaba – SP",
+            "so_don": 105,
+            "doanh_thu": 12848.56,
+            "diem_tb": 3.7596,
+            "ti_le_ban_giao_tre": 0.0,
+            "canh_bao": "",
+            "can_xu_ly": false
+          },
+          {
+            "nguoi_ban": "1025f0 · Sao paulo – SP",
+            "so_don": 80,
+            "doanh_thu": 12553.67,
+            "diem_tb": 3.481,
+            "ti_le_ban_giao_tre": 0.0625,
+            "canh_bao": "3,48★",
+            "can_xu_ly": true
+          },
+          {
+            "nguoi_ban": "4a3ca9 · Ibitinga – SP",
+            "so_don": 114,
+            "doanh_thu": 12368.05,
+            "diem_tb": 3.5263,
+            "ti_le_ban_giao_tre": 0.0877,
+            "canh_bao": "",
+            "can_xu_ly": false
+          },
+          {
+            "nguoi_ban": "fa1c13 · Sumare – SP",
+            "so_don": 43,
+            "doanh_thu": 11510.02,
+            "diem_tb": 3.439,
+            "ti_le_ban_giao_tre": 0.093,
+            "canh_bao": "3,44★",
+            "can_xu_ly": true
+          }
+        ],
+        "so_dong_bang": 46
+      },
+      "Q6_2": {
+        "bieu_do": "10 người bán cần xử lý trước",
+        "cau_hoi_nghiep_vu": "Q6. Trong người bán có từ 30 đơn, ai có điểm TB < 3,5 hoặc bàn giao trễ > 10%, và 10 người nào doanh thu lớn nhất cần ưu tiên xử lý?",
+        "so_lieu_ket_luan": {
+          "nguong": "≥ 30 đơn và (điểm TB < 3,5 hoặc bàn giao trễ > 10%)",
+          "so_nguoi_ban_hoat_dong": 993,
+          "so_nguoi_ban_tu_30_don": 46,
+          "ti_trong_doanh_thu_nhom_tu_30_don": 0.3245,
+          "so_nguoi_ban_can_xu_ly": 19,
+          "trong_do_diem_duoi_3_5": 10,
+          "trong_do_ban_giao_tre_tren_10": 13,
+          "trong_do_vi_pham_ca_hai": 4,
+          "ti_trong_doanh_thu_nguoi_ban_can_xu_ly": 0.1486,
+          "ti_trong_cua_top10_trong_doanh_thu_nhom_can_xu_ly": 0.7855
+        },
+        "don_vi_cot": {
+          "nguoi_ban": "Người bán",
+          "so_don": "Số đơn",
+          "doanh_thu": "Doanh thu (BRL)",
+          "diem_tb": "Điểm đánh giá TB (★)",
+          "ti_le_ban_giao_tre": "Tỉ lệ bàn giao trễ",
+          "canh_bao": "Vượt ngưỡng"
+        },
+        "bang_so_lieu": [
+          {
+            "nguoi_ban": "7d13fc · Ribeirao preto – SP",
+            "so_don": 102,
+            "doanh_thu": 27727.45,
+            "diem_tb": 3.5248,
+            "ti_le_ban_giao_tre": 0.1569,
+            "canh_bao": "Trễ 16%"
+          },
+          {
+            "nguoi_ban": "7c67e1 · Itaquaquecetuba – SP",
+            "so_don": 139,
+            "doanh_thu": 25569.97,
+            "diem_tb": 3.3986,
+            "ti_le_ban_giao_tre": 0.3237,
+            "canh_bao": "Trễ 32% · 3,40★"
+          },
+          {
+            "nguoi_ban": "1025f0 · Sao paulo – SP",
+            "so_don": 80,
+            "doanh_thu": 12553.67,
+            "diem_tb": 3.481,
+            "ti_le_ban_giao_tre": 0.0625,
+            "canh_bao": "3,48★"
+          },
+          {
+            "nguoi_ban": "fa1c13 · Sumare – SP",
+            "so_don": 43,
+            "doanh_thu": 11510.02,
+            "diem_tb": 3.439,
+            "ti_le_ban_giao_tre": 0.093,
+            "canh_bao": "3,44★"
+          },
+          {
+            "nguoi_ban": "4e9229 · Jacarei – SP",
+            "so_don": 44,
+            "doanh_thu": 7889.3,
+            "diem_tb": 3.8409,
+            "ti_le_ban_giao_tre": 0.1364,
+            "canh_bao": "Trễ 14%"
+          },
+          {
+            "nguoi_ban": "620c87 · Petropolis – RJ",
+            "so_don": 60,
+            "doanh_thu": 7051.4,
+            "diem_tb": 3.1695,
+            "ti_le_ban_giao_tre": 0.0167,
+            "canh_bao": "3,17★"
+          },
+          {
+            "nguoi_ban": "1f50f9 · Sao jose do rio preto – SP",
+            "so_don": 91,
+            "doanh_thu": 6625.7,
+            "diem_tb": 3.5934,
+            "ti_le_ban_giao_tre": 0.1868,
+            "canh_bao": "Trễ 19%"
+          },
+          {
+            "nguoi_ban": "70a12e · Jacarei – SP",
+            "so_don": 36,
+            "doanh_thu": 5263.0,
+            "diem_tb": 2.9444,
+            "ti_le_ban_giao_tre": 0.2778,
+            "canh_bao": "Trễ 28% · 2,94★"
+          }
+        ],
+        "so_dong_bang": 10
+      }
+    },
+    "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); mỗi bảng chỉ gửi tối đa 8 dòng đầu."
+  },
+  "cong_cu_da_goi": [],
+  "tra_loi": "Dưới đây là tóm tắt tình hình vận hành người bán và vận chuyển trong tháng 03/2018:\n\n**Tình hình chung**\nTháng 03/2018 ghi nhận sự mở rộng mạnh mẽ của mạng lưới với 993 người bán hoạt động và doanh thu trung bình đạt 987,97 BRL/người bán. Tuy nhiên, hiệu suất giao hàng toàn sàn suy giảm nghiêm trọng khi tỉ lệ giao trễ tổng thể tăng đột biến lên 18,96%. Bên cạnh đó, hệ thống ghi nhận 19 người bán quy mô lớn (≥ 30 đơn) vi phạm về tiến độ bàn giao hoặc chất lượng dịch vụ cần được xử lý ngay.\n\n**Điểm nổi bật**\n* **Tăng trưởng mạng lưới mạnh mẽ:** Số người bán hoạt động đạt 993 người bán, tăng 103% (tương ứng tăng 503 người bán) so với cùng kỳ tháng 03/2017 (490 người bán).\n* **Doanh thu tập trung cao:** Top 10% người bán dẫn đầu (100 / 993 người bán) nắm giữ 57,25% tổng doanh thu toàn sàn.\n* **Tác động từ người bán bàn giao chậm:** Việc người bán bàn giao trễ làm tỉ lệ giao trễ chung tăng gấp 1,97 lần (từ 17,51% khi bàn giao đúng hạn lên 34,56% khi bàn giao trễ).\n* **Nhóm người bán rủi ro cao:** Có 19 người bán (trong tổng số 46 người bán có ≥ 30 đơn) vượt ngưỡng rủi ro, chiếm 14,86% tổng doanh thu toàn sàn (trong đó 13 người bán giao trễ > 10% và 10 người có điểm đánh giá < 3,5★).\n\n**Cần chú ý**\n* **KPI Tỉ lệ bàn giao trễ:** Đạt **8,41%**, đã **không đạt** mục tiêu đề ra (mục tiêu ≤ 5%), nhưng **chưa vượt** ngưỡng cảnh báo (> 10%).\n* **Bất thường giao trễ đột biến tháng 03/2018:** Tỉ lệ giao trễ toàn sàn tăng vọt lên **18,96%** (1.328 đơn trễ / 7.003 đơn đã giao). Nguyên nhân không xuất phát từ người bán (tỉ lệ bàn giao trễ giảm từ 12,21% ở tháng 2 xuống 8,41% ở tháng 3), mà do khâu vận chuyển bị kéo dài đột biến với thời gian trung bình **12,97 ngày** (cao hơn nhiều so với mức trung bình 7,65 ngày của các tháng thông thường).\n* **Người bán vi phạm kép tiêu biểu:** Người bán `7c67e1` (Itaquaquecetuba – SP) đóng góp 139 đơn nhưng vi phạm cả hai tiêu chí với tỉ lệ bàn giao trễ rất cao **32,37%** và điểm đánh giá thấp chỉ **3,40★**.",
+  "kiem_so": {
+    "tong_so": 36,
+    "khop_du_lieu": 36,
+    "tu_tinh_dung": 0,
+    "khong_tim_thay": [],
+    "phep_tinh_ai_tu_lam": []
+  },
+  "token": {
+    "vao": 5542,
+    "ra": 703
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "thoi_gian": "2026-11-04T18:06:20",
+  "che_do": "giai_thich",
+  "bieu_do": "Q5_2",
+  "bo_loc": "năm 2018, tháng 3",
+  "dich_vu": "Gemini",
+  "model": "gemini-3.5-flash-lite",
+  "cau_hoi": "",
+  "goi_so_lieu_dau_vao": {
+    "trang": "Trang 3 – Người bán & vận chuyển",
+    "cau_hoi_nghiep_vu": "Q5. Người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến là do người bán bàn giao chậm hay do vận chuyển kéo dài?",
+    "bieu_do": "Bàn giao trễ và thời gian vận chuyển theo tháng",
+    "bo_loc": "năm 2018, tháng 3",
+    "the_kpi": {
+      "K10": {
+        "ten": "Số người bán hoạt động",
+        "gia_tri": 993,
+        "ghi_chu": "+103% và +503 người bán so cùng kỳ tháng 03 (490 → 993)"
+      },
+      "K11": {
+        "ten": "Doanh thu TB mỗi người bán",
+        "gia_tri": 987.9668,
+        "ghi_chu": "trung vị chỉ 360 BRL"
+      },
+      "K12": {
+        "ten": "Tỉ lệ bàn giao trễ",
+        "gia_tri": 0.0841,
+        "ghi_chu": "mục tiêu ≤ 5%, cảnh báo > 10%"
+      },
+      "K13": {
+        "ten": "Tỷ trọng doanh thu top 10% người bán",
+        "gia_tri": 0.5725,
+        "ghi_chu": "100 / 993 người bán dẫn đầu"
+      }
+    },
+    "so_lieu_ket_luan": {
+      "thang_dot_bien_K6_tren_10": [
+        {
+          "ky": "02/2018",
+          "ti_le_tre": 0.1413,
+          "ti_le_ban_giao_tre": 0.1221,
+          "van_chuyen_tb": 13.3834
+        },
+        {
+          "ky": "03/2018",
+          "ti_le_tre": 0.1896,
+          "ti_le_ban_giao_tre": 0.0841,
+          "van_chuyen_tb": 12.9678
+        }
+      ],
+      "trung_binh_cong_cac_thang_con_lai": {
+        "ti_le_ban_giao_tre": 0.0788,
+        "van_chuyen_tb": 7.6541
+      },
+      "thang_dang_xem": [
+        {
+          "ky": "03/2018",
+          "ti_le_tre": 0.1896,
+          "ti_le_ban_giao_tre": 0.0841,
+          "van_chuyen_tb": 12.9678
+        }
+      ]
+    },
+    "don_vi_cot": {
+      "ky": "Tháng",
+      "ti_le_ban_giao_tre": "Tỉ lệ bàn giao trễ",
+      "van_chuyen_tb": "Thời gian vận chuyển TB (ngày)",
+      "don_da_giao": "Đơn đã giao",
+      "don_tre": "Đơn giao trễ",
+      "ti_le_tre": "Tỉ lệ giao trễ"
+    },
+    "bang_so_lieu": [
+      {
+        "ky": "01/2018",
+        "ti_le_ban_giao_tre": 0.1011,
+        "van_chuyen_tb": 10.4833,
+        "don_da_giao": 7069,
+        "don_tre": 403,
+        "ti_le_tre": 0.057
+      },
+      {
+        "ky": "02/2018",
+        "ti_le_ban_giao_tre": 0.1221,
+        "van_chuyen_tb": 13.3834,
+        "don_da_giao": 6555,
+        "don_tre": 926,
+        "ti_le_tre": 0.1413
+      },
+      {
+        "ky": "03/2018",
+        "ti_le_ban_giao_tre": 0.0841,
+        "van_chuyen_tb": 12.9678,
+        "don_da_giao": 7003,
+        "don_tre": 1328,
+        "ti_le_tre": 0.1896
+      },
+      {
+        "ky": "04/2018",
+        "ti_le_ban_giao_tre": 0.0589,
+        "van_chuyen_tb": 8.6716,
+        "don_da_giao": 6798,
+        "don_tre": 306,
+        "ti_le_tre": 0.045
+      },
+      {
+        "ky": "05/2018",
+        "ti_le_ban_giao_tre": 0.0654,
+        "van_chuyen_tb": 8.7346,
+        "don_da_giao": 6749,
+        "don_tre": 443,
+        "ti_le_tre": 0.0656
+      },
+      {
+        "ky": "06/2018",
+        "ti_le_ban_giao_tre": 0.0673,
+        "van_chuyen_tb": 6.684,
+        "don_da_giao": 6096,
+        "don_tre": 71,
+        "ti_le_tre": 0.0116
+      },
+      {
+        "ky": "07/2018",
+        "ti_le_ban_giao_tre": 0.0883,
+        "van_chuyen_tb": 6.1369,
+        "don_da_giao": 6156,
+        "don_tre": 208,
+        "ti_le_tre": 0.0338
+      },
+      {
+        "ky": "08/2018",
+        "ti_le_ban_giao_tre": 0.0915,
+        "van_chuyen_tb": 5.2144,
+        "don_da_giao": 6351,
+        "don_tre": 393,
+        "ti_le_tre": 0.0619
+      }
+    ],
+    "so_dong_bang": 8,
+    "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); tiền BRL; điểm 1–5 sao."
+  },
+  "cong_cu_da_goi": [],
+  "tra_loi": "Dưới đây là phân tích chi tiết cho biểu đồ **\"Bàn giao trễ và thời gian vận chuyển theo tháng\"** (tháng 03/2018):\n\n### **1. Biến động**\n* **Tỉ lệ giao trễ tăng mạnh:** Trong tháng 03/2018, tỉ lệ giao trễ đạt **18,96%** (với 1.328 đơn giao trễ trên tổng số 7.003 đơn đã giao), tăng vọt so với mục tiêu cảnh báo (> 10%). \n* So với các tháng khác trong năm 2018, đây là tháng có tỉ lệ giao trễ cao nhất (tháng 02/2018 đứng thứ hai với **14,13%**).\n\n### **2. Yếu tố đóng góp**\n* **Do thời gian vận chuyển kéo dài:** Thời gian vận chuyển trung bình trong tháng 03/2018 lên tới **12,97 ngày** (12,9678 ngày), cao hơn nhiều so với mức trung bình của các tháng còn lại (7,65 ngày).\n* **Do người bán bàn giao chậm:** Tỉ lệ bàn giao trễ của người bán trong tháng 03/2018 là **8,41%**, tuy thấp hơn mức 12,21% của tháng 02/2018 nhưng vẫn ở mức cao và đóng góp đáng kể vào việc ùn ứ đơn hàng.\n\n### **3. Giả thuyết**\n* **Giả thuyết 1:** Thời gian vận chuyển kéo dài đột biến (gần 13 ngày) trong tháng 03/2018 có thể do quá tải hệ thống logistics hoặc các vấn đề về hạ tầng giao thông/thời tiết tại Brazil sau kỳ nghỉ lễ đầu năm, khiến khâu vận chuyển từ kho người bán đến tay khách hàng bị chậm trễ dù người bán đã cố gắng bàn giao (tỉ lệ bàn giao trễ tháng này đã giảm xuống 8,41% so với 12,21% của tháng 02).\n* **Giả thuyết 2:** Số lượng người bán hoạt động tăng mạnh trong giai đoạn này (993 người bán, tăng +103% so với cùng kỳ) tạo ra áp lực lớn lên các đơn vị vận chuyển, dẫn đến thời gian xử lý và giao hàng bị kéo dài.\n\n### **4. Đề xuất**\n* **Hành động 1:** Rà soát lại hiệu suất làm việc của các đối tác vận chuyển trong tháng 03/2018 để tìm hiểu nguyên nhân chính khiến thời gian vận chuyển trung bình tăng vọt lên gần 13 ngày.\n* **Hành động 2:** Kết hợp phân tích biểu đồ Q5.1 (Tỉ lệ giao trễ theo khâu bàn giao) để xem xét cụ thể khâu nào (người bán hay đơn vị vận chuyển) chịu trách nhiệm chính cho các đơn hàng trễ hạn trong tháng này, từ đó đưa ra chính sách phạt/thưởng hoặc hỗ trợ phù hợp.",
+  "kiem_so": {
+    "tong_so": 16,
+    "khop_du_lieu": 16,
+    "tu_tinh_dung": 0,
+    "khong_tim_thay": [],
+    "phep_tinh_ai_tu_lam": []
+  },
+  "token": {
+    "vao": 2875,
+    "ra": 675
+  }
+}

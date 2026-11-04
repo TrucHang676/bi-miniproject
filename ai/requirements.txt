@@ -1,0 +1,7 @@
+# Phần AI (app hỏi đáp về biểu đồ). Cài: pip install -r ai/requirements.txt
+streamlit>=1.56
+pandas>=3.0
+plotly>=6.7
+psycopg[binary]>=3.3
+python-dotenv>=1.2
+openai>=3.45  # gọi Gemini / Groq / Ollama qua cổng tương thích OpenAI

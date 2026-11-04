@@ -1,0 +1,245 @@
+{
+  "thoi_gian": "2026-11-04T18:10:55",
+  "che_do": "giai_thich",
+  "bieu_do": "Q5_2",
+  "bo_loc": "năm 2018, tháng 3",
+  "dich_vu": "Gemini",
+  "model": "gemini-3.5-flash",
+  "model_loi_truoc": [],
+  "cau_hoi": "",
+  "goi_so_lieu_dau_vao": {
+    "trang": "Trang 3 – Người bán & vận chuyển",
+    "cau_hoi_nghiep_vu": "Q5. Người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến là do người bán bàn giao chậm hay do vận chuyển kéo dài?",
+    "bieu_do": "Bàn giao trễ và thời gian vận chuyển theo tháng",
+    "bo_loc": "năm 2018, tháng 3",
+    "the_kpi": {
+      "K10": {
+        "ten": "Số người bán hoạt động",
+        "gia_tri": 993,
+        "ghi_chu": "+103% và +503 người bán so cùng kỳ tháng 03 (490 → 993)"
+      },
+      "K11": {
+        "ten": "Doanh thu TB mỗi người bán",
+        "gia_tri": 987.9668,
+        "ghi_chu": "trung vị chỉ 360 BRL"
+      },
+      "K12": {
+        "ten": "Tỉ lệ bàn giao trễ",
+        "gia_tri": 0.0841,
+        "ghi_chu": "mục tiêu ≤ 5%, cảnh báo > 10%"
+      },
+      "K13": {
+        "ten": "Tỷ trọng doanh thu top 10% người bán",
+        "gia_tri": 0.5725,
+        "ghi_chu": "100 / 993 người bán dẫn đầu"
+      }
+    },
+    "so_lieu_ket_luan": {
+      "thang_dot_bien_K6_tren_10": [
+        {
+          "ky": "02/2018",
+          "ti_le_tre": 0.1413,
+          "ti_le_ban_giao_tre": 0.1221,
+          "van_chuyen_tb": 13.3834
+        },
+        {
+          "ky": "03/2018",
+          "ti_le_tre": 0.1896,
+          "ti_le_ban_giao_tre": 0.0841,
+          "van_chuyen_tb": 12.9678
+        }
+      ],
+      "trung_binh_cong_cac_thang_con_lai": {
+        "ti_le_ban_giao_tre": 0.0788,
+        "van_chuyen_tb": 7.6541
+      },
+      "thang_dang_xem": [
+        {
+          "ky": "03/2018",
+          "ti_le_tre": 0.1896,
+          "ti_le_ban_giao_tre": 0.0841,
+          "van_chuyen_tb": 12.9678
+        }
+      ]
+    },
+    "don_vi_cot": {
+      "ky": "Tháng",
+      "ti_le_ban_giao_tre": "Tỉ lệ bàn giao trễ",
+      "van_chuyen_tb": "Thời gian vận chuyển TB (ngày)",
+      "don_da_giao": "Đơn đã giao",
+      "don_tre": "Đơn giao trễ",
+      "ti_le_tre": "Tỉ lệ giao trễ"
+    },
+    "bang_so_lieu": [
+      {
+        "ky": "01/2018",
+        "ti_le_ban_giao_tre": 0.1011,
+        "van_chuyen_tb": 10.4833,
+        "don_da_giao": 7069,
+        "don_tre": 403,
+        "ti_le_tre": 0.057
+      },
+      {
+        "ky": "02/2018",
+        "ti_le_ban_giao_tre": 0.1221,
+        "van_chuyen_tb": 13.3834,
+        "don_da_giao": 6555,
+        "don_tre": 926,
+        "ti_le_tre": 0.1413
+      },
+      {
+        "ky": "03/2018",
+        "ti_le_ban_giao_tre": 0.0841,
+        "van_chuyen_tb": 12.9678,
+        "don_da_giao": 7003,
+        "don_tre": 1328,
+        "ti_le_tre": 0.1896
+      },
+      {
+        "ky": "04/2018",
+        "ti_le_ban_giao_tre": 0.0589,
+        "van_chuyen_tb": 8.6716,
+        "don_da_giao": 6798,
+        "don_tre": 306,
+        "ti_le_tre": 0.045
+      },
+      {
+        "ky": "05/2018",
+        "ti_le_ban_giao_tre": 0.0654,
+        "van_chuyen_tb": 8.7346,
+        "don_da_giao": 6749,
+        "don_tre": 443,
+        "ti_le_tre": 0.0656
+      },
+      {
+        "ky": "06/2018",
+        "ti_le_ban_giao_tre": 0.0673,
+        "van_chuyen_tb": 6.684,
+        "don_da_giao": 6096,
+        "don_tre": 71,
+        "ti_le_tre": 0.0116
+      },
+      {
+        "ky": "07/2018",
+        "ti_le_ban_giao_tre": 0.0883,
+        "van_chuyen_tb": 6.1369,
+        "don_da_giao": 6156,
+        "don_tre": 208,
+        "ti_le_tre": 0.0338
+      },
+      {
+        "ky": "08/2018",
+        "ti_le_ban_giao_tre": 0.0915,
+        "van_chuyen_tb": 5.2144,
+        "don_da_giao": 6351,
+        "don_tre": 393,
+        "ti_le_tre": 0.0619
+      }
+    ],
+    "so_dong_bang": 8,
+    "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); tiền BRL; điểm 1–5 sao."
+  },
+  "cong_cu_da_goi": [
+    {
+      "cong_cu": "lay_so_lieu",
+      "tham_so": {
+        "bieu_do": "Q5_1"
+      },
+      "ket_qua": {
+        "trang": "Trang 3 – Người bán & vận chuyển",
+        "cau_hoi_nghiep_vu": "Q5. Người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến là do người bán bàn giao chậm hay do vận chuyển kéo dài?",
+        "bieu_do": "Tỉ lệ giao trễ theo khâu bàn giao",
+        "bo_loc": "không lọc (toàn kỳ 01/2017 – 08/2018)",
+        "the_kpi": {
+          "K10": {
+            "ten": "Số người bán hoạt động",
+            "gia_tri": 3029,
+            "ghi_chu": "+94% và +1142 người bán so cùng kỳ 01–08 (1212 → 2354)"
+          },
+          "K11": {
+            "ten": "Doanh thu TB mỗi người bán",
+            "gia_tri": 4440.2541,
+            "ghi_chu": "trung vị chỉ 835 BRL"
+          },
+          "K12": {
+            "ten": "Tỉ lệ bàn giao trễ",
+            "gia_tri": 0.089,
+            "ghi_chu": "mục tiêu ≤ 5%, cảnh báo > 10%"
+          },
+          "K13": {
+            "ten": "Tỷ trọng doanh thu top 10% người bán",
+            "gia_tri": 0.6738,
+            "ghi_chu": "303 / 3029 người bán dẫn đầu"
+          }
+        },
+        "so_lieu_ket_luan": {
+          "ti_le_tre_moi_tuyen": {
+            "Đúng hạn": 0.0539,
+            "Trễ hạn": 0.2108
+          },
+          "ban_giao_tre_gap_so_lan": 3.9079
+        },
+        "don_vi_cot": {
+          "ban_giao": "Người bán bàn giao",
+          "tuyen": "Tuyến",
+          "don_da_giao": "Đơn đã giao",
+          "don_tre": "Đơn giao trễ",
+          "ti_le_tre": "Tỉ lệ giao trễ"
+        },
+        "bang_so_lieu": [
+          {
+            "ban_giao": "Đúng hạn",
+            "tuyen": "Nội bang",
+            "don_da_giao": 31562,
+            "don_tre": 913,
+            "ti_le_tre": 0.0289
+          },
+          {
+            "ban_giao": "Đúng hạn",
+            "tuyen": "Liên bang",
+            "don_da_giao": 56130,
+            "don_tre": 3805,
+            "ti_le_tre": 0.0678
+          },
+          {
+            "ban_giao": "Trễ hạn",
+            "tuyen": "Nội bang",
+            "don_da_giao": 3128,
+            "don_tre": 649,
+            "ti_le_tre": 0.2075
+          },
+          {
+            "ban_giao": "Trễ hạn",
+            "tuyen": "Liên bang",
+            "don_da_giao": 5472,
+            "don_tre": 1162,
+            "ti_le_tre": 0.2124
+          }
+        ],
+        "so_dong_bang": 4,
+        "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); tiền BRL; điểm 1–5 sao."
+      }
+    }
+  ],
+  "tra_loi": "Dưới đây là giải thích biến động và câu trả lời cho câu hỏi nghiệp vụ của biểu đồ:\n\n### **1. Biến động**\n* Tỉ lệ giao trễ tăng đột biến trong hai tháng liên tiếp, đạt đỉnh vào **tháng 03/2018 ở mức 18,96%** (1.328 đơn trễ / 7.003 đơn đã giao) và **tháng 02/2018 ở mức 14,13%** (926 đơn trễ / 6.555 đơn đã giao).\n* So với mức giao trễ của các tháng còn lại trong năm 2018 (dao động từ **1,16% đến 6,56%**), tỉ lệ giao trễ tháng 03/2018 cao gấp hơn 3 đến 16 lần.\n\n---\n\n### **2. Yếu tố đóng góp**\n* **Tác động của người bán bàn giao trễ (Tính chung toàn kỳ):**\n  * Khi người bán bàn giao đúng hạn, tỉ lệ giao trễ chỉ là **5,39%** (4.718 đơn trễ / 87.692 đơn).\n  * Khi người bán bàn giao trễ, tỉ lệ giao trễ vọt lên **21,08%** (1.811 đơn trễ / 8.600 đơn).\n  * $\\rightarrow$ **Người bán bàn giao trễ làm tỉ lệ giao trễ tăng 3,91 lần** ($21,08\\% / 5,39\\% = 3,91$).\n\n* **Nguyên nhân đợt tăng đột biến tháng 02 & 03/2018:**\n  * **Do thời gian vận chuyển kéo dài là chính:** Trong tháng 02 và 03/2018, thời gian vận chuyển TB tăng vọt lên **13,38 ngày** (tháng 2) và **12,97 ngày** (tháng 3), cao hơn hẳn so với trung bình các tháng còn lại (**7,65 ngày**, tức kéo dài thêm khoảng 5,32 – 5,73 ngày/đơn).\n  * **Khâu bàn giao không phải nguyên nhân chính của đỉnh tháng 3:** Tỉ lệ bàn giao trễ tháng 03/2018 giảm về mức **8,41%** (gần tương đương mức trung bình các tháng còn lại là **7,88%**), nhưng tỉ lệ giao trễ tổng thể vẫn lập đỉnh **18,96%**. (Tháng 02/2018 tỉ lệ bàn giao trễ có tăng lên **12,21%**, nhưng đóng góp chính vào việc trễ đơn vẫn là khâu vận chuyển).\n\n---\n\n### **3. Giả thuyết**\n*(Lưu ý: Các ý dưới đây là giả thuyết nghiệp vụ, dữ liệu hiện tại chưa có căn cứ để chứng minh)*\n\n* **Lễ hội/Sự kiện mùa vụ:** Tháng 2 và tháng 3 ở Brazil thường diễn ra lễ hội Carnival và các kỳ nghỉ kéo dài, có thể gây quá tải hoặc ngưng trệ hệ thống bưu chính/vận chuyển.\n* **Sai lệch thời gian giao dự kiến (EDD):** Thuật toán tính ngày giao hàng dự kiến của Olist chưa kịp tự động gia hạn thời gian giao trong các đợt cao điểm vận chuyển, dẫn đến đơn hàng bị ghi nhận trễ hạn dù thời gian xử lý của người bán vẫn ổn định.\n\n---\n\n### **4. Đề xuất**\n1. **Điều chỉnh thời gian giao hàng dự kiến (EDD):** Xây dựng công thức tính EDD linh hoạt theo thời gian thực; tự động cộng thêm 4–5 ngày vào cam kết giao hàng trong các tháng cao điểm (như tháng 2–3) để tránh trễ cam kết với khách.\n2. **Siết chặt kỷ luật bàn giao trễ:** Mặc dù đợt đỉnh tháng 3 do vận chuyển, khâu bàn giao trễ vẫn làm tăng nguy cơ giao trễ lên **3,91 lần**. Cần duy trì chế tài/cảnh báo đối với nhóm người bán có tỉ lệ bàn giao trễ vượt ngưỡng **10%** (như đã xảy ra ở tháng 02/2018).",
+  "kiem_so": {
+    "tong_so": 30,
+    "khop_du_lieu": 23,
+    "tu_tinh_dung": 5,
+    "khong_tim_thay": [
+      "4.718",
+      "87.692"
+    ],
+    "phep_tinh_ai_tu_lam": [
+      "16 = 18,96% ÷ 1,16%",
+      "1.811 = 14,13% ÷ 7,88%",
+      "8.600 = 10% ÷ 1,16%",
+      "5,32 = 12,97 − 7,65",
+      "5,73 = 13,38 − 7,65"
+    ]
+  },
+  "token": {
+    "vao": 6996,
+    "ra": 988
+  }
+}

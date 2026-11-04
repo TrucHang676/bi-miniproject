@@ -1,0 +1,290 @@
+{
+  "thoi_gian": "2026-11-04T18:08:09",
+  "che_do": "hoi_dap",
+  "bieu_do": "Q5_2",
+  "bo_loc": "năm 2018, tháng 3",
+  "dich_vu": "Gemini",
+  "model": "gemini-3.5-flash",
+  "model_loi_truoc": [],
+  "cau_hoi": "Tháng 3/2018 bang nhận hàng nào giao trễ nhiều nhất? Có đáng tin không?",
+  "goi_so_lieu_dau_vao": {
+    "trang": "Trang 3 – Người bán & vận chuyển",
+    "cau_hoi_nghiep_vu": "Q5. Người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến là do người bán bàn giao chậm hay do vận chuyển kéo dài?",
+    "bieu_do": "Bàn giao trễ và thời gian vận chuyển theo tháng",
+    "bo_loc": "năm 2018, tháng 3",
+    "the_kpi": {
+      "K10": {
+        "ten": "Số người bán hoạt động",
+        "gia_tri": 993,
+        "ghi_chu": "+103% và +503 người bán so cùng kỳ tháng 03 (490 → 993)"
+      },
+      "K11": {
+        "ten": "Doanh thu TB mỗi người bán",
+        "gia_tri": 987.9668,
+        "ghi_chu": "trung vị chỉ 360 BRL"
+      },
+      "K12": {
+        "ten": "Tỉ lệ bàn giao trễ",
+        "gia_tri": 0.0841,
+        "ghi_chu": "mục tiêu ≤ 5%, cảnh báo > 10%"
+      },
+      "K13": {
+        "ten": "Tỷ trọng doanh thu top 10% người bán",
+        "gia_tri": 0.5725,
+        "ghi_chu": "100 / 993 người bán dẫn đầu"
+      }
+    },
+    "so_lieu_ket_luan": {
+      "thang_dot_bien_K6_tren_10": [
+        {
+          "ky": "02/2018",
+          "ti_le_tre": 0.1413,
+          "ti_le_ban_giao_tre": 0.1221,
+          "van_chuyen_tb": 13.3834
+        },
+        {
+          "ky": "03/2018",
+          "ti_le_tre": 0.1896,
+          "ti_le_ban_giao_tre": 0.0841,
+          "van_chuyen_tb": 12.9678
+        }
+      ],
+      "trung_binh_cong_cac_thang_con_lai": {
+        "ti_le_ban_giao_tre": 0.0788,
+        "van_chuyen_tb": 7.6541
+      },
+      "thang_dang_xem": [
+        {
+          "ky": "03/2018",
+          "ti_le_tre": 0.1896,
+          "ti_le_ban_giao_tre": 0.0841,
+          "van_chuyen_tb": 12.9678
+        }
+      ]
+    },
+    "don_vi_cot": {
+      "ky": "Tháng",
+      "ti_le_ban_giao_tre": "Tỉ lệ bàn giao trễ",
+      "van_chuyen_tb": "Thời gian vận chuyển TB (ngày)",
+      "don_da_giao": "Đơn đã giao",
+      "don_tre": "Đơn giao trễ",
+      "ti_le_tre": "Tỉ lệ giao trễ"
+    },
+    "bang_so_lieu": [
+      {
+        "ky": "01/2018",
+        "ti_le_ban_giao_tre": 0.1011,
+        "van_chuyen_tb": 10.4833,
+        "don_da_giao": 7069,
+        "don_tre": 403,
+        "ti_le_tre": 0.057
+      },
+      {
+        "ky": "02/2018",
+        "ti_le_ban_giao_tre": 0.1221,
+        "van_chuyen_tb": 13.3834,
+        "don_da_giao": 6555,
+        "don_tre": 926,
+        "ti_le_tre": 0.1413
+      },
+      {
+        "ky": "03/2018",
+        "ti_le_ban_giao_tre": 0.0841,
+        "van_chuyen_tb": 12.9678,
+        "don_da_giao": 7003,
+        "don_tre": 1328,
+        "ti_le_tre": 0.1896
+      },
+      {
+        "ky": "04/2018",
+        "ti_le_ban_giao_tre": 0.0589,
+        "van_chuyen_tb": 8.6716,
+        "don_da_giao": 6798,
+        "don_tre": 306,
+        "ti_le_tre": 0.045
+      },
+      {
+        "ky": "05/2018",
+        "ti_le_ban_giao_tre": 0.0654,
+        "van_chuyen_tb": 8.7346,
+        "don_da_giao": 6749,
+        "don_tre": 443,
+        "ti_le_tre": 0.0656
+      },
+      {
+        "ky": "06/2018",
+        "ti_le_ban_giao_tre": 0.0673,
+        "van_chuyen_tb": 6.684,
+        "don_da_giao": 6096,
+        "don_tre": 71,
+        "ti_le_tre": 0.0116
+      },
+      {
+        "ky": "07/2018",
+        "ti_le_ban_giao_tre": 0.0883,
+        "van_chuyen_tb": 6.1369,
+        "don_da_giao": 6156,
+        "don_tre": 208,
+        "ti_le_tre": 0.0338
+      },
+      {
+        "ky": "08/2018",
+        "ti_le_ban_giao_tre": 0.0915,
+        "van_chuyen_tb": 5.2144,
+        "don_da_giao": 6351,
+        "don_tre": 393,
+        "ti_le_tre": 0.0619
+      }
+    ],
+    "so_dong_bang": 8,
+    "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); tiền BRL; điểm 1–5 sao."
+  },
+  "cong_cu_da_goi": [
+    {
+      "cong_cu": "lay_so_lieu",
+      "tham_so": {
+        "thang": 3,
+        "bieu_do": "Q3_2",
+        "nam": 2018
+      },
+      "ket_qua": {
+        "trang": "Trang 2 – Giao hàng & trải nghiệm khách hàng",
+        "cau_hoi_nghiep_vu": "Q3. Những tháng nào có tỉ lệ giao trễ vượt 10%, và bang nào giao trễ nhiều nhất?",
+        "bieu_do": "10 bang giao trễ nhiều nhất",
+        "bo_loc": "năm 2018, tháng 3",
+        "the_kpi": {
+          "K6": {
+            "ten": "Tỉ lệ giao trễ",
+            "gia_tri": 0.1896,
+            "ghi_chu": "1328 / 7003 đơn đã giao; mục tiêu ≤ 5%, cảnh báo > 10%"
+          },
+          "K7": {
+            "ten": "Thời gian giao TB",
+            "gia_tri": 16.3014,
+            "ghi_chu": ""
+          },
+          "K8": {
+            "ten": "Điểm đánh giá TB",
+            "gia_tri": 3.7529,
+            "ghi_chu": "mục tiêu ≥ 4,0, cảnh báo < 3,5"
+          },
+          "K9": {
+            "ten": "Tỉ lệ đánh giá 1–2★",
+            "gia_tri": 0.2279,
+            "ghi_chu": "mục tiêu ≤ 10%, cảnh báo > 20%"
+          }
+        },
+        "so_lieu_ket_luan": {
+          "nguong_canh_bao": 0.1,
+          "so_bang_vuot_nguong": 23,
+          "tong_so_bang": 27,
+          "ghi_chu": "Bang ít đơn thì tỉ lệ dao động mạnh, đọc kèm số đơn đã giao"
+        },
+        "don_vi_cot": {
+          "bang": "Bang",
+          "ten_bang": "Tên bang",
+          "vung": "Vùng",
+          "don_da_giao": "Đơn đã giao",
+          "don_tre": "Đơn giao trễ",
+          "ti_le_tre": "Tỉ lệ giao trễ"
+        },
+        "bang_so_lieu": [
+          {
+            "bang": "SE",
+            "ten_bang": "Sergipe",
+            "vung": "Nordeste",
+            "don_da_giao": 17,
+            "don_tre": 11,
+            "ti_le_tre": 0.6471
+          },
+          {
+            "bang": "MA",
+            "ten_bang": "Maranhão",
+            "vung": "Nordeste",
+            "don_da_giao": 49,
+            "don_tre": 25,
+            "ti_le_tre": 0.5102
+          },
+          {
+            "bang": "PA",
+            "ten_bang": "Pará",
+            "vung": "Norte",
+            "don_da_giao": 67,
+            "don_tre": 34,
+            "ti_le_tre": 0.5075
+          },
+          {
+            "bang": "CE",
+            "ten_bang": "Ceará",
+            "vung": "Nordeste",
+            "don_da_giao": 93,
+            "don_tre": 47,
+            "ti_le_tre": 0.5054
+          },
+          {
+            "bang": "ES",
+            "ten_bang": "Espírito Santo",
+            "vung": "Sudeste",
+            "don_da_giao": 133,
+            "don_tre": 55,
+            "ti_le_tre": 0.4135
+          },
+          {
+            "bang": "MS",
+            "ten_bang": "Mato Grosso do Sul",
+            "vung": "Centro-Oeste",
+            "don_da_giao": 57,
+            "don_tre": 23,
+            "ti_le_tre": 0.4035
+          },
+          {
+            "bang": "RJ",
+            "ten_bang": "Rio de Janeiro",
+            "vung": "Sudeste",
+            "don_da_giao": 864,
+            "don_tre": 298,
+            "ti_le_tre": 0.3449
+          },
+          {
+            "bang": "AL",
+            "ten_bang": "Alagoas",
+            "vung": "Nordeste",
+            "don_da_giao": 27,
+            "don_tre": 9,
+            "ti_le_tre": 0.3333
+          },
+          {
+            "bang": "BA",
+            "ten_bang": "Bahia",
+            "vung": "Nordeste",
+            "don_da_giao": 235,
+            "don_tre": 74,
+            "ti_le_tre": 0.3149
+          },
+          {
+            "bang": "PI",
+            "ten_bang": "Piauí",
+            "vung": "Nordeste",
+            "don_da_giao": 34,
+            "don_tre": 10,
+            "ti_le_tre": 0.2941
+          }
+        ],
+        "so_dong_bang": 10,
+        "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); tiền BRL; điểm 1–5 sao."
+      }
+    }
+  ],
+  "tra_loi": "Trong tháng 03/2018:\n\n**1. Bang giao trễ nhiều nhất:**\n* **Xét theo tỉ lệ giao trễ:** Bang **Sergipe (SE)** cao nhất với **64,71%** (11 đơn trễ / 17 đơn đã giao).\n* **Xét theo số lượng đơn trễ tuyệt đối:** Bang **Rio de Janeiro (RJ)** đứng đầu với **298 đơn trễ** / 864 đơn đã giao (tỉ lệ trễ là **34,49%**).\n\n**2. Đánh giá độ tin cậy:**\n* **Con số 64,71% của Sergipe (SE) KHÔNG đáng tin cậy để đại diện:** Do cỡ mẫu quá nhỏ (chỉ có **17 đơn đã giao**). Ở các bang quy mô nhỏ, chỉ cần vài đơn trễ phát sinh đã làm tỉ lệ phần trăm biến động rất lớn.\n* **Số liệu của Rio de Janeiro (RJ) đáng tin cậy hơn nhiều:** Quy mô mẫu đủ lớn với **864 đơn đã giao**, phản ánh chính xác tình trạng trễ hàng nghiêm trọng cả về tỉ lệ (**34,49%**) lẫn số lượng tuyệt đối (**298 đơn trễ**).",
+  "kiem_so": {
+    "tong_so": 10,
+    "khop_du_lieu": 10,
+    "tu_tinh_dung": 0,
+    "khong_tim_thay": [],
+    "phep_tinh_ai_tu_lam": []
+  },
+  "token": {
+    "vao": 7014,
+    "ra": 311
+  }
+}
