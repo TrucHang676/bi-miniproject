@@ -109,6 +109,76 @@ dim_product[category_name_vi] =
         dim_product[category_name_en]
     )
 
+// -----------------------------------------------------------------------------
+// CỘT TÍNH  [dim_date]  |  hiện  |  Sort by column = quarter  |  thêm 04/11/2026 cho drill Năm → Quý → Tháng ở trang 1
+// Nhãn tầng Quý của trục NHIỀU TẦNG (tháng / quý / năm, mở rộng hết, tắt Concatenate labels) ở 2 biểu đồ theo tháng.
+// Đã thử nhãn kèm năm (Quý 1/2017, 01/2017): 20 nhãn quá dài, bị xoay nghiêng, rối mắt -> bỏ. Năm hiện ở tầng dưới;
+// nút 'Go to next level' (⇊) bị ẩn trên 2 biểu đồ vì nút đó bỏ tầng cha và gộp các năm.
+// Quý 3/2018 chỉ có tháng 7, 8 (dữ liệu dừng ở 08/2018).
+dim_date[quarter_label] = "Quý " & dim_date[quarter]
+
+// -----------------------------------------------------------------------------
+// CỘT TÍNH  [dim_date]  |  hiện  |  Sort by column = month  |  thêm 04/11/2026 cho drill Năm → Quý → Tháng ở trang 1
+// Nhãn tầng Tháng (1 … 12) của trục nhiều tầng; xem ghi chú quarter_label.
+dim_date[month_label] = FORMAT ( dim_date[month], "0" )
+
+// -----------------------------------------------------------------------------
+// CỘT TÍNH  [dim_geography]  |  hiện  |  thêm 04/11/2026 - trục cấp Vùng của biểu đồ Top 5 (trang 1)
+// Nhãn vùng kèm tên tiếng Việt cho người xem không rành địa lý Brazil: 'Sudeste (Đông Nam)'.
+dim_geography[region_label] =
+    VAR _vi =
+        SWITCH (
+            dim_geography[region],
+            "Norte", "Bắc",
+            "Nordeste", "Đông Bắc",
+            "Centro-Oeste", "Trung Tây",
+            "Sudeste", "Đông Nam",
+            "Sul", "Nam"
+        )
+    RETURN IF ( ISBLANK ( _vi ), dim_geography[region], dim_geography[region] & " (" & _vi & ")" )
+
+// -----------------------------------------------------------------------------
+// CỘT TÍNH  [dim_geography]  |  hiện  |  thêm 04/11/2026 - trục cấp Bang của biểu đồ Top 5 (trang 1)
+// Nhãn bang kèm mã như trên bản đồ: 'São Paulo (SP)'.
+dim_geography[state_label] =
+    IF ( dim_geography[geography_key] = -1 || dim_geography[state_name] = "Không xác định",
+        dim_geography[state_name],
+        dim_geography[state_name] & " (" & dim_geography[state_code] & ")" )
+
+// -----------------------------------------------------------------------------
+// CỘT TÍNH  [dim_geography]  |  hiện  |  thêm 04/11/2026 - trục cấp Thành phố của biểu đồ Top 5 (trang 1)
+// city đã chuẩn hóa ở dbt (chữ thường, bỏ dấu: 'sao bernardo do campo') -> viết hoa đầu mỗi từ (sau dấu cách, '-', "'"),
+// giới từ de/da/do/das/dos/e giữ chữ thường, kèm mã bang -> 'Sao Bernardo do Campo (SP)'. Không bù lại dấu tiếng Bồ Đào Nha.
+// Dùng IF lồng thay cho ||: DAX tính cả 2 vế của || nên MID ( _s, 0, 1 ) ở ký tự đầu sẽ báo lỗi.
+// 3 cột nhãn + tiêu đề trục dọc (tự đổi Vùng / Bang / Thành phố) để người xem biết đang ở cấp nào khi drill.
+dim_geography[city_label] =
+    VAR _s = dim_geography[city]
+    RETURN
+        IF (
+            _s = "Không xác định" || LEN ( _s ) = 0,
+            _s,
+            VAR _hoa =
+                CONCATENATEX (
+                    GENERATESERIES ( 1, LEN ( _s ) ),
+                    VAR _i = [Value]
+                    VAR _c = MID ( _s, _i, 1 )
+                    RETURN
+                        IF ( _i = 1, UPPER ( _c ),
+                            IF ( MID ( _s, MAX ( _i - 1, 1 ), 1 ) IN { " ", "-", "'" }, UPPER ( _c ), _c ) ),
+                    "", [Value], ASC
+                )
+            VAR _thuong =
+                SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE (
+                    " " & _hoa & " ", " De ", " de " ), " Da ", " da " ), " Do ", " do " ), " Das ", " das " ), " Dos ", " dos " ), " E ", " e " )
+            RETURN TRIM ( _thuong ) & " (" & dim_geography[state_code] & ")"
+        )
+
+// -----------------------------------------------------------------------------
+// CỘT TÍNH  [dim_product]  |  hiện  |  thêm 04/11/2026 cho drill Danh mục → Sản phẩm (biểu đồ Top 10 danh mục, trang 1)
+// Olist không có tên sản phẩm -> mã rút gọn 8 ký tự đầu product_id (32.952 mã, không trùng; 6 ký tự thì trùng 30 mã).
+dim_product[product_label] =
+    IF ( dim_product[product_key] = -1, "Không xác định", LEFT ( dim_product[product_id], 8 ) )
+
 // #############################################################################
 // THƯ MỤC HIỂN THỊ: 0 Phụ
 // #############################################################################
@@ -178,6 +248,153 @@ Doanh thu cùng kỳ =
 // [M3]  % tổng doanh thu  |  thư mục: 1 Tổng quan  |  định dạng: 0.00%
 // M3. Tỉ trọng doanh thu = K1 / K1 toàn bộ (bỏ lọc danh mục và bang).
 % tổng doanh thu = DIVIDE ( [Doanh thu], CALCULATE ( [Doanh thu], ALL ( dim_product ), ALL ( dim_geography ) ) )
+
+// -----------------------------------------------------------------------------
+// [M3a]  Tỉ trọng nhóm top 10 danh mục  |  thư mục: 1 Tổng quan  |  định dạng: 0.00%  |  thêm 04/11/2026
+// Tỉ trọng của CẢ NHÓM 10 danh mục doanh thu cao nhất (Q2); cùng mẫu số với M3 nên bằng tổng 10 thanh của biểu đồ Top 10.
+// ALLSELECTED: theo lọc Năm, Tháng, Vùng, Bang đang chọn. Toàn kỳ 01/2017-08/2018 = 62,37%.
+Tỉ trọng nhóm top 10 danh mục =
+    VAR _nhom =
+        TOPN ( 10, FILTER ( ALLSELECTED ( dim_product[category_name_en] ), NOT ISBLANK ( [Doanh thu] ) ), [Doanh thu] )
+    RETURN
+        DIVIDE ( CALCULATE ( [Doanh thu], _nhom ), CALCULATE ( [Doanh thu], ALL ( dim_product ), ALL ( dim_geography ) ) )
+
+// -----------------------------------------------------------------------------
+// [M3b]  Tỉ trọng nhóm top 5 bang  |  thư mục: 1 Tổng quan  |  định dạng: 0.00%  |  thêm 04/11/2026
+// Tỉ trọng của CẢ NHÓM 5 bang doanh thu cao nhất (Q2); cùng mẫu số với M3. Toàn kỳ = 73,87% (SP, RJ, MG, RS, PR).
+Tỉ trọng nhóm top 5 bang =
+    VAR _nhom =
+        TOPN ( 5, FILTER ( ALLSELECTED ( dim_geography[state_code] ), NOT ISBLANK ( [Doanh thu] ) ), [Doanh thu] )
+    RETURN
+        DIVIDE ( CALCULATE ( [Doanh thu], _nhom ), CALCULATE ( [Doanh thu], ALL ( dim_product ), ALL ( dim_geography ) ) )
+
+// #############################################################################
+// THƯ MỤC HIỂN THỊ: 1 Tổng quan\Nhãn  (thêm 04/11/2026)
+// Measure trả về CHỮ cho phụ đề (Format -> Title -> Subtitle -> fx) và câu tooltip. Chỉ dùng làm nhãn.
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [Nhãn]  Phụ đề top 10 danh mục  |  thư mục: 1 Tổng quan\Nhãn  |  định dạng: chữ
+// Phụ đề biểu đồ Top 10 danh mục: "10 danh mục dẫn đầu chiếm 62,4% doanh thu toàn sàn"; ít hơn 10 danh mục có doanh thu -> "... đang chọn".
+Phụ đề top 10 danh mục =
+    VAR _so = MIN ( 10, COUNTROWS ( FILTER ( ALLSELECTED ( dim_product[category_name_en] ), NOT ISBLANK ( [Doanh thu] ) ) ) )
+    RETURN
+        IF ( _so > 0,
+            _so & IF ( _so = 10, " danh mục dẫn đầu", " danh mục đang chọn" ) & " chiếm "
+                & FORMAT ( [Tỉ trọng nhóm top 10 danh mục], "0.0%", "vi-VN" ) & " doanh thu toàn sàn" )
+
+// -----------------------------------------------------------------------------
+// [Nhãn]  Phụ đề top 5 bang  |  thư mục: 1 Tổng quan\Nhãn  |  định dạng: chữ
+// Phụ đề biểu đồ Top 5 bang: "5 bang dẫn đầu chiếm 73,9% doanh thu toàn sàn"; lọc Vùng Sul -> "3 bang đang chọn chiếm 14,4% ...".
+Phụ đề top 5 bang =
+    VAR _so = MIN ( 5, COUNTROWS ( FILTER ( ALLSELECTED ( dim_geography[state_code] ), NOT ISBLANK ( [Doanh thu] ) ) ) )
+    RETURN
+        IF ( _so > 0,
+            _so & IF ( _so = 5, " bang dẫn đầu", " bang đang chọn" ) & " chiếm "
+                & FORMAT ( [Tỉ trọng nhóm top 5 bang], "0.0%", "vi-VN" ) & " doanh thu toàn sàn" )
+
+// -----------------------------------------------------------------------------
+// [Nhãn]  Tên danh mục hoặc sản phẩm  |  thư mục: 1 Tổng quan\Nhãn  |  định dạng: chữ
+// Tên dòng trong câu tooltip biểu đồ Top 10, đúng ở cả 2 cấp drill: 'health_beauty' / 'Sản phẩm mã bb50f2e2 (health_beauty)'.
+Tên danh mục hoặc sản phẩm =
+    IF (
+        ISINSCOPE ( dim_product[product_label] ),
+        "Sản phẩm mã " & SELECTEDVALUE ( dim_product[product_label] ) & " (" & SELECTEDVALUE ( dim_product[category_name_en] ) & ")",
+        SELECTEDVALUE ( dim_product[category_name_en] )
+    )
+
+// -----------------------------------------------------------------------------
+// [Nhãn]  Tên địa lý  |  thư mục: 1 Tổng quan\Nhãn  |  định dạng: chữ
+// Tên dòng trong câu tooltip biểu đồ Top 5, ghi rõ cấp: 'Vùng Sudeste (Đông Nam)' / 'Bang São Paulo (SP)' / 'Thành phố Campinas (SP)'.
+Tên địa lý =
+    SWITCH (
+        TRUE (),
+        ISINSCOPE ( dim_geography[city_label] ), "Thành phố " & SELECTEDVALUE ( dim_geography[city_label] ),
+        ISINSCOPE ( dim_geography[state_label] ), "Bang " & SELECTEDVALUE ( dim_geography[state_label] ),
+        "Vùng " & SELECTEDVALUE ( dim_geography[region_label] )
+    )
+
+// #############################################################################
+// THƯ MỤC HIỂN THỊ: 1 Tổng quan\Top N  (thêm 04/11/2026)
+// Top N cho 2 biểu đồ có drill (Top 10 danh mục: Danh mục → Sản phẩm; Top 5 bang: Vùng → Bang → Thành phố).
+// KHÔNG đặt measure làm bộ lọc mức visual ("Filters on this visual -> is 1"): Power BI tính bộ lọc đó ở cấp
+// THẤP NHẤT của trục drill, nên ở cấp trên mỗi bang chỉ còn cộng 5 thành phố đầu (SP ra 18,02% thay vì 38,30%).
+// Cách làm: cờ 'Lọc top ...' (= 1 nếu thuộc Top N ở cấp ĐANG HIỂN THỊ, nhờ ISINSCOPE) -> mọi measure nằm trong
+// truy vấn của visual (trục giá trị, tooltip, màu) đều trống ngoài Top N -> dòng trống hết thì tự ẩn.
+// Cũng không dùng bộ lọc Top N có sẵn cho cấp dưới: Top N gắn với 1 cột nên drill sang cấp khác sẽ lọc sai.
+// #############################################################################
+
+// -----------------------------------------------------------------------------
+// [Top N]  Lọc top 10 sản phẩm  |  thư mục: 1 Tổng quan\Top N  |  định dạng: 0
+// Cờ biểu đồ Top 10 danh mục: cấp Sản phẩm = 1 nếu thuộc 10 sản phẩm doanh thu cao nhất trong phần đang drill;
+// cấp Danh mục = 1 (bộ lọc Top N 10 danh mục sẵn có của visual vẫn giữ). Trống khi không có doanh thu.
+Lọc top 10 sản phẩm =
+    VAR _dt = [Doanh thu]
+    RETURN
+        SWITCH (
+            TRUE (),
+            ISBLANK ( _dt ), BLANK (),
+            ISINSCOPE ( dim_product[product_label] ),
+                IF ( RANKX ( ALLSELECTED ( dim_product[product_label] ), [Doanh thu] ) <= 10, 1 ),
+            1
+        )
+
+// -----------------------------------------------------------------------------
+// [Top N]  Lọc top 5 địa lý  |  thư mục: 1 Tổng quan\Top N  |  định dạng: 0
+// Cờ biểu đồ Top 5 bang (mặc định ở cấp Bang): cấp Bang và Thành phố = 1 nếu thuộc 5 dòng doanh thu cao nhất
+// trong phần đang drill; cấp Vùng = 1 (đủ 5 vùng).
+Lọc top 5 địa lý =
+    VAR _dt = [Doanh thu]
+    RETURN
+        SWITCH (
+            TRUE (),
+            ISBLANK ( _dt ), BLANK (),
+            ISINSCOPE ( dim_geography[city_label] ),
+                IF ( RANKX ( ALLSELECTED ( dim_geography[city_label] ), [Doanh thu] ) <= 5, 1 ),
+            ISINSCOPE ( dim_geography[state_label] ),
+                IF ( RANKX ( ALLSELECTED ( dim_geography[state_label] ), [Doanh thu] ) <= 5, 1 ),
+            1
+        )
+
+// -----------------------------------------------------------------------------
+// [Top N]  Tỉ trọng thanh top 10  |  thư mục: 1 Tổng quan\Top N  |  định dạng: 0.00%
+// Trục giá trị biểu đồ Top 10 danh mục = M3, trống ngoài Top N.
+Tỉ trọng thanh top 10 = IF ( [Lọc top 10 sản phẩm] = 1, [% tổng doanh thu] )
+
+// -----------------------------------------------------------------------------
+// [Top N]  Tỉ trọng thanh top 5  |  thư mục: 1 Tổng quan\Top N  |  định dạng: 0.00%
+// Trục giá trị biểu đồ Top 5 bang = M3, trống ngoài Top N.
+Tỉ trọng thanh top 5 = IF ( [Lọc top 5 địa lý] = 1, [% tổng doanh thu] )
+
+// -----------------------------------------------------------------------------
+// [Top N]  Tooltip top 10  |  thư mục: 1 Tổng quan\Top N  |  định dạng: chữ
+// Câu tooltip biểu đồ Top 10 (Sentence template = {Chi tiết}). Gộp tên, doanh thu, số đơn, tỉ trọng vào 1 measure
+// trống ngoài Top N: nếu để Doanh thu, Số đơn làm trường tooltip riêng thì dòng ngoài Top N vẫn còn trong truy vấn.
+// Cấp Sản phẩm thêm giá bán trung bình = doanh thu / số lượng bán (revenue = quantity * unit_price ở fact_sales)
+// để bù việc Olist ẩn danh tên sản phẩm (chỉ hiện được mã 8 ký tự).
+Tooltip top 10 =
+    VAR _gia =
+        IF (
+            ISINSCOPE ( dim_product[product_label] ),
+            ", giá bán trung bình " & FORMAT ( DIVIDE ( [Doanh thu], SUM ( fact_sales[quantity] ) ), "#,0.00", "vi-VN" ) & " BRL"
+        )
+    RETURN
+        IF (
+            [Lọc top 10 sản phẩm] = 1,
+            [Tên danh mục hoặc sản phẩm] & ": doanh thu " & FORMAT ( [Doanh thu], "#,0", "vi-VN" ) & " BRL từ "
+                & FORMAT ( [Số đơn], "#,0", "vi-VN" ) & " đơn" & _gia
+                & ", chiếm " & FORMAT ( [% tổng doanh thu], "0.00%", "vi-VN" ) & " toàn sàn"
+        )
+
+// -----------------------------------------------------------------------------
+// [Top N]  Tooltip top 5  |  thư mục: 1 Tổng quan\Top N  |  định dạng: chữ
+// Câu tooltip biểu đồ Top 5 bang (Sentence template = {Chi tiết}); cùng lý do với Tooltip top 10.
+Tooltip top 5 =
+    IF (
+        [Lọc top 5 địa lý] = 1,
+        [Tên địa lý] & ": doanh thu " & FORMAT ( [Doanh thu], "#,0", "vi-VN" ) & " BRL từ "
+            & FORMAT ( [Số đơn], "#,0", "vi-VN" ) & " đơn, chiếm " & FORMAT ( [% tổng doanh thu], "0.00%", "vi-VN" ) & " toàn sàn"
+    )
 
 // #############################################################################
 // THƯ MỤC HIỂN THỊ: 1 Tổng quan\Thẻ KPI  (thêm 30/10/2026 khi dựng trang 1)
@@ -264,11 +481,29 @@ Khách mua 1 lần = "↓ " & FORMAT ( 1 - [Tỉ lệ khách mua lại], "0.0%",
 // -----------------------------------------------------------------------------
 // [Định dạng]  Màu danh mục  |  thư mục: 1 Tổng quan\Định dạng  |  định dạng: chữ
 // Màu thanh biểu đồ Top 10 danh mục: top 3 theo doanh thu (K1) màu vàng chanh, còn lại màu tím. Cột xếp hạng phải trùng cột trục Y của biểu đồ.
+// 04/11/2026: xếp hạng theo cấp đang hiển thị - drill xuống Sản phẩm thì top 3 sản phẩm màu vàng chanh
+// (bản cũ chỉ xếp theo danh mục nên ở cấp sản phẩm mọi thanh đều ra hạng 1).
 Màu danh mục =
+    VAR _hang =
+        IF (
+            ISINSCOPE ( dim_product[product_label] ),
+            RANKX ( ALLSELECTED ( dim_product[product_label] ), [Doanh thu] ),
+            RANKX ( ALLSELECTED ( dim_product[category_name_en] ), [Doanh thu] )
+        )
+    RETURN
+        // trống ngoài Top N: measure tô màu cũng nằm trong truy vấn của visual, còn giá trị thì dòng không ẩn
+        IF ( [Lọc top 10 sản phẩm] = 1, IF ( _hang <= 3, "#C8E62A", "#A9B8F8" ) )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Màu tỉ trọng địa lý  |  thư mục: 1 Tổng quan\Định dạng  |  định dạng: chữ  |  thêm 04/11/2026
+// Màu thanh biểu đồ Top 5 bang theo Nhóm tỉ trọng bang, cùng bảng màu chú thích "Theo bang" của bản đồ
+// (> 12% #3A47C4, 5-12% #6F80EC, 2-5% #A9B8F8, 1-2% #D3DBFC). Nhóm < 1% (#EEF1FE trên bản đồ) dùng #D3DBFC
+// vì thanh gần trắng sẽ lẫn vào nền khi drill xuống Thành phố.
+// Trống ngoài Top N (cùng lý do với Màu danh mục).
+Màu tỉ trọng địa lý =
     IF (
-        RANKX ( ALLSELECTED ( dim_product[category_name_en] ), [Doanh thu] ) <= 3,
-        "#C8E62A",
-        "#A9B8F8"
+        [Lọc top 5 địa lý] = 1,
+        SWITCH ( [Nhóm tỉ trọng bang], 5, "#3A47C4", 4, "#6F80EC", 3, "#A9B8F8", 2, "#D3DBFC", 1, "#D3DBFC" )
     )
 
 // -----------------------------------------------------------------------------
