@@ -53,7 +53,9 @@ Ban quản lý cần đánh giá hiệu quả giao hàng theo thời gian đặt
 - số lượng và tỉ lệ lượt người bán bàn giao hàng cho đơn vị vận chuyển trễ hạn;
 - so sánh hiệu quả giao hàng giữa đơn nội bang và đơn liên bang, giữa các khu vực và giữa các người bán.
 
-Drill-down tối thiểu: Năm → Quý → Tháng → Ngày (theo ngày đặt hàng) · Vùng → Bang → Thành phố (nơi nhận hàng) · Kết quả giao hàng → Mức độ trễ.
+Drill-down tối thiểu: Năm → Quý → Tháng → Ngày (theo ngày đặt hàng) · Vùng → Bang (nơi nhận hàng) · Kết quả giao hàng → Mức độ trễ.
+
+> Địa lý giao hàng dừng ở cấp bang (chốt 04/11/2026, khi đối chiếu dashboard trang 2 với báo cáo mục 3.1.2): tên thành phố không thống nhất và mỗi thành phố chỉ có ít đơn, nên tỉ lệ giao trễ theo thành phố dao động mạnh, không dùng để kết luận được. Vùng chọn bằng bộ lọc, biểu đồ xếp hạng theo bang.
 
 ### 2.3. Phân tích đánh giá của khách hàng
 
