@@ -13,7 +13,7 @@
 
 | Ngày – người sửa | Thay đổi | Vì sao phải sửa | Cần làm trên mỗi máy | Cách kiểm tra |
 |---|---|---|---|---|
-| 04/11/2026 – Thanh (phần AI) | Thư mục `ai/`: app Streamlit hỏi AI về biểu đồ, gọi Gemini gói free | Chỉ máy nào **chạy app AI / quay demo** mới cần. Thiếu thư viện thì `streamlit run` báo `ModuleNotFoundError`; thiếu key thì app hiện "Chưa có API key" và khóa nút | `pip install -r ai/requirements.txt`. Lấy key miễn phí ở `aistudio.google.com/apikey` (Create API key, **không** bấm Set up billing), thêm dòng `GEMINI_API_KEY=...` vào `.env` (không gửi key lên chat / Git). Postgres phải đang chạy | `python ai/kiem_tra_so_lieu.py` → `50/50 số khớp`; `python ai/llm.py --thu` → in câu trả lời + "x số khớp dữ liệu". **Đã áp dụng:** Thanh (04/11/2026) |
+| 04/11/2026 – Thanh (phần AI) | Thư mục `ai/`: app Streamlit hỏi AI về biểu đồ, gọi Gemini gói free | Chỉ máy nào **chạy app AI / quay demo** mới cần. Thiếu thư viện thì `streamlit run` báo `ModuleNotFoundError`; thiếu key thì app hiện "Chưa có API key" và khóa nút | `pip install -r ai/requirements.txt`. Lấy key miễn phí ở `aistudio.google.com/apikey` (Create API key, **không** bấm Set up billing), thêm dòng `GEMINI_API_KEY=...` vào `.env` (không gửi key lên chat / Git; mẫu ở `.env.example`). Postgres phải đang chạy. App chỉ chạy local (không deploy): bấm đúp `ai/chay_app.bat` (cổng 8501) trước khi bấm robot trong Power BI. Hướng dẫn cho nhóm: `ai/HUONG_DAN_CHAY.md` | `python ai/kiem_tra_so_lieu.py` → `50/50 số khớp`; `python ai/llm.py --thu` → in câu trả lời + "x số khớp dữ liệu". **Đã áp dụng:** Thanh (04/11/2026) |
 
 ## Đề bài (tóm tắt từ `2627.Yêu cầu.pdf`)
 Xây dựng hệ thống BI hoàn chỉnh trên một dataset Kaggle:

@@ -35,6 +35,22 @@ chấp nhận được, nhưng không gõ thông tin cá nhân vào ô chat.
 | `prompts/` | Prompt cho tóm tắt (`summary.md`), giải thích biến động (`explain_trend.md`), hỏi đáp (`qa.md`) – mỗi file có phần `## System` và `## User` |
 | `outputs/` | Log mỗi lần hỏi: số liệu đầu vào, công cụ AI đã gọi, câu trả lời, kết quả kiểm số, số token |
 
+## Chạy trên máy từng thành viên
+> Hướng dẫn từng bước + cách dùng app + lỗi thường gặp: **[HUONG_DAN_CHAY.md](HUONG_DAN_CHAY.md)**.
+
+App chạy **trên máy mỗi người** (`localhost:8501`), đọc kho `dds` trong Postgres Docker của chính máy đó – không
+deploy lên mạng. Robot "Trợ lý AI" trong Power BI mở link `http://localhost:8501/...`, nên phải mở app trước khi bấm robot.
+
+1. `git pull`, Postgres đang chạy (`docker compose up -d`) và `dds` đã nạp đủ 10 batch (như khi mở Power BI).
+2. Lần đầu: `pip install -r ai/requirements.txt`; lấy key Gemini miễn phí ở `aistudio.google.com/apikey`
+   (Create API key, **không** bấm Set up billing), điền vào dòng `GEMINI_API_KEY=` trong `.env` (mẫu ở `.env.example`).
+   Mỗi người dùng key của mình, không gửi key qua chat / Git.
+3. Bấm đúp `ai/chay_app.bat` (hoặc `streamlit run ai/app.py` từ gốc repo). Trình duyệt mở `http://localhost:8501`.
+4. Mở Power BI, bấm robot ở góc trên → app mở đúng trang + bộ lọc đang xem.
+
+Cổng 8501 đang bị app khác chiếm thì Streamlit báo lỗi (file `.bat` cố định cổng 8501 để khớp link trong Power BI) –
+tắt cửa sổ Streamlit cũ rồi chạy lại.
+
 ## Chạy thử
 Cần Postgres đang chạy (`docker compose up -d`) và đã nạp `dds`. Từ gốc repo:
 

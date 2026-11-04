@@ -321,10 +321,12 @@ docker compose exec mage dbt build      # seed -> model -> test, dbt tự xếp 
 
 ### 6.5. Thành phần AI
 
-```bash
-cd ai
-pip install -r requirements.txt
-# [Lệnh chạy]
+App Trợ lý AI chạy trên máy (`localhost:8501`), cần Postgres đang chạy và key Gemini miễn phí trong `.env`.
+Từng bước, cách dùng và lỗi thường gặp: [ai/HUONG_DAN_CHAY.md](../ai/HUONG_DAN_CHAY.md).
+
+```powershell
+python -m pip install -r ai/requirements.txt   # lần đầu
+ai\chay_app.bat                                  # mỗi lần dùng (hoặc bấm đúp file này)
 ```
 
 ## 7. Dùng hằng ngày
