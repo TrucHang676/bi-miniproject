@@ -93,7 +93,7 @@ Toàn vẹn tham chiếu tốt: 0 dòng mồ côi giữa các bảng chính.
 - Không có `fact_payment` (không câu hỏi nào dùng thanh toán).
 
 ## Cấu trúc thư mục
-Đề bài gốc nằm ngoài repo: `../2627.Yêu cầu.pdf`.
+Đề bài gốc nằm ngoài repo: `../tai_lieu/2627.Yêu cầu.pdf`.
 ```
 bi-miniproject/               # Repo chính của nhóm (thư mục chứa file này)
 ├── CLAUDE.md                 # File này (đã commit cho cả nhóm; ghi chú riêng từng máy → CLAUDE.local.md, bị ignore)
