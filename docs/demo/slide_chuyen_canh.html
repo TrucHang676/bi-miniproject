@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slide chuyển cảnh video demo</title>
+<style>
+  /* Slide chuyển cảnh chèn giữa các đoạn video demo (Nhóm 3, môn CSC12107).
+     Mở bằng Edge / Chrome, bấm F để toàn màn hình rồi quay màn hình. Không cần mạng.
+     Phím: → hoặc Space slide sau, ← slide trước, Home slide đầu, End slide cuối,
+           1 / 2 bìa video phần 1 / phần 2, R chạy lại hiệu ứng, F toàn màn hình, H hướng dẫn.
+     Địa chỉ: slide_chuyen_canh.html?s=2.3 mở thẳng slide 2.3; thêm &tinh=1 hiện ngay trạng thái cuối (chụp PNG).
+     Bố cục và hiệu ứng học theo thẻ chữ video BTVN SSIS; màu chỉ lấy từ powerbi/theme_olist.json (theme dashboard).
+     Nội dung từng slide: mảng SLIDES; hình minh họa từng phần: hàm trong ILLU. */
+  :root {
+    --bg: #E9EBEF;        /* nền trang báo cáo */
+    --card: #FFFFFF;      /* khung biểu đồ */
+    --ink: #121316;       /* tiêu đề, số KPI */
+    --ink-2: #4A4E57;     /* chú giải, nhãn */
+    --ink-3: #8B9099;     /* nhãn trục */
+    --lime: #E2FA2C;      /* nhấn chính */
+    --lime-2: #C8E62A;    /* nhấn phụ */
+    --lav: #A9B8F8;       /* màu thứ hai */
+    --shadow: 0 2px 14px rgba(18, 19, 22, .05);
+    --font: 'Segoe UI', 'Segoe UI Variable Text', system-ui, sans-serif;
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+  body.idle, body.idle * { cursor: none !important; }
+
+  /* Khung 1920×1080 co giãn vừa cửa sổ; phần dư (màn 16:10, 21:9) là nền body cùng màu nên không thấy viền */
+  #stage {
+    position: absolute; left: 50%; top: 50%;
+    width: 1920px; height: 1080px;
+    transform: translate(-50%, -50%) scale(var(--k, 1));
+    overflow: hidden; background: var(--bg);
+    font-family: var(--font); color: var(--ink);
+  }
+  svg text { font-family: var(--font); }
+
+  .slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .45s ease, visibility 0s linear .45s; }
+  .slide.active { opacity: 1; visibility: visible; transition: opacity .45s ease; }
+
+  /* ---------- thanh trên: giống thanh trên của dashboard ---------- */
+  .topbar {
+    position: absolute; left: 36px; right: 36px; top: 36px; height: 84px; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 18px 0 16px;
+    background: var(--card); border-radius: 20px; box-shadow: var(--shadow);
+  }
+  .brand { display: flex; align-items: center; gap: 20px; font-size: 30px; }
+  .logo { width: 52px; height: 52px; border-radius: 15px; background: var(--lime); display: grid; place-items: center; }
+  .logo svg { width: 30px; height: 30px; fill: var(--ink); }
+  .brand b { font-weight: 600; }
+  .brand .sep { color: var(--ink-3); }
+  .brand .grp { color: var(--ink-2); }
+  .vpill {
+    display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 28px 0 22px;
+    background: var(--bg); border-radius: 999px; font-size: 26px; font-weight: 600;
+  }
+  .vpill svg { width: 26px; height: 26px; fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linejoin: round; }
+
+  /* ---------- nội dung canh giữa (như thẻ "Mở đầu phần" của thẻ chữ video) ---------- */
+  .center {
+    position: absolute; left: 120px; right: 120px; top: 120px; bottom: 150px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  }
+  .center.full { bottom: 40px; }
+  .kick { display: flex; align-items: center; gap: 22px; }
+  .chip {
+    display: inline-block; padding: 12px 26px 11px; border-radius: 999px; background: var(--lime);
+    font-size: 24px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; line-height: 1;
+  }
+  .byline { font-size: 28px; color: var(--ink-3); }
+  .byline b { font-weight: 600; color: var(--ink-2); }
+  .title { margin: 26px 0 0; max-width: 1600px; font-size: 92px; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; text-wrap: balance; white-space: pre-line; }
+  .wave { display: block; width: 520px; height: 30px; margin-top: 14px; overflow: visible; }
+  .wave path { fill: none; stroke: var(--lime-2); stroke-width: 7; stroke-linecap: round; }
+  .desc { margin: 22px 0 0; max-width: 1500px; font-size: 38px; line-height: 1.45; color: var(--ink-2); white-space: pre-line; }
+  .illu { margin-top: 44px; }
+  .illu svg { display: block; overflow: visible; }
+
+  /* bìa và slide kết thúc */
+  .full .title { font-size: 100px; margin-top: 30px; }
+  .full .wave { width: 620px; margin-top: 18px; }
+  .full .desc { font-size: 40px; margin-top: 28px; }
+  .badge { width: 104px; height: 104px; border-radius: 28px; background: var(--lime); display: grid; place-items: center; }
+  .badge svg { width: 58px; height: 58px; fill: var(--ink); }
+  .team {
+    margin-top: 54px; padding: 22px 44px; background: var(--card); border-radius: 999px; box-shadow: var(--shadow);
+    font-size: 32px; color: var(--ink-2);
+  }
+  .team b { font-weight: 600; color: var(--ink); }
+
+  /* ---------- thanh tiến trình: các mục nối bằng mũi tên ---------- */
+  .progress { position: absolute; left: 0; right: 0; bottom: 64px; display: flex; justify-content: center; align-items: center; gap: 12px; }
+  .step {
+    display: flex; align-items: center; gap: 14px; height: 58px; padding: 0 28px 0 12px; box-sizing: border-box;
+    background: var(--card); border-radius: 999px; font-size: 26px; font-weight: 600; color: var(--ink-3); white-space: nowrap;
+  }
+  .step i {
+    width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--bg); color: var(--ink-3); font: normal 700 19px/1 var(--font);
+  }
+  .step i svg { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .step.done { color: var(--ink); }
+  .step.done i { background: var(--lime-2); }
+  .step.now { background: var(--lime); color: var(--ink); font-weight: 700; }
+  .step.now i { background: var(--ink); color: var(--lime); }
+  .to { width: 28px; height: 18px; flex: none; }
+  .to path { fill: none; stroke: var(--ink-3); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- hiệu ứng vào: tổng cộng ≤ 1,5 giây rồi đứng yên (không có hiệu ứng lặp) ----------
+     Kiểu gốc của mọi phần tử là trạng thái cuối; keyframes chỉ tả trạng thái đầu
+     → chế độ tinh=1 (tắt animation) hiện ngay trạng thái cuối. */
+  .ipo { transform-box: fill-box; transform-origin: center; }
+  .wave path, .idr { stroke-dasharray: 1 1; stroke-dashoffset: 0; }
+  .slide.active .a-pop  { animation: pop .45s cubic-bezier(.3, 1.5, .5, 1) var(--d, 0s) both; }
+  .slide.active .a-up   { animation: up .6s cubic-bezier(.2, .7, .2, 1) var(--d, 0s) both; }
+  .slide.active .a-fade { animation: fade .6s ease var(--d, 0s) both; }
+  .slide.active .wave path { animation: draw .6s ease-out var(--d, 0s) both; }
+  .slide.active .ipo { animation: pop .45s cubic-bezier(.3, 1.4, .5, 1) var(--d, 0s) both; }
+  .slide.active .ifa { animation: fade .45s ease var(--d, 0s) both; }
+  .slide.active .idr { animation: draw .5s ease-out var(--d, 0s) both; }
+  .slide.active .step.now   { animation: light .5s ease var(--d, 0s) both; }
+  .slide.active .step.now i { animation: lightdot .5s ease var(--d, 0s) both; }
+  @keyframes pop  { from { opacity: 0; transform: scale(.6); } }
+  @keyframes up   { from { opacity: 0; transform: translateY(32px); } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes draw { from { stroke-dashoffset: 1; } }
+  @keyframes light { from { background: var(--card); color: var(--ink-3); } }
+  @keyframes lightdot { from { background: var(--bg); color: var(--ink-3); } }
+
+  body.tinh *, body.tinh *::before, body.tinh *::after { animation: none !important; transition: none !important; }
+
+  /* bảng hướng dẫn phím: mặc định ẩn để khi quay không bị dính */
+  #hint {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 9;
+    font: 15px/1.6 var(--font); color: var(--card); background: rgba(18, 19, 22, .9);
+    padding: 10px 20px; border-radius: 12px; white-space: nowrap; display: none;
+  }
+  #hint.show { display: block; }
+  #hint .k { display: inline-block; margin: 0 6px 0 18px; padding: 0 8px; border: 1px solid var(--ink-3); border-radius: 6px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="hint"></div>
+
+<script>
+(() => {
+  // ================= NỘI DUNG SLIDE =================
+  // Người phụ trách phần nào soát lại dòng desc của phần đó rồi sửa thẳng ở đây.
+  // Tên trang dashboard phải trùng tên trang trong file .pbix: "Tổng quan", "Giao hàng", "Người bán".
+  // Dấu \n trong title, desc: chủ động xuống dòng (dòng mô tả ngắt theo cụm ý).
+  // Sửa desc thì giữ mỗi dòng không quá khoảng 70 ký tự rồi mở lại slide xem có bị tự xuống dòng thêm không.
+  const GROUP = ['Nhóm 3:', 'Trần Kim Yến, Nguyễn Nhựt Thanh, Nguyễn Thị Trúc Hằng'];
+  const TITLE = 'Hệ thống BI tích hợp AI trên bộ dữ liệu thương mại điện tử Olist';
+  const THANKS = 'Nhóm 3 xin cảm ơn cô và các bạn đã theo dõi';
+  const STEPS = {   // nhãn ngắn trên thanh tiến trình
+    1: ['Dữ liệu', 'Kiến trúc', 'Mô hình', 'Chia batch', 'Mage', 'dbt'],
+    2: ['Lập lịch ETL', 'Tổng quan', 'Giao hàng', 'Người bán', 'AI'],
+  };
+  const SLIDES = [
+    // ---- Video phần 1 (ghép ở BS-64) ----
+    { id: '1.0', kind: 'cover', title: TITLE, kicker: 'Video demo phần 1',
+      desc: 'Dữ liệu, kiến trúc và quy trình ETL' },
+    { id: '1.1', part: 1, jira: 'BS-52', by: 'Nguyễn Nhựt Thanh',
+      title: 'Giới thiệu bộ dữ liệu và khảo sát dữ liệu',
+      desc: 'Bộ dữ liệu Olist gồm 9 bảng,\nkhoảng 99 nghìn đơn hàng từ 09/2016 đến 10/2018' },
+    { id: '1.2', part: 2, jira: 'BS-57', by: 'Nguyễn Thị Trúc Hằng',
+      title: 'Kiến trúc hệ thống',
+      desc: 'Mage.ai nạp dữ liệu vào Staging, dbt biến đổi vào kho DDS\ntrên PostgreSQL, Power BI và AI khai thác kho' },
+    { id: '1.3', part: 3, jira: 'BS-56', by: 'Nguyễn Thị Trúc Hằng',
+      title: 'Mô hình hóa kho dữ liệu',
+      desc: 'Quy trình nghiệp vụ, mức chi tiết (grain),\n3 bảng fact và 6 bảng dimension' },
+    { id: '1.4', part: 4, jira: 'BS-51', by: 'Nguyễn Thị Trúc Hằng',
+      title: 'Chia batch dữ liệu',
+      desc: 'Mô phỏng dữ liệu phát sinh theo từng đợt\nđể kiểm thử Full Load và Incremental Load' },
+    { id: '1.5', part: 5, jira: 'BS-44', by: 'Trần Kim Yến',
+      title: 'Nạp dữ liệu từ Source vào Staging bằng Mage.ai',
+      desc: 'Full Load, Incremental Load,\nkiểm tra chất lượng và ghi nhật ký ETL' },
+    { id: '1.6', part: 6, jira: 'BS-45', by: 'Nguyễn Nhựt Thanh',
+      title: 'Nạp dữ liệu từ Staging vào DDS bằng dbt',
+      desc: 'Làm sạch, chuẩn hóa, kiểm thử bằng dbt test\nvà lập tài liệu bằng dbt docs' },
+    { id: '1.7', kind: 'end', title: THANKS,
+      desc: 'Phần tiếp theo: lập lịch ETL, dashboard Power BI và AI giải thích kết quả' },
+    // ---- Video phần 2 (ghép ở BS-63) ----
+    { id: '2.0', kind: 'cover', title: TITLE, kicker: 'Video demo phần 2',
+      desc: 'Lập lịch ETL, dashboard Power BI và AI giải thích kết quả' },
+    { id: '2.1', part: 1, jira: 'BS-58', by: 'Nguyễn Thị Trúc Hằng',
+      title: 'Toàn bộ luồng ETL, lập lịch và dashboard giám sát ETL',
+      desc: 'Chạy toàn bộ quy trình theo lịch\nvà theo dõi kết quả từng lần chạy' },
+    { id: '2.2', part: 2, jira: 'BS-59', by: 'Nguyễn Thị Trúc Hằng',
+      title: 'Dashboard trang 1: Tổng quan',
+      desc: 'Doanh thu theo tháng,\n10 danh mục và 5 bang có doanh thu cao nhất' },
+    { id: '2.3', part: 3, jira: 'BS-60', by: 'Trần Kim Yến',
+      title: 'Dashboard trang 2: Giao hàng',
+      desc: 'Thời điểm, khu vực giao trễ nhiều\nvà ảnh hưởng của giao trễ đến điểm đánh giá' },
+    { id: '2.4', part: 4, jira: 'BS-61', by: 'Nguyễn Nhựt Thanh',
+      title: 'Dashboard trang 3: Người bán',
+      desc: 'Giao trễ do người bán bàn giao chậm hay do vận chuyển;\nngười bán vượt ngưỡng' },
+    { id: '2.5', part: 5, jira: 'BS-62', by: 'Nguyễn Nhựt Thanh',
+      title: 'AI giải thích kết quả dashboard',
+      desc: 'Tóm tắt KPI và giải thích biến động dựa trên số liệu đã tính' },
+    { id: '2.6', kind: 'end', title: THANKS },
+  ];
+
+  // ================= HÌNH MINH HỌA TỪNG PHẦN =================
+  // Vẽ từ nội dung thật của đồ án: tên bảng, block Mage, batch, khóa ngoại của fact, bố cục trang dashboard (.pbip).
+  // Phần tử có data-i hiện lần lượt theo thứ tự (data-i="số" để đặt thứ tự riêng).
+  const C = { bg: '#E9EBEF', card: '#FFFFFF', ink: '#121316', ink2: '#4A4E57', ink3: '#8B9099',
+              lime: '#E2FA2C', lime2: '#C8E62A', lav: '#A9B8F8', lav1: '#DCE2FD', blue: '#6F80EC', blue2: '#3A47C4' };
+  const ICONS = {
+    file: '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/>',
+    db: '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
+    bars: '<path d="M6 20v-7M12 20V6M18 20V3"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+    spark: '<path d="M12 3.5l1.9 6.6 6.6 1.9-6.6 1.9L12 20.5l-1.9-6.6L3.5 12l6.6-1.9z"/>',
+    doc: '<path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+    check: '<path d="M5 12.5 10 17.5 19 7"/>',
+    monitor: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 13l3-3 2.5 2L17 8"/>',
+  };
+  const R = (x, y, w, h, rx, fill, extra = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" ${extra}/>`;
+  const TX = (x, y, s, size, fill, weight = 400, anchor = 'middle') =>
+    `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}" font-weight="${weight}" text-anchor="${anchor}">${s}</text>`;
+  const G = (inner, cls = 'ipo', i = '') => `<g class="${cls}" data-i="${i}">${inner}</g>`;
+  const ICON = (name, x, y, size, color, sw = 1.9) =>
+    `<g transform="translate(${x} ${y}) scale(${size / 24})" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</g>`;
+  const LINE = (d, color = C.ink3, w = 3, i = '') =>
+    `<path class="idr" data-i="${i}" pathLength="1" d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`;
+  const HEAD = (x, y, i = '') =>   // đầu mũi tên hướng sang phải tại (x, y)
+    `<path class="ifa" data-i="${i}" d="M${x - 11} ${y - 7}L${x} ${y}L${x - 11} ${y + 7}" fill="none" stroke="${C.ink3}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const ARROW = (x1, y1, x2, y2) => LINE(`M${x1} ${y1}L${x2} ${y2}`) + HEAD(x2, y2);
+  const CURVE = (x1, y1, x2, y2) => { const m = (x1 + x2) / 2; return LINE(`M${x1} ${y1}C${m} ${y1} ${m} ${y2} ${x2} ${y2}`) + HEAD(x2, y2); };
+  const SVG = (w, h, inner) => `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${inner}</svg>`;
+
+  const ILLU = {
+    // 9 bảng CSV; geolocation nét đứt vì nhóm chốt không nạp
+    '1.1': () => {
+      const names = ['orders', 'order_items', 'payments', 'reviews', 'customers', 'products', 'sellers', 'geolocation', 'translation'];
+      let s = '';
+      names.forEach((n, i) => {
+        const x = 22 + i * 130, geo = n === 'geolocation', line = geo ? C.lav1 : C.bg;
+        let g = geo ? R(x, 0, 96, 110, 14, 'none', `stroke="${C.ink3}" stroke-width="2.5" stroke-dasharray="7 6"`)
+                    : R(x, 0, 96, 110, 14, C.card) + `<path d="M${x} 28V14a14 14 0 0 1 14-14h68a14 14 0 0 1 14 14v14z" fill="${i === 0 ? C.lime : C.lav}"/>`;
+        [48, 68, 88].forEach(y => { g += `<path d="M${x + 14} ${y}H${x + 82}" fill="none" stroke="${line}" stroke-width="6" stroke-linecap="round"/>`; });
+        g += `<path d="M${x + 40} 40V96" fill="none" stroke="${line}" stroke-width="3"/>`;
+        g += TX(x + 48, 140, n, 17, geo ? C.ink3 : C.ink2);
+        if (geo) g += TX(x + 48, 164, 'không nạp', 16, C.ink3);
+        s += G(g);
+      });
+      return SVG(1180, 172, s);
+    },
+
+    // CSV → (Mage.ai) → Staging → (dbt) → DDS → Power BI, AI; Staging và DDS cùng nằm trong PostgreSQL
+    '1.2': () => {
+      const node = (x, label, icon, fill) => G(R(x, 52, 180, 118, 20, fill) + ICON(icon, x + 70, 68, 40, C.ink) + TX(x + 90, 150, label, 24, C.ink, 600));
+      const tool = (cx, label) => G(R(cx - label.length * 6 - 22, 62, label.length * 12 + 44, 34, 17, C.ink) + TX(cx, 85, label, 18, C.lime, 600));
+      const out = (y, label, icon) => G(R(1000, y, 180, 64, 18, C.card) + ICON(icon, 1018, y + 14, 36, C.ink) + TX(1066, y + 41, label, 22, C.ink, 600, 'start'));
+      return SVG(1180, 200,
+        G(R(318, 6, 524, 188, 24, 'none', `stroke="${C.lav}" stroke-width="2.5" stroke-dasharray="8 7"`) + TX(580, 34, 'PostgreSQL', 18, C.blue2, 600), 'ifa')
+        + node(0, 'CSV', 'file', C.card) + ARROW(180, 111, 340, 111) + tool(260, 'Mage.ai')
+        + node(340, 'Staging', 'db', C.card) + ARROW(520, 111, 640, 111) + tool(580, 'dbt')
+        + node(640, 'DDS', 'db', C.lime)
+        + CURVE(820, 111, 1000, 62) + CURVE(820, 111, 1000, 144)
+        + out(30, 'Power BI', 'bars') + out(112, 'AI', 'spark'));
+    },
+
+    // Galaxy schema: 3 fact dùng chung dimension; mỗi đường nối là 1 khóa ngoại thật trong model dbt
+    '1.3': () => {
+      const facts = { sales: 290, delivery: 590, review: 890 };
+      const dims = [   // [tên, tâm x, hàng (0 trên / 1 dưới), rộng, các fact dùng]
+        ['dim_product', 170, 0, 200, ['sales']],
+        ['dim_date', 590, 0, 200, ['sales', 'delivery', 'review']],
+        ['dim_customer', 1010, 0, 200, ['sales', 'delivery', 'review']],
+        ['dim_geography', 170, 1, 210, ['sales', 'delivery', 'review']],
+        ['dim_seller', 590, 1, 200, ['sales', 'delivery', 'review']],
+        ['dim_delivery_status', 1010, 1, 250, ['delivery', 'review']],
+      ];
+      let s = '', k = 0;
+      Object.entries(facts).forEach(([n, cx]) => { s += G(R(cx - 115, 106, 230, 52, 16, C.lime) + TX(cx, 139, 'fact_' + n, 20, C.ink, 600), 'ipo', k++); });
+      dims.forEach(([n, cx, row, w]) => { const y = row ? 220 : 0; s += G(R(cx - w / 2, y, w, 44, 22, C.card) + TX(cx, y + 29, n, 18, C.ink2), 'ipo', k++); });
+      let edges = '';
+      dims.forEach(([, cx, row, , used]) => used.forEach(f => {
+        const fx = facts[f], ex = fx + Math.max(-50, Math.min(50, (cx - fx) * .15));
+        edges += LINE(row ? `M${cx} 220L${ex} 158` : `M${cx} 44L${ex} 106`, C.lav, 2.5, 20 + k++);
+      }));
+      return SVG(1180, 264, edges + s);   // đường nối vẽ trước để nằm dưới các khối
+    },
+
+    // FULL (đến hết 2017) + 9 batch Incremental, đúng data/batches/manifest.csv
+    '1.4': () => {
+      const x0 = 52, xs = x0 + 212, xe = x0 + 212 + 8 * 96 + 96;
+      let s = G(R(x0, 70, 200, 58, 14, C.lime) + TX(x0 + 100, 107, 'FULL', 20, C.ink, 700));
+      for (let i = 0; i < 9; i++) {
+        const x = xs + i * 96, last = i === 8;
+        s += G(R(x, 70, last ? 96 : 84, 58, 14, last ? C.lav1 : C.lav) + TX(x + (last ? 48 : 42), 105, last ? '2018-09+' : '2018-0' + (i + 1), 16, C.ink, 600));
+      }
+      s += LINE(`M${x0} 54V46H${x0 + 200}V54`, C.ink3, 2.5) + G(TX(x0 + 100, 30, 'Full Load', 20, C.ink, 600), 'ifa');
+      s += LINE(`M${xs} 54V46H${xe}V54`, C.ink3, 2.5) + G(TX((xs + xe) / 2, 30, 'Incremental Load', 20, C.ink, 600), 'ifa');
+      s += G(TX(x0 + 100, 160, 'đơn đến hết 12/2017', 16, C.ink3) + TX((xs + xe) / 2, 160, 'các đợt phát sinh theo tháng năm 2018', 16, C.ink3), 'ifa');
+      return SVG(1180, 170, s);
+    },
+
+    // 2 pipeline Mage với đúng tên block; chấm màu = loại block (data loader, transformer, data exporter)
+    '1.5': () => {
+      const type = { L: C.lav, T: C.blue, E: C.lime2 };
+      const rows = [
+        ['full_load', [['start_full_run', 'L'], ['load_full_batch', 'T'], ['dbt_build_full', 'T'], ['finish_full_run', 'E']]],
+        ['incremental_load', [['get_lset', 'L'], ['set_cet', 'T'], ['extract_load', 'T'], ['dbt_build', 'T'], ['set_lset', 'E']]],
+      ];
+      let s = '';
+      rows.forEach(([name, blocks], r) => {
+        const y = 20 + r * 90;
+        s += G(R(0, y, 200, 60, 30, C.ink) + TX(100, y + 37, name, 19, C.lime, 600));
+        s += LINE(`M200 ${y + 30}H230`);
+        blocks.forEach(([b, t], i) => {
+          const x = 230 + i * 190;
+          s += G(R(x, y, 172, 60, 14, C.card) + `<circle cx="${x + 20}" cy="${y + 30}" r="7" fill="${type[t]}"/>` + TX(x + 36, y + 36, b, 17, C.ink, 400, 'start'));
+          if (i < blocks.length - 1) s += LINE(`M${x + 172} ${y + 30}H${x + 190}`);
+        });
+      });
+      return SVG(1180, 170, s);
+    },
+
+    // Lineage dbt: nguồn + seed → stg_ → int_ → dim_, fact_; dấu tích = model có dbt test
+    '1.6': () => {
+      const node = (x, y, h, t, sub, fill, test) => G(R(x, y, 210, h, 18, fill) + TX(x + 24, y + h / 2 - 4, t, 24, C.ink, 600, 'start')
+        + TX(x + 24, y + h / 2 + 24, sub, 18, fill === C.card ? C.ink3 : C.ink2, 400, 'start')
+        + (test ? `<circle cx="${x + 186}" cy="${y + 24}" r="13" fill="${C.lime2}"/>` + ICON('check', x + 176, y + 14, 20, C.ink, 3) : ''));
+      return SVG(1180, 184,
+        node(0, 8, 76, 'staging', '8 bảng nguồn', C.card) + node(0, 100, 76, 'seed', '2 bảng bổ sung', C.card)
+        + CURVE(210, 46, 320, 80) + CURVE(210, 138, 320, 104)
+        + node(320, 50, 84, 'stg_', '8 view', C.card, 1) + ARROW(530, 92, 630, 92)
+        + node(630, 50, 84, 'int_', '3 view', C.card, 1)
+        + CURVE(840, 92, 950, 46) + CURVE(840, 92, 950, 138)
+        + node(950, 8, 76, 'dim_', '6 bảng', C.card, 1) + node(950, 100, 76, 'fact_', '3 bảng', C.lime, 1));
+    },
+
+    // Lịch chạy → mỗi lần chạy nạp batch kế tiếp → dashboard giám sát ETL
+    '2.1': () => {
+      let s = G(R(0, 30, 200, 120, 20, C.card) + ICON('clock', 80, 44, 40, C.ink) + TX(100, 128, 'Lịch chạy', 22, C.ink, 600));
+      s += ARROW(200, 90, 262, 90) + LINE('M280 90H912', C.lav, 4);
+      for (let i = 0; i < 6; i++) {
+        const x = 300 + i * 118;
+        s += G(`<circle cx="${x}" cy="90" r="22" fill="${C.lime2}"/>` + ICON('check', x - 11, 79, 22, C.ink, 3) + TX(x, 140, '2018-0' + (i + 1), 16, C.ink2));
+      }
+      s += ARROW(920, 90, 968, 90);
+      s += G(R(968, 20, 212, 140, 20, C.card) + ICON('monitor', 1054, 36, 40, C.ink) + TX(1074, 128, 'Giám sát ETL', 22, C.ink, 600));
+      return SVG(1180, 180, s);
+    },
+
+    // KPI → mô hình ngôn ngữ → tóm tắt và giải thích
+    '2.5': () => {
+      const kpi = (x, label, glyph) => G(R(x, 35, 150, 120, 18, C.card) + TX(x + 75, 70, label, 18, C.ink2, 600) + glyph);
+      const line = x => `<path d="M${x + 22} 132L${x + 50} 118L${x + 76} 124L${x + 102} 100L${x + 128} 92" fill="none" stroke="${C.lime2}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
+      const cols = x => [26, 18, 34, 22, 30].map((h, i) => R(x + 26 + i * 21, 140 - h, 14, h, 4, i === 2 ? C.blue : C.lav)).join('');
+      const dots = x => [0, 1, 2, 3, 4].map(i => `<circle cx="${x + 35 + i * 20}" cy="118" r="7" fill="${i < 4 ? C.lime2 : C.bg}"/>`).join('');
+      const out = (y, label) => G(R(820, y, 360, 70, 18, C.card) + ICON('doc', 842, y + 15, 40, C.ink) + TX(896, y + 44, label, 22, C.ink, 600, 'start'));
+      return SVG(1180, 190,
+        kpi(0, 'Doanh thu', line(0)) + kpi(166, 'Giao trễ', cols(166)) + kpi(332, 'Đánh giá', dots(332))
+        + ARROW(482, 95, 574, 95)
+        + G(`<circle cx="640" cy="95" r="62" fill="${C.ink}"/>` + ICON('spark', 616, 54, 48, C.lime, 1.8) + TX(640, 136, 'LLM', 17, C.lime, 600))
+        + CURVE(702, 95, 818, 55) + CURVE(702, 95, 818, 135)
+        + out(20, 'Tóm tắt KPI') + out(100, 'Giải thích biến động'));
+    },
+  };
+
+  // Ảnh thu nhỏ của trang dashboard: vị trí, cỡ và loại visual lấy từ bi-pbip (definition/pages/*/visuals),
+  // màu nền 4 thẻ KPI cũng lấy từ file. Toạ độ theo trang 1280×720.
+  const KPI4 = [[192, C.lime], [463, C.lav], [734, C.card], [1005, C.ink]].map(([x, c]) => ['card', x, 74, 258, 116, c]);
+  const PAGES = {
+    '2.2': { nav: 0, visuals: [
+      ['box', 608, 466, 656, 241],
+      ['card', 192, 74, 204, 116, C.lime], ['card', 409, 74, 204, 116, C.lav], ['card', 626, 74, 204, 116, C.card],
+      ['card', 843, 74, 204, 116, C.card], ['card', 1060, 74, 204, 116, C.ink],
+      ['line', 192, 204, 487, 251], ['combo', 690, 204, 574, 251],
+      ['hbar', 192, 465, 405, 241], ['map', 634, 488, 200, 210], ['donut', 843, 476, 410, 222]] },
+    '2.3': { nav: 1, visuals: [...KPI4,
+      ['line', 192, 204, 531, 275], ['hbar', 734, 204, 530, 275],
+      ['col', 192, 491, 531, 215], ['combo', 734, 491, 530, 215]] },
+    '2.4': { nav: 2, visuals: [...KPI4,
+      ['col', 192, 204, 531, 275], ['combo', 734, 204, 530, 275],
+      ['scatter', 192, 491, 531, 215], ['table', 734, 491, 530, 215]] },
+  };
+  const GLYPH = {
+    box: (x, y, w, h) => R(x, y, w, h, 12, C.card),
+    card: (x, y, w, h, c) => {
+      const dark = c === C.ink, soft = dark ? C.ink2 : c === C.card ? C.bg : C.card;
+      return R(x, y, w, h, 12, c) + R(x + 18, y + 22, w * .42, 11, 5, soft) + R(x + 18, y + 46, w * .5, 26, 8, dark ? C.lime : C.ink) + R(x + 18, y + 86, w * .32, 10, 5, soft);
+    },
+    frame: (x, y, w, h) => R(x, y, w, h, 12, C.card) + R(x + 18, y + 18, w * .38, 12, 6, C.bg),
+    line: (x, y, w, h) => {
+      const v = [.45, .52, .4, .6, .55, .7, .62, .8, .74, .88, .8, .95];
+      const pts = v.map((k, i) => `${(x + 28 + i * (w - 56) / (v.length - 1)).toFixed(0)},${(y + h - 24 - k * (h - 70)).toFixed(0)}`).join(' ');
+      return GLYPH.frame(x, y, w, h) + `<polyline points="${pts}" fill="none" stroke="${C.lime2}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>`;
+    },
+    col: (x, y, w, h, line) => {
+      const v = [.35, .48, .42, .6, .55, .72, .64, .82, .7, .9, .78, .66], n = v.length, bw = (w - 56) / n;
+      let s = GLYPH.frame(x, y, w, h);
+      v.forEach((k, i) => { const bh = k * (h - 70); s += R(x + 28 + i * bw + bw * .18, y + h - 22 - bh, bw * .64, bh, 4, C.lav); });
+      if (line) {
+        const pts = v.map((k, i) => `${(x + 28 + i * bw + bw / 2).toFixed(0)},${(y + h - 30 - (1 - k * .8) * (h - 80)).toFixed(0)}`).join(' ');
+        s += `<polyline points="${pts}" fill="none" stroke="${C.lime2}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>`;
+      }
+      return s;
+    },
+    combo: (x, y, w, h) => GLYPH.col(x, y, w, h, true),
+    hbar: (x, y, w, h) => {
+      const v = [1, .84, .72, .63, .55, .48, .42, .36], bh = (h - 66) / v.length;
+      let s = GLYPH.frame(x, y, w, h);
+      v.forEach((k, i) => { s += R(x + 28, y + 48 + i * bh + bh * .2, k * (w - 70), bh * .6, 4, i < 2 ? C.blue : C.lav); });
+      return s;
+    },
+    map: (x, y, w, h) => {
+      const P = (pts, fill) => `<polygon points="${pts.map(([a, b]) => `${(x + a * w).toFixed(0)},${(y + b * h).toFixed(0)}`).join(' ')}" fill="${fill}"/>`;
+      return P([[.3, .04], [.56, .08], [.76, .2], [.97, .34], [.9, .5], [.76, .62], [.68, .8], [.52, .97], [.42, .84], [.38, .68], [.2, .6], [.04, .42], [.1, .24]], C.lav)
+        + P([[.5, .5], [.76, .62], [.68, .8], [.55, .74]], C.blue2) + P([[.55, .2], [.76, .2], [.9, .38], [.66, .42]], C.blue);
+    },
+    donut: (x, y, w, h) => {
+      const cx = x + w * .3, cy = y + h * .52, r = Math.min(w, h) * .3;
+      let s = '', off = 0;
+      [[45, C.lime2], [25, C.lav], [18, C.blue], [12, C.lav1]].forEach(([p, c]) => {
+        s += `<circle cx="${cx}" cy="${cy}" r="${r}" pathLength="100" fill="none" stroke="${c}" stroke-width="${r * .5}" stroke-dasharray="${p} ${100 - p}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"/>`;
+        off += p;
+      });
+      [C.lime2, C.lav, C.blue, C.lav1].forEach((c, i) => { s += R(x + w * .62, y + h * .28 + i * 36, 22, 22, 6, c) + R(x + w * .62 + 34, y + h * .28 + i * 36 + 5, 90 - i * 10, 12, 6, C.bg); });
+      return s;
+    },
+    scatter: (x, y, w, h) => {
+      const d = [[.08, .7], [.14, .55], [.2, .78], [.26, .4], [.3, .62], [.36, .5], [.42, .72], [.46, .3], [.52, .58], [.58, .45],
+                 [.64, .66], [.7, .25], [.76, .52], [.82, .38], [.88, .6], [.93, .2]];
+      let s = GLYPH.frame(x, y, w, h) + `<path d="M${x + 28} ${y + 70 + .45 * (h - 100)}H${x + w - 28}" fill="none" stroke="${C.ink3}" stroke-width="3" stroke-dasharray="10 8"/>`;
+      d.forEach(([a, b], i) => { s += `<circle cx="${x + 28 + a * (w - 56)}" cy="${y + 50 + b * (h - 80)}" r="8" fill="${b < .45 ? C.blue2 : C.lav}"/>`; });
+      return s;
+    },
+    table: (x, y, w, h) => {
+      let s = GLYPH.frame(x, y, w, h) + R(x + 18, y + 44, w - 36, 18, 5, C.bg);
+      for (let i = 0; i < 6; i++) {
+        const ry = y + 76 + i * 22;
+        s += R(x + 18, ry, w * .3, 9, 4, C.bg) + R(x + w * .42, ry, (w * .46) * (1 - i * .12), 9, 4, C.lime2);
+      }
+      return s;
+    },
+  };
+  function thumb(id) {
+    const p = PAGES[id];
+    let inner = R(0, 0, 1280, 720, 18, C.bg)
+      // thanh trên + thanh điều hướng bên trái của dashboard
+      + G(R(16, 14, 1248, 48, 12, C.card) + R(30, 23, 30, 30, 9, C.lime) + R(74, 32, 70, 12, 6, C.ink) + R(152, 32, 150, 12, 6, C.ink3) + R(1066, 17, 176, 41, 20, C.bg), 'ifa')
+      + G(R(16, 74, 164, 632, 12, C.card)
+        + [108, 154, 200].map((y, i) => i === p.nav ? R(22, y, 146, 40, 12, C.ink) + R(34, y + 12, 16, 16, 4, C.lime) + R(58, y + 15, 70, 10, 5, C.card)
+                                                    : R(34, y + 12, 16, 16, 4, C.ink3) + R(58, y + 15, 70, 10, 5, C.bg)).join('')
+        + [291, 375, 459].map(y => R(28, y, 140, 69, 10, C.bg)).join(''), 'ifa');
+    p.visuals.forEach(([t, ...a]) => { inner += G(GLYPH[t](...a)); });
+    return SVG(500, 290, G(R(0, 0, 500, 290, 22, C.card) + `<svg x="13" y="12" width="474" height="266" viewBox="0 0 1280 720">${inner}</svg>`, 'ipo', 0));
+  }
+  ['2.2', '2.3', '2.4'].forEach(id => { ILLU[id] = () => thumb(id); });
+
+  // ================= DỰNG SLIDE =================
+  const stage = document.getElementById('stage');
+  const hint = document.getElementById('hint');
+  const params = new URLSearchParams(location.search);
+  if (params.get('tinh') === '1') document.body.classList.add('tinh');
+
+  const ICON_BARS = '<svg viewBox="0 0 24 24"><rect x="4" y="11" width="4" height="9" rx="2"/><rect x="10" y="6" width="4" height="14" rx="2"/><rect x="16" y="3" width="4" height="17" rx="2"/></svg>';
+  const ICON_PLAY = '<svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="13" height="14" rx="3"/><path d="M15.5 10.2 21.5 7v10l-6-3.2z"/></svg>';
+  const ICON_CHECK = '<svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg>';
+  const ARROW_TO = '<svg class="to" viewBox="0 0 28 18"><path d="M3 9H24M17 3L24 9L17 15"/></svg>';
+  const WAVE = (w) => `<svg class="wave" viewBox="0 0 ${w} 30"><path pathLength="1" d="M6 18 C${w * .2} 6 ${w * .4} 28 ${w * .6} 14 S${w * .9} 8 ${w - 6} 17"/></svg>`;
+
+  // số đứng trước chữ (9 bảng, 99 nghìn, 6 bảng...) nối bằng khoảng trắng không ngắt để không bị tách xuống dòng
+  const glue = t => t.replace(/(\d) (?=\p{L})/gu, '$1 ');
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = glue(String(text)); return e; };
+  const delay = (e, s) => { e.style.setProperty('--d', s + 's'); return e; };
+  const html = (s) => { const t = document.createElement('template'); t.innerHTML = s.trim(); return t.content.firstChild; };
+  const video = s => +s.id[0];
+
+  function topbar(s) {
+    const bar = el('div', 'topbar');
+    const brand = el('div', 'brand');
+    const logo = el('span', 'logo'); logo.innerHTML = ICON_BARS;
+    brand.append(logo, el('b', null, 'Olist BI'), el('span', 'sep', '/'), el('span', 'grp', 'Nhóm 3'));
+    const pill = el('div', 'vpill'); pill.innerHTML = ICON_PLAY;
+    pill.append(el('span', null, 'Video demo phần ' + video(s)));
+    bar.append(brand, pill);
+    return bar;
+  }
+
+  function progress(s) {
+    const nav = el('div', 'progress');
+    STEPS[video(s)].forEach((label, i) => {
+      const n = i + 1;
+      const state = n < s.part ? 'done' : n === s.part ? 'now' : 'todo';
+      const step = el('div', 'step ' + state);
+      const badge = el('i');
+      if (state === 'done') badge.innerHTML = ICON_CHECK; else badge.textContent = n;
+      step.append(badge, el('span', null, label));
+      if (state === 'now') { delay(step, .7); delay(badge, .7); }
+      if (i) nav.append(html(ARROW_TO));
+      nav.append(step);
+    });
+    return nav;
+  }
+
+  function partSlide(s) {
+    const c = el('div', 'center');
+    const kick = el('div', 'kick');
+    const by = delay(el('span', 'byline a-fade', 'Trình bày: '), .2);
+    by.append(el('b', null, s.by));
+    kick.append(delay(el('span', 'chip a-pop', 'Phần ' + s.part), .05), by);
+    const wave = html(WAVE(520)); delay(wave.querySelector('path'), .4);
+    c.append(kick, delay(el('h1', 'title a-up', s.title), .12), wave, delay(el('p', 'desc a-up', s.desc), .28));
+    if (ILLU[s.id]) { const box = el('div', 'illu'); box.innerHTML = ILLU[s.id](); c.append(box); }
+    return [c, progress(s)];
+  }
+
+  function fullSlide(s) {
+    const c = el('div', 'center full');
+    if (s.kind === 'cover') c.append(delay(el('span', 'chip a-pop', s.kicker), .05));
+    else { const b = delay(el('div', 'badge a-pop'), .05); b.innerHTML = ICON_BARS; c.append(b); }
+    const wave = html(WAVE(620)); delay(wave.querySelector('path'), .45);
+    c.append(delay(el('h1', 'title a-up', s.title), .12), wave);
+    if (s.desc) c.append(delay(el('p', 'desc a-up', s.desc), .3));
+    if (s.kind === 'cover') {
+      const team = delay(el('div', 'team a-up'), .45);
+      team.append(el('b', null, GROUP[0] + ' '), document.createTextNode(GROUP[1]));
+      c.append(team);
+    }
+    return [c];
+  }
+
+  // Thứ tự hiện của hình minh họa: bắt đầu 0,42 giây, phần tử cuối bắt đầu chậm nhất 0,97 giây (+ 0,5 giây chạy)
+  function stagger(sec) {
+    const items = [...sec.querySelectorAll('[data-i]')]
+      .map((e, k) => [e, e.dataset.i === '' ? k : parseFloat(e.dataset.i)])
+      .sort((a, b) => a[1] - b[1]);
+    const step = items.length > 1 ? Math.min(.09, .55 / (items.length - 1)) : 0;
+    items.forEach(([e], k) => e.style.setProperty('--d', (.42 + k * step).toFixed(3) + 's'));
+  }
+
+  const slides = SLIDES.map(s => {
+    const sec = el('section', 'slide');
+    sec.dataset.id = s.id;
+    sec.append(topbar(s), ...(s.kind ? fullSlide(s) : partSlide(s)));
+    stagger(sec);
+    stage.append(sec);
+    return sec;
+  });
+
+  // ================= ĐIỀU KHIỂN =================
+  function fit() {
+    stage.style.setProperty('--k', Math.min(innerWidth / 1920, innerHeight / 1080));
+  }
+  addEventListener('resize', fit);
+  fit();
+
+  let cur = -1;
+  function go(i, replay) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    if (i === cur && !replay) return;
+    if (cur >= 0 && cur !== i) slides[cur].classList.remove('active');
+    const s = slides[i];
+    s.classList.remove('active'); void s.offsetWidth; s.classList.add('active');
+    cur = i;
+    params.set('s', SLIDES[i].id);
+    try { history.replaceState(null, '', '?' + params.toString()); } catch (e) { /* file:// trên vài trình duyệt */ }
+    if (hint.classList.contains('show')) showHint();
+  }
+
+  function showHint() {
+    const s = SLIDES[cur];
+    hint.innerHTML = `<b>Slide ${s.id}</b> (${cur + 1}/${SLIDES.length})`
+      + '<span class="k">← →</span>chuyển slide<span class="k">Home</span>slide đầu<span class="k">1</span><span class="k">2</span>bìa video'
+      + '<span class="k">R</span>chạy lại hiệu ứng<span class="k">F</span>toàn màn hình<span class="k">H</span>ẩn hướng dẫn';
+    hint.classList.add('show');
+  }
+
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    if (['ArrowRight', ' ', 'PageDown', 'Enter'].includes(k)) { e.preventDefault(); go(cur + 1); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); go(cur - 1); }
+    else if (k === 'Home') go(0);
+    else if (k === 'End') go(slides.length - 1);
+    else if (k === '1' || k === '2') go(SLIDES.findIndex(s => s.id === k + '.0'));
+    else if (k === 'r' || k === 'R') go(cur, true);
+    else if (k === 'f' || k === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+    else if (k === 'h' || k === 'H') { hint.classList.contains('show') ? hint.classList.remove('show') : showHint(); }
+  });
+
+  // con trỏ chuột tự ẩn sau 2 giây đứng yên
+  let idleT = 0;
+  const idle = () => { clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 2000); };
+  document.addEventListener('mousemove', () => { document.body.classList.remove('idle'); idle(); });
+  idle();
+
+  const start = Math.max(0, SLIDES.findIndex(s => s.id === params.get('s')));
+  // chờ font tải xong để chữ không nhảy khi hiệu ứng đang chạy
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => go(start), () => go(start));
+})();
+</script>
+</body>
+</html>
