@@ -22,9 +22,12 @@
 | Python visual trong Power BI gọi API | Chỉ chạy trong Desktop, API key nằm trong file `.pbix` chia sẻ, chữ hiện dạng ảnh | Không |
 | **App Streamlit đi kèm + nút "Hỏi AI" trên Power BI** | Đề cho phép "API, ứng dụng Python"; key nằm trong `.env` trên máy; giao diện chat thật | **Có** |
 
-Mỗi trang dashboard có nút **Hỏi AI** ở header. Nút mở app với đúng trang và bộ lọc đang chọn: một measure DAX ghép
-link theo slicer, VD `http://localhost:8501/?bieu_do=Q5_1&nam=2018&thang=3`. Người dùng xem biểu đồ trên Power BI
-rồi hỏi tiếp ngay trên app mà không phải chọn lại bộ lọc.
+Mỗi trang dashboard có một **robot trợ lý** nhỏ (trắng, kính xanh) ở header: ảnh SVG động, robot nhấp nhô và cứ 5 giây lại bật
+một đám mây chat ("Chào bạn 👋 Cần mình giải thích biểu đồ không?", "Tháng nào giao trễ bất thường? Hỏi mình nè!",
+"Bấm vào mình để hỏi AI nhé ✨") để gợi ý người dùng hỏi. Bấm vào robot (nút trong suốt phủ lên ảnh) sẽ mở app với
+đúng trang và bộ lọc đang chọn: một measure DAX ghép link theo slicer, VD
+`http://localhost:8501/?bieu_do=Q5_1&nam=2018&thang=3`. Người dùng xem biểu đồ trên Power BI rồi hỏi tiếp ngay trên
+app mà không phải chọn lại bộ lọc.
 
 ## 3. Lựa chọn LLM
 
