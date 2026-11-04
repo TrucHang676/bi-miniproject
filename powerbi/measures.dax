@@ -949,3 +949,37 @@ Màu so cùng kỳ người bán =
 // [Định dạng]  Màu trung vị doanh thu NB  |  thư mục: 3 Người bán\Định dạng  |  định dạng: chữ
 // Màu dòng phụ thẻ K11 (trung vị thấp hơn nhiều trung bình -> đỏ như dòng giảm của trang 1).
 Màu trung vị doanh thu NB = "#D9483B"
+
+// =============================================================================
+// THƯ MỤC HIỂN THỊ: Hỏi AI  |  thêm 04/11/2026 cho nút "✦ Hỏi AI" ở header 3 trang (phần AI, ai/README.md)
+// Link mở app Streamlit ai/app.py với đúng trang + slicer đang chọn; slicer không chọn hoặc chọn nhiều giá trị
+// thì bỏ tham số đó (app hiểu là không lọc). Nút dùng measure qua Action -> Web URL (fx).
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// [Hỏi AI]  Link hỏi AI trang 1  |  thư mục: Hỏi AI  |  định dạng: chữ
+// Link nút Hỏi AI trang Tổng quan: mở biểu đồ Q1_1, mang theo nam, thang, vung, bang nếu slicer chọn đúng 1 giá trị.
+Link hỏi AI trang 1 =
+    "http://localhost:8501/?bieu_do=Q1_1"
+        & IF ( HASONEVALUE ( dim_date[year] ), "&nam=" & VALUES ( dim_date[year] ) )
+        & IF ( HASONEVALUE ( dim_date[month] ), "&thang=" & VALUES ( dim_date[month] ) )
+        & IF ( HASONEVALUE ( dim_geography[region] ), "&vung=" & VALUES ( dim_geography[region] ) )
+        & IF ( HASONEVALUE ( dim_geography[state_code] ), "&bang=" & VALUES ( dim_geography[state_code] ) )
+
+// -----------------------------------------------------------------------------
+// [Hỏi AI]  Link hỏi AI trang 2  |  thư mục: Hỏi AI  |  định dạng: chữ
+// Link nút Hỏi AI trang Giao hàng: mở biểu đồ Q3_1, mang theo nam, thang, vung nếu slicer chọn đúng 1 giá trị.
+Link hỏi AI trang 2 =
+    "http://localhost:8501/?bieu_do=Q3_1"
+        & IF ( HASONEVALUE ( dim_date[year] ), "&nam=" & VALUES ( dim_date[year] ) )
+        & IF ( HASONEVALUE ( dim_date[month] ), "&thang=" & VALUES ( dim_date[month] ) )
+        & IF ( HASONEVALUE ( dim_geography[region] ), "&vung=" & VALUES ( dim_geography[region] ) )
+
+// -----------------------------------------------------------------------------
+// [Hỏi AI]  Link hỏi AI trang 3  |  thư mục: Hỏi AI  |  định dạng: chữ
+// Link nút Hỏi AI trang Người bán: mở biểu đồ Q5_1, mang theo nam, thang, bang_nb nếu slicer chọn đúng 1 giá trị.
+Link hỏi AI trang 3 =
+    "http://localhost:8501/?bieu_do=Q5_1"
+        & IF ( HASONEVALUE ( dim_date[year] ), "&nam=" & VALUES ( dim_date[year] ) )
+        & IF ( HASONEVALUE ( dim_date[month] ), "&thang=" & VALUES ( dim_date[month] ) )
+        & IF ( HASONEVALUE ( dim_seller[seller_state] ), "&bang_nb=" & VALUES ( dim_seller[seller_state] ) )
