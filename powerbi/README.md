@@ -71,9 +71,9 @@ Hai cột chỉ để hiển thị, không có trong `dds`; công thức đầy 
 ### Measures (DAX)
 > Toàn bộ DAX được sao lưu trong `measures.dax`.
 
-77 measure trong bảng `_Measures` (đo ngày 03/11/2026, sau khi xong trang 3):
-- 27 measure ở thư mục chính `0 Phụ`, `1 Tổng quan`, `2 Giao hàng`, `3 Người bán` – liệt kê ở bảng dưới, trừ `Điểm TB toàn sàn` (K8 bỏ lọc trạng thái giao hàng, đường TB sàn trang 2);
-- 50 measure hiển thị ở thư mục con `Thẻ KPI` (số và dòng phụ trên thẻ, dạng chữ), `Định dạng` (màu theo ngưỡng) và `Tiêu đề` (câu kết luận Q5, Q6 – còn trong model nhưng không gắn vào biểu đồ). Không dùng trong công thức khác.
+81 measure trong bảng `_Measures` (đo ngày 03/11/2026, sau khi xong trang 3; 04/11/2026 thêm 4 measure trang 2 khi đối chiếu yêu cầu mục 3.1.2):
+- 29 measure ở thư mục chính `0 Phụ`, `1 Tổng quan`, `2 Giao hàng`, `3 Người bán` – liệt kê ở bảng dưới, trừ `Điểm TB toàn sàn` (K8 bỏ lọc trạng thái giao hàng, đường TB sàn trang 2);
+- 52 measure hiển thị ở thư mục con `Thẻ KPI` (số và dòng phụ trên thẻ, dạng chữ), `Định dạng` (màu theo ngưỡng) và `Tiêu đề` (câu kết luận Q5, Q6 – còn trong model nhưng không gắn vào biểu đồ). Không dùng trong công thức khác.
 
 Mô tả đầy đủ nằm ở ô *Description* của từng measure; định nghĩa nghiệp vụ: [business_questions.md](../docs/business_questions.md) mục 6.
 
@@ -93,6 +93,8 @@ Mô tả đầy đủ nằm ở ô *Description* của từng measure; định n
 | `Thời gian giao TB` | K7 | 2 Giao hàng | Số ngày từ lúc đặt đến lúc khách nhận (mỗi đơn 1 lần) | 2 (thẻ) |
 | `Điểm đánh giá TB` | K8 | 2 Giao hàng | Điểm hài lòng trung bình, 1 điểm / đơn | 2 (thẻ, Q4); 3 (Q6) |
 | `Tỉ lệ đánh giá tiêu cực` | K9 | 2 Giao hàng | % đơn bị đánh giá 1–2 sao | 2 (thẻ) |
+| `Số lượt đánh giá` | Q4 | 2 Giao hàng | Số đơn có đánh giá (1 lượt / đơn, đánh giá mới nhất) – mẫu số của K8 | 2 (tooltip điểm theo mức trễ) |
+| `Chênh lệch điểm trễ` | Q4 | 2 Giao hàng | Điểm TB đơn đúng hạn − điểm TB đơn giao trễ (2,02★ trong kỳ) | – (phụ đề `Phụ đề điểm theo mức trễ`) |
 | `Số người bán hoạt động` | K10 | 3 Người bán | Số người bán có ≥ 1 đơn hợp lệ (đếm trên fact) | 3 (thẻ) |
 | `Doanh thu TB mỗi người bán` | K11 | 3 Người bán | K1 / K10 | 3 (thẻ) |
 | `Tỉ lệ bàn giao trễ` | K12 | 3 Người bán | % lượt (đơn, người bán) bàn giao sau hạn | 3 (thẻ, Q5, Q6) |

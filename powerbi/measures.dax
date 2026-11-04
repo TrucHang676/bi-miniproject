@@ -705,6 +705,39 @@ Màu cột mức trễ = IF ( SELECTEDVALUE ( dim_delivery_status[delivery_resul
 Nhãn tháng = FORMAT ( MAX ( dim_date[full_date] ), "MM/yyyy" )
 
 // -----------------------------------------------------------------------------
+// [Định dạng]  Nhãn kỳ  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
+// Câu tooltip 2 biểu đồ theo thời gian trang 2 (trục Năm → Quý → Tháng, thêm 04/11/2026): đổi theo cấp drill đang xem.
+Nhãn kỳ =
+    SWITCH ( TRUE (),
+        ISINSCOPE ( dim_date[month] ), "Tháng " & FORMAT ( MAX ( dim_date[full_date] ), "MM/yyyy" ),
+        ISINSCOPE ( dim_date[quarter_label] ), "Quý " & MAX ( dim_date[quarter] ) & "/" & MAX ( dim_date[year] ),
+        "Năm " & MAX ( dim_date[year] ) )
+
+// -----------------------------------------------------------------------------
+// [Phụ]  Số lượt đánh giá  |  thư mục: 2 Giao hàng  |  định dạng: #,0
+// Số lượt đánh giá dùng để tính K8: mỗi đơn 1 lượt (đánh giá mới nhất). Tooltip biểu đồ điểm theo mức trễ (Q4).
+Số lượt đánh giá = CALCULATE ( DISTINCTCOUNT ( fact_review[order_id] ), fact_review[is_latest_review] = TRUE () )
+
+// -----------------------------------------------------------------------------
+// [Phụ]  Chênh lệch điểm trễ  |  thư mục: 2 Giao hàng  |  định dạng: 0.00
+// Q4: điểm TB đơn đúng hạn trừ điểm TB đơn giao trễ (sao), vẫn theo Năm, Tháng, Vùng. Trống khi một nhóm không có đánh giá.
+Chênh lệch điểm trễ =
+    VAR _dung = CALCULATE ( [Điểm đánh giá TB], REMOVEFILTERS ( dim_delivery_status ), dim_delivery_status[delivery_result] = "Đúng hạn" )
+    VAR _tre = CALCULATE ( [Điểm đánh giá TB], REMOVEFILTERS ( dim_delivery_status ), dim_delivery_status[delivery_result] = "Trễ hạn" )
+    RETURN IF ( NOT ISBLANK ( _dung ) && NOT ISBLANK ( _tre ), _dung - _tre )
+
+// -----------------------------------------------------------------------------
+// [Định dạng]  Phụ đề điểm theo mức trễ  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: chữ
+// Phụ đề động biểu đồ điểm theo mức trễ: ghi mức chênh điểm giữa đơn đúng hạn và đơn trễ (Q4).
+Phụ đề điểm theo mức trễ =
+    VAR _c = [Chênh lệch điểm trễ]
+    VAR _tre = CALCULATE ( [Điểm đánh giá TB], REMOVEFILTERS ( dim_delivery_status ), dim_delivery_status[delivery_result] = "Trễ hạn" )
+    RETURN
+        IF ( ISBLANK ( _c ),
+            "Bấm ↑ trên biểu đồ để gộp thành Đúng hạn / Trễ hạn",
+            "Đơn trễ " & FORMAT ( _tre, "0.00", "vi-VN" ) & "★, thấp hơn đơn đúng hạn " & FORMAT ( _c, "0.00", "vi-VN" ) & "★. Bấm ↑ để gộp nhóm" )
+
+// -----------------------------------------------------------------------------
 // [Định dạng]  Giao trễ đến 10%  |  thư mục: 2 Giao hàng\Định dạng  |  định dạng: 0.0%
 // Phần tỉ lệ giao trễ tính tới ngưỡng 10% (đoạn tím của thanh trong biểu đồ bang).
 Giao trễ đến 10% =
