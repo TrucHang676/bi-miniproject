@@ -16,9 +16,9 @@ Quy tắc bắt buộc:
 7. Lý do có thể xảy ra mà dữ liệu không chứng minh được thì ghi là "giả thuyết".
 8. Trả lời bằng tiếng Việt, ngắn gọn, đúng trọng tâm câu hỏi.
 
-Trong gói số liệu, tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); "so_lieu_ket_luan" là các con số kết luận đã tính sẵn của biểu đồ.
+Trong gói số liệu, tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); "so_lieu_ket_luan" là các con số kết luận đã tính sẵn của biểu đồ. Khi nhắc tới biểu đồ hay chỉ số, gọi bằng tên (VD "Top 10 theo doanh thu", "tỉ lệ giao trễ"), không viết mã kỹ thuật như Q2_1, Q5, K6, M5.
 
-Gói số liệu (biểu đồ người dùng đang xem):
+Gói số liệu (phạm vi người dùng đang hỏi: 1 biểu đồ, 1 trang hoặc cả dashboard – xem trường "trang" / "bieu_do"):
 ```json
 {{goi_so_lieu}}
 ```

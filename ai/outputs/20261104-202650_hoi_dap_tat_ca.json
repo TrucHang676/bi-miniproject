@@ -1,0 +1,911 @@
+{
+  "thoi_gian": "2026-11-04T20:26:50",
+  "che_do": "hoi_dap",
+  "bieu_do": "tat_ca",
+  "bo_loc": "không lọc (toàn kỳ 01/2017 – 08/2018)",
+  "dich_vu": "Gemini",
+  "model": "gemini-3.5-flash",
+  "model_loi_truoc": [],
+  "cau_hoi": "Trong cả dashboard, vấn đề nào đáng lo nhất?",
+  "goi_so_lieu_dau_vao": {
+    "trang": "Cả dashboard (3 trang)",
+    "bo_loc": "không lọc (toàn kỳ 01/2017 – 08/2018)",
+    "cac_trang": [
+      {
+        "trang": "Trang 1 – Tổng quan kinh doanh",
+        "bo_loc": "không lọc (toàn kỳ 01/2017 – 08/2018)",
+        "the_kpi": {
+          "K1": {
+            "ten": "Doanh thu",
+            "gia_tri": 13449529.68,
+            "ghi_chu": "+138.3% so cùng kỳ (01–08/2018 so với 01–08/2017)"
+          },
+          "K2": {
+            "ten": "Số đơn",
+            "gia_tri": 97905.0,
+            "ghi_chu": "+137.3% so cùng kỳ (01–08/2018 so với 01–08/2017)"
+          },
+          "K3": {
+            "ten": "Giá trị đơn TB",
+            "gia_tri": 137.3733,
+            "ghi_chu": "+0.4% so cùng kỳ (01–08/2018 so với 01–08/2017)"
+          },
+          "K4": {
+            "ten": "Số khách hàng",
+            "gia_tri": 94703.0,
+            "ghi_chu": "+138.6% so cùng kỳ (01–08/2018 so với 01–08/2017)"
+          },
+          "K5": {
+            "ten": "Tỉ lệ khách mua lại",
+            "gia_tri": 0.0226,
+            "ghi_chu": ""
+          }
+        },
+        "bieu_do": {
+          "Q1_1": {
+            "bieu_do": "Doanh thu theo tháng",
+            "cau_hoi_nghiep_vu": "Q1. Doanh thu theo tháng biến động thế nào, 01–08/2018 tăng bao nhiêu % so với cùng kỳ, và tăng nhờ số đơn hay nhờ giá trị đơn trung bình?",
+            "so_lieu_ket_luan": {
+              "thang_doanh_thu_cao_nhat": "11/2017",
+              "doanh_thu_thang_cao_nhat": 1003862.14,
+              "so_cung_ky": {
+                "ky_so_sanh": "01–08/2018 so với 01–08/2017",
+                "doanh_thu": {
+                  "2017": 3080850.81,
+                  "2018": 7341037.41,
+                  "tang_truong": 1.3828
+                },
+                "so_don": {
+                  "2017": 22562,
+                  "2018": 53530,
+                  "tang_truong": 1.3726
+                },
+                "gia_tri_don_tb": {
+                  "2017": 136.5504,
+                  "2018": 137.1388,
+                  "tang_truong": 0.0043
+                },
+                "so_khach": {
+                  "2017": 21936,
+                  "2018": 52336,
+                  "tang_truong": 1.3858
+                }
+              }
+            },
+            "don_vi_cot": {
+              "ky": "Tháng",
+              "doanh_thu": "Doanh thu (BRL)",
+              "so_don": "Số đơn",
+              "gia_tri_don_tb": "Giá trị đơn TB (BRL)",
+              "doanh_thu_cung_ky": "Doanh thu cùng kỳ (BRL)",
+              "tang_truong_cung_ky": "% so cùng kỳ"
+            },
+            "bang_so_lieu": [
+              {
+                "ky": "01/2017",
+                "doanh_thu": 120098.27,
+                "so_don": 787,
+                "gia_tri_don_tb": 152.6026,
+                "doanh_thu_cung_ky": null,
+                "tang_truong_cung_ky": null
+              },
+              {
+                "ky": "02/2017",
+                "doanh_thu": 244959.35,
+                "so_don": 1718,
+                "gia_tri_don_tb": 142.584,
+                "doanh_thu_cung_ky": null,
+                "tang_truong_cung_ky": null
+              },
+              {
+                "ky": "03/2017",
+                "doanh_thu": 368341.32,
+                "so_don": 2617,
+                "gia_tri_don_tb": 140.7495,
+                "doanh_thu_cung_ky": null,
+                "tang_truong_cung_ky": null
+              },
+              {
+                "ky": "04/2017",
+                "doanh_thu": 353842.98,
+                "so_don": 2377,
+                "gia_tri_don_tb": 148.8612,
+                "doanh_thu_cung_ky": null,
+                "tang_truong_cung_ky": null
+              },
+              {
+                "ky": "05/2017",
+                "doanh_thu": 503159.19,
+                "so_don": 3640,
+                "gia_tri_don_tb": 138.2305,
+                "doanh_thu_cung_ky": null,
+                "tang_truong_cung_ky": null
+              }
+            ],
+            "so_dong_bang": 20
+          },
+          "Q1_2": {
+            "bieu_do": "Số đơn và giá trị đơn trung bình theo tháng",
+            "cau_hoi_nghiep_vu": "Q1. Doanh thu theo tháng biến động thế nào, 01–08/2018 tăng bao nhiêu % so với cùng kỳ, và tăng nhờ số đơn hay nhờ giá trị đơn trung bình?",
+            "so_lieu_ket_luan": {
+              "so_cung_ky": {
+                "ky_so_sanh": "01–08/2018 so với 01–08/2017",
+                "doanh_thu": {
+                  "2017": 3080850.81,
+                  "2018": 7341037.41,
+                  "tang_truong": 1.3828
+                },
+                "so_don": {
+                  "2017": 22562,
+                  "2018": 53530,
+                  "tang_truong": 1.3726
+                },
+                "gia_tri_don_tb": {
+                  "2017": 136.5504,
+                  "2018": 137.1388,
+                  "tang_truong": 0.0043
+                },
+                "so_khach": {
+                  "2017": 21936,
+                  "2018": 52336,
+                  "tang_truong": 1.3858
+                }
+              }
+            },
+            "don_vi_cot": {
+              "ky": "Tháng",
+              "so_don": "Số đơn",
+              "gia_tri_don_tb": "Giá trị đơn TB (BRL)",
+              "doanh_thu": "Doanh thu (BRL)"
+            },
+            "bang_so_lieu": [
+              {
+                "ky": "01/2017",
+                "so_don": 787,
+                "gia_tri_don_tb": 152.6026,
+                "doanh_thu": 120098.27
+              },
+              {
+                "ky": "02/2017",
+                "so_don": 1718,
+                "gia_tri_don_tb": 142.584,
+                "doanh_thu": 244959.35
+              },
+              {
+                "ky": "03/2017",
+                "so_don": 2617,
+                "gia_tri_don_tb": 140.7495,
+                "doanh_thu": 368341.32
+              },
+              {
+                "ky": "04/2017",
+                "so_don": 2377,
+                "gia_tri_don_tb": 148.8612,
+                "doanh_thu": 353842.98
+              },
+              {
+                "ky": "05/2017",
+                "so_don": 3640,
+                "gia_tri_don_tb": 138.2305,
+                "doanh_thu": 503159.19
+              }
+            ],
+            "so_dong_bang": 20
+          },
+          "Q2_1": {
+            "bieu_do": "Top 10 danh mục theo doanh thu",
+            "cau_hoi_nghiep_vu": "Q2. 10 danh mục và 5 bang nào có doanh thu cao nhất, và chiếm bao nhiêu % tổng doanh thu?",
+            "so_lieu_ket_luan": {
+              "ti_trong_nhom_top10_danh_muc": 0.6241
+            },
+            "don_vi_cot": {
+              "danh_muc": "Danh mục",
+              "doanh_thu": "Doanh thu (BRL)",
+              "so_don": "Số đơn",
+              "ti_trong": "% tổng doanh thu"
+            },
+            "bang_so_lieu": [
+              {
+                "danh_muc": "Sức khỏe & làm đẹp",
+                "doanh_thu": 1251145.54,
+                "so_don": 8757,
+                "ti_trong": 0.093
+              },
+              {
+                "danh_muc": "Đồng hồ & quà tặng",
+                "doanh_thu": 1194824.97,
+                "so_don": 5599,
+                "ti_trong": 0.0888
+              },
+              {
+                "danh_muc": "Chăn ga, đồ tắm & bàn ăn",
+                "doanh_thu": 1035485.07,
+                "so_don": 9394,
+                "ti_trong": 0.077
+              },
+              {
+                "danh_muc": "Thể thao & giải trí",
+                "doanh_thu": 977728.77,
+                "so_don": 7656,
+                "ti_trong": 0.0727
+              },
+              {
+                "danh_muc": "Phụ kiện máy tính",
+                "doanh_thu": 902922.7,
+                "so_don": 6636,
+                "ti_trong": 0.0671
+              }
+            ],
+            "so_dong_bang": 10
+          },
+          "Q2_2": {
+            "bieu_do": "Doanh thu theo bang và vùng",
+            "cau_hoi_nghiep_vu": "Q2. 10 danh mục và 5 bang nào có doanh thu cao nhất, và chiếm bao nhiêu % tổng doanh thu?",
+            "so_lieu_ket_luan": {
+              "ti_trong_nhom_top5_bang": 0.7388,
+              "top5_bang": [
+                "SP",
+                "RJ",
+                "MG",
+                "RS",
+                "PR"
+              ],
+              "theo_vung": [
+                {
+                  "vung": "Sudeste",
+                  "doanh_thu": 8794685.26,
+                  "ti_trong": 0.6539
+                },
+                {
+                  "vung": "Sul",
+                  "doanh_thu": 1930565.23,
+                  "ti_trong": 0.1435
+                },
+                {
+                  "vung": "Nordeste",
+                  "doanh_thu": 1532195.96,
+                  "ti_trong": 0.1139
+                },
+                {
+                  "vung": "Centro-Oeste",
+                  "doanh_thu": 859469.14,
+                  "ti_trong": 0.0639
+                },
+                {
+                  "vung": "Norte",
+                  "doanh_thu": 332614.09,
+                  "ti_trong": 0.0247
+                }
+              ]
+            },
+            "don_vi_cot": {
+              "vung": "Vùng",
+              "bang": "Bang",
+              "ten_bang": "Tên bang",
+              "doanh_thu": "Doanh thu (BRL)",
+              "so_don": "Số đơn",
+              "ti_trong": "% tổng doanh thu"
+            },
+            "bang_so_lieu": [
+              {
+                "vung": "Sudeste",
+                "bang": "SP",
+                "ten_bang": "São Paulo",
+                "doanh_thu": 5150778.7,
+                "so_don": 41021,
+                "ti_trong": 0.383
+              },
+              {
+                "vung": "Sudeste",
+                "bang": "RJ",
+                "ten_bang": "Rio de Janeiro",
+                "doanh_thu": 1802436.24,
+                "so_don": 12654,
+                "ti_trong": 0.134
+              },
+              {
+                "vung": "Sudeste",
+                "bang": "MG",
+                "ten_bang": "Minas Gerais",
+                "doanh_thu": 1568855.98,
+                "so_don": 11457,
+                "ti_trong": 0.1166
+              },
+              {
+                "vung": "Sul",
+                "bang": "RS",
+                "ten_bang": "Rio Grande do Sul",
+                "doanh_thu": 739357.46,
+                "so_don": 5395,
+                "ti_trong": 0.055
+              },
+              {
+                "vung": "Sul",
+                "bang": "PR",
+                "ten_bang": "Paraná",
+                "doanh_thu": 674867.55,
+                "so_don": 4962,
+                "ti_trong": 0.0502
+              }
+            ],
+            "so_dong_bang": 27
+          }
+        },
+        "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); mỗi bảng chỉ gửi tối đa 5 dòng đầu."
+      },
+      {
+        "trang": "Trang 2 – Giao hàng & trải nghiệm khách hàng",
+        "bo_loc": "không lọc (toàn kỳ 01/2017 – 08/2018)",
+        "the_kpi": {
+          "K6": {
+            "ten": "Tỉ lệ giao trễ",
+            "gia_tri": 0.0679,
+            "ghi_chu": "6531 / 96203 đơn đã giao; mục tiêu ≤ 5%, cảnh báo > 10%"
+          },
+          "K7": {
+            "ten": "Thời gian giao TB",
+            "gia_tri": 12.5385,
+            "ghi_chu": ""
+          },
+          "K8": {
+            "ten": "Điểm đánh giá TB",
+            "gia_tri": 4.0886,
+            "ghi_chu": "mục tiêu ≥ 4,0, cảnh báo < 3,5"
+          },
+          "K9": {
+            "ten": "Tỉ lệ đánh giá 1–2★",
+            "gia_tri": 0.1463,
+            "ghi_chu": "mục tiêu ≤ 10%, cảnh báo > 20%"
+          }
+        },
+        "bieu_do": {
+          "Q3_1": {
+            "bieu_do": "Tỉ lệ giao trễ theo tháng",
+            "cau_hoi_nghiep_vu": "Q3. Những tháng nào có tỉ lệ giao trễ vượt 10%, và bang nào giao trễ nhiều nhất?",
+            "so_lieu_ket_luan": {
+              "nguong_canh_bao": 0.1,
+              "thang_vuot_nguong": [
+                {
+                  "ky": "11/2017",
+                  "ti_le_tre": 0.124
+                },
+                {
+                  "ky": "02/2018",
+                  "ti_le_tre": 0.1413
+                },
+                {
+                  "ky": "03/2018",
+                  "ti_le_tre": 0.1896
+                }
+              ]
+            },
+            "don_vi_cot": {
+              "ky": "Tháng",
+              "don_da_giao": "Đơn đã giao",
+              "don_tre": "Đơn giao trễ",
+              "ti_le_tre": "Tỉ lệ giao trễ"
+            },
+            "bang_so_lieu": [
+              {
+                "ky": "01/2017",
+                "don_da_giao": 750,
+                "don_tre": 22,
+                "ti_le_tre": 0.0293
+              },
+              {
+                "ky": "02/2017",
+                "don_da_giao": 1653,
+                "don_tre": 49,
+                "ti_le_tre": 0.0296
+              },
+              {
+                "ky": "03/2017",
+                "don_da_giao": 2546,
+                "don_tre": 116,
+                "ti_le_tre": 0.0456
+              },
+              {
+                "ky": "04/2017",
+                "don_da_giao": 2303,
+                "don_tre": 151,
+                "ti_le_tre": 0.0656
+              },
+              {
+                "ky": "05/2017",
+                "don_da_giao": 3545,
+                "don_tre": 106,
+                "ti_le_tre": 0.0299
+              }
+            ],
+            "so_dong_bang": 20
+          },
+          "Q3_2": {
+            "bieu_do": "10 bang giao trễ nhiều nhất",
+            "cau_hoi_nghiep_vu": "Q3. Những tháng nào có tỉ lệ giao trễ vượt 10%, và bang nào giao trễ nhiều nhất?",
+            "so_lieu_ket_luan": {
+              "nguong_canh_bao": 0.1,
+              "so_bang_vuot_nguong": 11,
+              "tong_so_bang": 27,
+              "ghi_chu": "Bang ít đơn thì tỉ lệ dao động mạnh, đọc kèm số đơn đã giao"
+            },
+            "don_vi_cot": {
+              "bang": "Bang",
+              "ten_bang": "Tên bang",
+              "vung": "Vùng",
+              "don_da_giao": "Đơn đã giao",
+              "don_tre": "Đơn giao trễ",
+              "ti_le_tre": "Tỉ lệ giao trễ"
+            },
+            "bang_so_lieu": [
+              {
+                "bang": "AL",
+                "ten_bang": "Alagoas",
+                "vung": "Nordeste",
+                "don_da_giao": 396,
+                "don_tre": 85,
+                "ti_le_tre": 0.2146
+              },
+              {
+                "bang": "MA",
+                "ten_bang": "Maranhão",
+                "vung": "Nordeste",
+                "don_da_giao": 713,
+                "don_tre": 125,
+                "ti_le_tre": 0.1753
+              },
+              {
+                "bang": "SE",
+                "ten_bang": "Sergipe",
+                "vung": "Nordeste",
+                "don_da_giao": 332,
+                "don_tre": 51,
+                "ti_le_tre": 0.1536
+              },
+              {
+                "bang": "PI",
+                "ten_bang": "Piauí",
+                "vung": "Nordeste",
+                "don_da_giao": 475,
+                "don_tre": 66,
+                "ti_le_tre": 0.1389
+              },
+              {
+                "bang": "CE",
+                "ten_bang": "Ceará",
+                "vung": "Nordeste",
+                "don_da_giao": 1273,
+                "don_tre": 176,
+                "ti_le_tre": 0.1383
+              }
+            ],
+            "so_dong_bang": 10
+          },
+          "Q4_1": {
+            "bieu_do": "Điểm đánh giá theo mức trễ",
+            "cau_hoi_nghiep_vu": "Q4. Đơn giao trễ bị đánh giá thấp hơn đơn đúng hạn bao nhiêu sao, và tháng giao trễ tăng thì điểm đánh giá chung có giảm theo không?",
+            "so_lieu_ket_luan": {
+              "diem_tb_toan_san": 4.0886,
+              "diem_tb_theo_ket_qua_giao": {
+                "Trễ hạn": 2.2706,
+                "Đúng hạn": 4.2912
+              },
+              "chenh_lech_dung_han_tru_tre_han": 2.0205
+            },
+            "don_vi_cot": {
+              "ket_qua": "Kết quả giao",
+              "muc_tre": "Mức trễ",
+              "diem_tb": "Điểm đánh giá TB (★)",
+              "so_don_co_danh_gia": "Đơn có đánh giá"
+            },
+            "bang_so_lieu": [
+              {
+                "ket_qua": "Đúng hạn",
+                "muc_tre": "Đúng hạn",
+                "diem_tb": 4.2912,
+                "so_don_co_danh_gia": 89182
+              },
+              {
+                "ket_qua": "Trễ hạn",
+                "muc_tre": "Trễ 1–3 ngày",
+                "diem_tb": 3.2907,
+                "so_don_co_danh_gia": 1851
+              },
+              {
+                "ket_qua": "Trễ hạn",
+                "muc_tre": "Trễ 4–7 ngày",
+                "diem_tb": 2.103,
+                "so_don_co_danh_gia": 1748
+              },
+              {
+                "ket_qua": "Trễ hạn",
+                "muc_tre": "Trễ 8–14 ngày",
+                "diem_tb": 1.6708,
+                "so_don_co_danh_gia": 1446
+              },
+              {
+                "ket_qua": "Trễ hạn",
+                "muc_tre": "Trễ > 14 ngày",
+                "diem_tb": 1.7247,
+                "so_don_co_danh_gia": 1333
+              }
+            ],
+            "so_dong_bang": 5
+          },
+          "Q4_2": {
+            "bieu_do": "Tỉ lệ giao trễ và điểm đánh giá theo tháng",
+            "cau_hoi_nghiep_vu": "Q4. Đơn giao trễ bị đánh giá thấp hơn đơn đúng hạn bao nhiêu sao, và tháng giao trễ tăng thì điểm đánh giá chung có giảm theo không?",
+            "so_lieu_ket_luan": {
+              "thang_tre_cao_nhat": "03/2018",
+              "thang_diem_thap_nhat": "03/2018",
+              "he_so_tuong_quan_tre_va_diem": -0.8392
+            },
+            "don_vi_cot": {
+              "ky": "Tháng",
+              "ti_le_tre": "Tỉ lệ giao trễ",
+              "don_da_giao": "Đơn đã giao",
+              "diem_tb": "Điểm đánh giá TB (★)"
+            },
+            "bang_so_lieu": [
+              {
+                "ky": "01/2017",
+                "ti_le_tre": 0.0293,
+                "don_da_giao": 750,
+                "diem_tb": 4.062
+              },
+              {
+                "ky": "02/2017",
+                "ti_le_tre": 0.0296,
+                "don_da_giao": 1653,
+                "diem_tb": 4.0164
+              },
+              {
+                "ky": "03/2017",
+                "ti_le_tre": 0.0456,
+                "don_da_giao": 2546,
+                "diem_tb": 4.074
+              },
+              {
+                "ky": "04/2017",
+                "ti_le_tre": 0.0656,
+                "don_da_giao": 2303,
+                "diem_tb": 4.044
+              },
+              {
+                "ky": "05/2017",
+                "ti_le_tre": 0.0299,
+                "don_da_giao": 3545,
+                "diem_tb": 4.1402
+              }
+            ],
+            "so_dong_bang": 20
+          }
+        },
+        "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); mỗi bảng chỉ gửi tối đa 5 dòng đầu."
+      },
+      {
+        "trang": "Trang 3 – Người bán & vận chuyển",
+        "bo_loc": "không lọc (toàn kỳ 01/2017 – 08/2018)",
+        "the_kpi": {
+          "K10": {
+            "ten": "Số người bán hoạt động",
+            "gia_tri": 3029,
+            "ghi_chu": "+94% và +1142 người bán so cùng kỳ 01–08 (1212 → 2354)"
+          },
+          "K11": {
+            "ten": "Doanh thu TB mỗi người bán",
+            "gia_tri": 4440.2541,
+            "ghi_chu": "trung vị chỉ 835 BRL"
+          },
+          "K12": {
+            "ten": "Tỉ lệ bàn giao trễ",
+            "gia_tri": 0.089,
+            "ghi_chu": "mục tiêu ≤ 5%, cảnh báo > 10%"
+          },
+          "K13": {
+            "ten": "Tỷ trọng doanh thu top 10% người bán",
+            "gia_tri": 0.6738,
+            "ghi_chu": "303 / 3029 người bán dẫn đầu"
+          }
+        },
+        "bieu_do": {
+          "Q5_1": {
+            "bieu_do": "Tỉ lệ giao trễ theo khâu bàn giao",
+            "cau_hoi_nghiep_vu": "Q5. Người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến là do người bán bàn giao chậm hay do vận chuyển kéo dài?",
+            "so_lieu_ket_luan": {
+              "ti_le_tre_moi_tuyen": {
+                "Đúng hạn": 0.0539,
+                "Trễ hạn": 0.2108
+              },
+              "so_don_moi_tuyen": {
+                "Đúng hạn": {
+                  "don_da_giao": 87456,
+                  "don_tre": 4717
+                },
+                "Trễ hạn": {
+                  "don_da_giao": 8592,
+                  "don_tre": 1811
+                }
+              },
+              "ban_giao_tre_gap_so_lan": 3.9079
+            },
+            "don_vi_cot": {
+              "ban_giao": "Người bán bàn giao",
+              "tuyen": "Tuyến",
+              "don_da_giao": "Đơn đã giao",
+              "don_tre": "Đơn giao trễ",
+              "ti_le_tre": "Tỉ lệ giao trễ"
+            },
+            "bang_so_lieu": [
+              {
+                "ban_giao": "Đúng hạn",
+                "tuyen": "Nội bang",
+                "don_da_giao": 31562,
+                "don_tre": 913,
+                "ti_le_tre": 0.0289
+              },
+              {
+                "ban_giao": "Đúng hạn",
+                "tuyen": "Liên bang",
+                "don_da_giao": 56130,
+                "don_tre": 3805,
+                "ti_le_tre": 0.0678
+              },
+              {
+                "ban_giao": "Trễ hạn",
+                "tuyen": "Nội bang",
+                "don_da_giao": 3128,
+                "don_tre": 649,
+                "ti_le_tre": 0.2075
+              },
+              {
+                "ban_giao": "Trễ hạn",
+                "tuyen": "Liên bang",
+                "don_da_giao": 5472,
+                "don_tre": 1162,
+                "ti_le_tre": 0.2124
+              }
+            ],
+            "so_dong_bang": 4
+          },
+          "Q5_2": {
+            "bieu_do": "Bàn giao trễ và thời gian vận chuyển theo tháng",
+            "cau_hoi_nghiep_vu": "Q5. Người bán bàn giao trễ làm tỉ lệ giao trễ tăng bao nhiêu lần, và các tháng giao trễ đột biến là do người bán bàn giao chậm hay do vận chuyển kéo dài?",
+            "so_lieu_ket_luan": {
+              "thang_dot_bien_K6_tren_10": [
+                {
+                  "ky": "11/2017",
+                  "ti_le_tre": 0.124,
+                  "ti_le_ban_giao_tre": 0.1278,
+                  "van_chuyen_tb": 11.0947
+                },
+                {
+                  "ky": "02/2018",
+                  "ti_le_tre": 0.1413,
+                  "ti_le_ban_giao_tre": 0.1221,
+                  "van_chuyen_tb": 13.3834
+                },
+                {
+                  "ky": "03/2018",
+                  "ti_le_tre": 0.1896,
+                  "ti_le_ban_giao_tre": 0.0841,
+                  "van_chuyen_tb": 12.9678
+                }
+              ],
+              "trung_binh_cong_cac_thang_con_lai": {
+                "ti_le_ban_giao_tre": 0.0928,
+                "van_chuyen_tb": 8.7243
+              }
+            },
+            "don_vi_cot": {
+              "ky": "Tháng",
+              "ti_le_ban_giao_tre": "Tỉ lệ bàn giao trễ",
+              "van_chuyen_tb": "Thời gian vận chuyển TB (ngày)",
+              "don_da_giao": "Đơn đã giao",
+              "don_tre": "Đơn giao trễ",
+              "ti_le_tre": "Tỉ lệ giao trễ"
+            },
+            "bang_so_lieu": [
+              {
+                "ky": "01/2017",
+                "ti_le_ban_giao_tre": 0.2247,
+                "van_chuyen_tb": 9.2179,
+                "don_da_giao": 750,
+                "don_tre": 22,
+                "ti_le_tre": 0.0293
+              },
+              {
+                "ky": "02/2017",
+                "ti_le_ban_giao_tre": 0.1784,
+                "van_chuyen_tb": 9.5595,
+                "don_da_giao": 1653,
+                "don_tre": 49,
+                "ti_le_tre": 0.0296
+              },
+              {
+                "ky": "03/2017",
+                "ti_le_ban_giao_tre": 0.069,
+                "van_chuyen_tb": 9.838,
+                "don_da_giao": 2546,
+                "don_tre": 116,
+                "ti_le_tre": 0.0456
+              },
+              {
+                "ky": "04/2017",
+                "ti_le_ban_giao_tre": 0.0738,
+                "van_chuyen_tb": 11.2351,
+                "don_da_giao": 2303,
+                "don_tre": 151,
+                "ti_le_tre": 0.0656
+              },
+              {
+                "ky": "05/2017",
+                "ti_le_ban_giao_tre": 0.0738,
+                "van_chuyen_tb": 8.3446,
+                "don_da_giao": 3545,
+                "don_tre": 106,
+                "ti_le_tre": 0.0299
+              }
+            ],
+            "so_dong_bang": 20
+          },
+          "Q6_1": {
+            "bieu_do": "Người bán có ≥ 30 đơn",
+            "cau_hoi_nghiep_vu": "Q6. Trong người bán có từ 30 đơn, ai có điểm TB < 3,5 hoặc bàn giao trễ > 10%, và 10 người nào doanh thu lớn nhất cần ưu tiên xử lý?",
+            "so_lieu_ket_luan": {
+              "nguong": "≥ 30 đơn và (điểm TB < 3,5 hoặc bàn giao trễ > 10%)",
+              "so_nguoi_ban_hoat_dong": 3029,
+              "so_nguoi_ban_tu_30_don": 633,
+              "ti_trong_doanh_thu_nhom_tu_30_don": 0.7712,
+              "so_nguoi_ban_can_xu_ly": 191,
+              "trong_do_diem_duoi_3_5": 25,
+              "trong_do_ban_giao_tre_tren_10": 188,
+              "trong_do_vi_pham_ca_hai": 22,
+              "ti_trong_doanh_thu_nguoi_ban_can_xu_ly": 0.2192
+            },
+            "don_vi_cot": {
+              "nguoi_ban": "Người bán",
+              "so_don": "Số đơn",
+              "doanh_thu": "Doanh thu (BRL)",
+              "diem_tb": "Điểm đánh giá TB (★)",
+              "ti_le_ban_giao_tre": "Tỉ lệ bàn giao trễ",
+              "canh_bao": "Vượt ngưỡng",
+              "can_xu_ly": "Vượt ngưỡng (M5)"
+            },
+            "bang_so_lieu": [
+              {
+                "nguoi_ban": "4869f7 · Guariba – SP",
+                "so_don": 1131,
+                "doanh_thu": 229237.63,
+                "diem_tb": 4.1335,
+                "ti_le_ban_giao_tre": 0.0548,
+                "canh_bao": "",
+                "can_xu_ly": false
+              },
+              {
+                "nguoi_ban": "532435 · Lauro de freitas – BA",
+                "so_don": 358,
+                "doanh_thu": 222776.05,
+                "diem_tb": 4.132,
+                "ti_le_ban_giao_tre": 0.0682,
+                "canh_bao": "",
+                "can_xu_ly": false
+              },
+              {
+                "nguoi_ban": "4a3ca9 · Ibitinga – SP",
+                "so_don": 1804,
+                "doanh_thu": 200326.12,
+                "diem_tb": 3.828,
+                "ti_le_ban_giao_tre": 0.0871,
+                "canh_bao": "",
+                "can_xu_ly": false
+              },
+              {
+                "nguoi_ban": "fa1c13 · Sumare – SP",
+                "so_don": 584,
+                "doanh_thu": 192842.13,
+                "diem_tb": 4.3391,
+                "ti_le_ban_giao_tre": 0.0808,
+                "canh_bao": "",
+                "can_xu_ly": false
+              },
+              {
+                "nguoi_ban": "7c67e1 · Itaquaquecetuba – SP",
+                "so_don": 982,
+                "doanh_thu": 187923.89,
+                "diem_tb": 3.4887,
+                "ti_le_ban_giao_tre": 0.2959,
+                "canh_bao": "Trễ 30% · 3,49★",
+                "can_xu_ly": true
+              }
+            ],
+            "so_dong_bang": 633
+          },
+          "Q6_2": {
+            "bieu_do": "10 người bán cần xử lý trước",
+            "cau_hoi_nghiep_vu": "Q6. Trong người bán có từ 30 đơn, ai có điểm TB < 3,5 hoặc bàn giao trễ > 10%, và 10 người nào doanh thu lớn nhất cần ưu tiên xử lý?",
+            "so_lieu_ket_luan": {
+              "nguong": "≥ 30 đơn và (điểm TB < 3,5 hoặc bàn giao trễ > 10%)",
+              "so_nguoi_ban_hoat_dong": 3029,
+              "so_nguoi_ban_tu_30_don": 633,
+              "ti_trong_doanh_thu_nhom_tu_30_don": 0.7712,
+              "so_nguoi_ban_can_xu_ly": 191,
+              "trong_do_diem_duoi_3_5": 25,
+              "trong_do_ban_giao_tre_tren_10": 188,
+              "trong_do_vi_pham_ca_hai": 22,
+              "ti_trong_doanh_thu_nguoi_ban_can_xu_ly": 0.2192,
+              "ti_trong_cua_top10_trong_doanh_thu_nhom_can_xu_ly": 0.3088
+            },
+            "don_vi_cot": {
+              "nguoi_ban": "Người bán",
+              "so_don": "Số đơn",
+              "doanh_thu": "Doanh thu (BRL)",
+              "diem_tb": "Điểm đánh giá TB (★)",
+              "ti_le_ban_giao_tre": "Tỉ lệ bàn giao trễ",
+              "canh_bao": "Vượt ngưỡng"
+            },
+            "bang_so_lieu": [
+              {
+                "nguoi_ban": "7c67e1 · Itaquaquecetuba – SP",
+                "so_don": 982,
+                "doanh_thu": 187923.89,
+                "diem_tb": 3.4887,
+                "ti_le_ban_giao_tre": 0.2959,
+                "canh_bao": "Trễ 30% · 3,49★"
+              },
+              {
+                "nguoi_ban": "1025f0 · Sao paulo – SP",
+                "so_don": 915,
+                "doanh_thu": 138968.55,
+                "diem_tb": 3.9901,
+                "ti_le_ban_giao_tre": 0.1772,
+                "canh_bao": "Trễ 18%"
+              },
+              {
+                "nguoi_ban": "7d13fc · Ribeirao preto – SP",
+                "so_don": 565,
+                "doanh_thu": 113628.97,
+                "diem_tb": 4.025,
+                "ti_le_ban_giao_tre": 0.1487,
+                "canh_bao": "Trễ 15%"
+              },
+              {
+                "nguoi_ban": "1f50f9 · Sao jose do rio preto – SP",
+                "so_don": 1403,
+                "doanh_thu": 106889.31,
+                "diem_tb": 4.133,
+                "ti_le_ban_giao_tre": 0.1097,
+                "canh_bao": "Trễ 11%"
+              },
+              {
+                "nguoi_ban": "3d871d · Campo limpo paulista – SP",
+                "so_don": 1076,
+                "doanh_thu": 94508.2,
+                "diem_tb": 4.1525,
+                "ti_le_ban_giao_tre": 0.13,
+                "canh_bao": "Trễ 13%"
+              }
+            ],
+            "so_dong_bang": 10
+          }
+        },
+        "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); mỗi bảng chỉ gửi tối đa 5 dòng đầu."
+      }
+    ]
+  },
+  "cong_cu_da_goi": [],
+  "tra_loi": "Dựa trên dữ liệu toàn bộ dashboard, **2 vấn đề đáng lo nhất** ảnh hưởng trực tiếp đến sự phát triển bền vững của sàn là:\n\n### 1. Trải nghiệm giao hàng kém do người bán bàn giao chậm\n* **Tỉ lệ giao trễ toàn sàn vượt mục tiêu:** Tỉ lệ giao trễ đạt **6,79%** (mục tiêu ≤ 5,0%).\n* **Ảnh hưởng tiêu cực đến điểm đánh giá:** Đơn trễ hạn chỉ đạt **2,27★**, thấp hơn **2,02★** so với đơn đúng hạn (**4,29★**) (phép tính: 4,2912 − 2,2706 = 2,0206★). Tỉ lệ giao trễ và điểm đánh giá TB có tương quan âm rất mạnh (**-0,8392**).\n* **Nguồn gốc từ khâu bàn giao:** Tỉ lệ bàn giao trễ của người bán đạt **8,9%** (mục tiêu ≤ 5,0%). Khi người bán bàn giao trễ, tỉ lệ giao trễ tăng từ **5,39%** lên **21,08%**, gấp **3,91 lần** (phép tính: 21,08% ÷ 5,39% ≈ 3,91 lần).\n* **Rủi ro tập trung ở nhóm người bán lớn:** Có **191 / 633** người bán (nhóm có ≥ 30 đơn) vi phạm ngưỡng chất lượng (điểm < 3,5★ hoặc bàn giao trễ > 10%), chiếm tới **21,92%** tổng doanh thu toàn sàn.\n\n### 2. Tỉ lệ khách hàng mua lại cực thấp\n* Tỉ lệ khách mua lại chỉ đạt **2,26%** (toàn sàn ghi nhận **94.703** khách hàng nhưng đa số chỉ mua 1 lần). \n* *Giả thuyết:* Việc giao hàng trễ và điểm đánh giá thấp ở các đơn trễ có thể là một trong những nguyên nhân khiến khách hàng không quay lại mua sắm.",
+  "kiem_so": {
+    "tong_so": 25,
+    "khop_du_lieu": 23,
+    "tu_tinh_dung": 2,
+    "khong_tim_thay": [],
+    "phep_tinh_ai_tu_lam": [
+      "2,0206 = 4,2912 − 2,2706",
+      "0,8392 = 21,92% − 21,08%"
+    ]
+  },
+  "token": {
+    "vao": 12228,
+    "ra": 470
+  }
+}

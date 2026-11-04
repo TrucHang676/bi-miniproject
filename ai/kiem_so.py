@@ -81,7 +81,8 @@ def kiem(tra_loi: str, *nguon) -> list[dict]:
     gia_tri = []
     for n in nguon:
         gia_tri += _gia_tri(n)
-    ung_vien = gia_tri + [v * 100 for v in gia_tri]  # tỉ lệ thập phân 0,0679 <-> 6,79%
+    # tỉ lệ thập phân 0,0679 <-> 6,79%; so trị tuyệt đối vì regex không lấy dấu "−" (VD tương quan −0,84)
+    ung_vien = [abs(v) for v in gia_tri] + [abs(v) * 100 for v in gia_tri]
     kq = []
     for s in tach_so(tra_loi):
         khop = any(

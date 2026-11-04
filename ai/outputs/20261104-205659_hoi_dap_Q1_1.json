@@ -1,0 +1,257 @@
+{
+  "thoi_gian": "2026-11-04T20:56:59",
+  "che_do": "hoi_dap",
+  "bieu_do": "Q1_1",
+  "bo_loc": "không lọc (toàn kỳ 01/2017 – 08/2018)",
+  "dich_vu": "Gemini",
+  "model": "gemini-3.5-flash-lite",
+  "model_loi_truoc": [
+    "Gemini gemini-3.5-flash: hết lượt miễn phí (429) – đợi khoảng 1 phút rồi hỏi lại"
+  ],
+  "cau_hoi": "Tháng nào doanh thu cao nhất, vì sao?",
+  "goi_so_lieu_dau_vao": {
+    "trang": "Trang 1 – Tổng quan kinh doanh",
+    "cau_hoi_nghiep_vu": "Q1. Doanh thu theo tháng biến động thế nào, 01–08/2018 tăng bao nhiêu % so với cùng kỳ, và tăng nhờ số đơn hay nhờ giá trị đơn trung bình?",
+    "bieu_do": "Doanh thu theo tháng",
+    "bo_loc": "không lọc (toàn kỳ 01/2017 – 08/2018)",
+    "the_kpi": {
+      "K1": {
+        "ten": "Doanh thu",
+        "gia_tri": 13449529.68,
+        "ghi_chu": "+138.3% so cùng kỳ (01–08/2018 so với 01–08/2017)"
+      },
+      "K2": {
+        "ten": "Số đơn",
+        "gia_tri": 97905.0,
+        "ghi_chu": "+137.3% so cùng kỳ (01–08/2018 so với 01–08/2017)"
+      },
+      "K3": {
+        "ten": "Giá trị đơn TB",
+        "gia_tri": 137.3733,
+        "ghi_chu": "+0.4% so cùng kỳ (01–08/2018 so với 01–08/2017)"
+      },
+      "K4": {
+        "ten": "Số khách hàng",
+        "gia_tri": 94703.0,
+        "ghi_chu": "+138.6% so cùng kỳ (01–08/2018 so với 01–08/2017)"
+      },
+      "K5": {
+        "ten": "Tỉ lệ khách mua lại",
+        "gia_tri": 0.0226,
+        "ghi_chu": ""
+      }
+    },
+    "so_lieu_ket_luan": {
+      "thang_doanh_thu_cao_nhat": "11/2017",
+      "doanh_thu_thang_cao_nhat": 1003862.14,
+      "so_cung_ky": {
+        "ky_so_sanh": "01–08/2018 so với 01–08/2017",
+        "doanh_thu": {
+          "2017": 3080850.81,
+          "2018": 7341037.41,
+          "tang_truong": 1.3828
+        },
+        "so_don": {
+          "2017": 22562,
+          "2018": 53530,
+          "tang_truong": 1.3726
+        },
+        "gia_tri_don_tb": {
+          "2017": 136.5504,
+          "2018": 137.1388,
+          "tang_truong": 0.0043
+        },
+        "so_khach": {
+          "2017": 21936,
+          "2018": 52336,
+          "tang_truong": 1.3858
+        }
+      }
+    },
+    "don_vi_cot": {
+      "ky": "Tháng",
+      "doanh_thu": "Doanh thu (BRL)",
+      "so_don": "Số đơn",
+      "gia_tri_don_tb": "Giá trị đơn TB (BRL)",
+      "doanh_thu_cung_ky": "Doanh thu cùng kỳ (BRL)",
+      "tang_truong_cung_ky": "% so cùng kỳ"
+    },
+    "bang_so_lieu": [
+      {
+        "ky": "01/2017",
+        "doanh_thu": 120098.27,
+        "so_don": 787,
+        "gia_tri_don_tb": 152.6026,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "02/2017",
+        "doanh_thu": 244959.35,
+        "so_don": 1718,
+        "gia_tri_don_tb": 142.584,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "03/2017",
+        "doanh_thu": 368341.32,
+        "so_don": 2617,
+        "gia_tri_don_tb": 140.7495,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "04/2017",
+        "doanh_thu": 353842.98,
+        "so_don": 2377,
+        "gia_tri_don_tb": 148.8612,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "05/2017",
+        "doanh_thu": 503159.19,
+        "so_don": 3640,
+        "gia_tri_don_tb": 138.2305,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "06/2017",
+        "doanh_thu": 429916.61,
+        "so_don": 3205,
+        "gia_tri_don_tb": 134.1393,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "07/2017",
+        "doanh_thu": 492287.3,
+        "so_don": 3946,
+        "gia_tri_don_tb": 124.756,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "08/2017",
+        "doanh_thu": 568245.79,
+        "so_don": 4272,
+        "gia_tri_don_tb": 133.0163,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "09/2017",
+        "doanh_thu": 621415.91,
+        "so_don": 4227,
+        "gia_tri_don_tb": 147.0111,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "10/2017",
+        "doanh_thu": 660179.62,
+        "so_don": 4547,
+        "gia_tri_don_tb": 145.1902,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "11/2017",
+        "doanh_thu": 1003862.14,
+        "so_don": 7421,
+        "gia_tri_don_tb": 135.2732,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "12/2017",
+        "doanh_thu": 742183.79,
+        "so_don": 5618,
+        "gia_tri_don_tb": 132.1082,
+        "doanh_thu_cung_ky": null,
+        "tang_truong_cung_ky": null
+      },
+      {
+        "ky": "01/2018",
+        "doanh_thu": 945456.29,
+        "so_don": 7187,
+        "gia_tri_don_tb": 131.5509,
+        "doanh_thu_cung_ky": 120098.27,
+        "tang_truong_cung_ky": 6.8724
+      },
+      {
+        "ky": "02/2018",
+        "doanh_thu": 837895.43,
+        "so_don": 6624,
+        "gia_tri_don_tb": 126.4939,
+        "doanh_thu_cung_ky": 244959.35,
+        "tang_truong_cung_ky": 2.4205
+      },
+      {
+        "ky": "03/2018",
+        "doanh_thu": 981051.06,
+        "so_don": 7168,
+        "gia_tri_don_tb": 136.8654,
+        "doanh_thu_cung_ky": 368341.32,
+        "tang_truong_cung_ky": 1.6634
+      },
+      {
+        "ky": "04/2018",
+        "doanh_thu": 993592.98,
+        "so_don": 6919,
+        "gia_tri_don_tb": 143.6036,
+        "doanh_thu_cung_ky": 353842.98,
+        "tang_truong_cung_ky": 1.808
+      },
+      {
+        "ky": "05/2018",
+        "doanh_thu": 992871.75,
+        "so_don": 6833,
+        "gia_tri_don_tb": 145.3054,
+        "doanh_thu_cung_ky": 503159.19,
+        "tang_truong_cung_ky": 0.9733
+      },
+      {
+        "ky": "06/2018",
+        "doanh_thu": 863265.53,
+        "so_don": 6145,
+        "gia_tri_don_tb": 140.4826,
+        "doanh_thu_cung_ky": 429916.61,
+        "tang_truong_cung_ky": 1.008
+      },
+      {
+        "ky": "07/2018",
+        "doanh_thu": 878044.27,
+        "so_don": 6233,
+        "gia_tri_don_tb": 140.8703,
+        "doanh_thu_cung_ky": 492287.3,
+        "tang_truong_cung_ky": 0.7836
+      },
+      {
+        "ky": "08/2018",
+        "doanh_thu": 848860.1,
+        "so_don": 6421,
+        "gia_tri_don_tb": 132.2006,
+        "doanh_thu_cung_ky": 568245.79,
+        "tang_truong_cung_ky": 0.4938
+      }
+    ],
+    "so_dong_bang": 20,
+    "ghi_chu": "Tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); tiền BRL; điểm 1–5 sao."
+  },
+  "cong_cu_da_goi": [],
+  "tra_loi": "Tháng có doanh thu cao nhất trong giai đoạn 01/2017 – 08/2018 là **11/2017** với **1.003.862,14 BRL** (và số lượng đơn hàng đạt 7.421 đơn).\n\nVề nguyên nhân (\"vì sao\"): Dữ liệu hiện có không đủ để kết luận nguyên nhân chính xác dẫn đến mức doanh thu đỉnh điểm vào tháng 11/2017 (ví dụ: các chương trình khuyến mại, chiến dịch marketing hay sự kiện Black Friday). Do đó, bất kỳ lý do nào ngoài dữ liệu đều chỉ là giả thuyết.",
+  "kiem_so": {
+    "tong_so": 2,
+    "khop_du_lieu": 2,
+    "tu_tinh_dung": 0,
+    "khong_tim_thay": [],
+    "phep_tinh_ai_tu_lam": []
+  },
+  "token": {
+    "vao": 4244,
+    "ra": 145
+  }
+}

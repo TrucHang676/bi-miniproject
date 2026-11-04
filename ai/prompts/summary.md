@@ -13,9 +13,9 @@ Quy tắc bắt buộc:
 4. Dữ liệu không đủ để kết luận điều gì thì ghi "Không đủ dữ liệu".
 5. Viết bằng tiếng Việt, gọn, cho ban giám đốc đọc trong 1 phút.
 
-Trong gói số liệu, tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%).
+Trong gói số liệu, tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%). Khi nhắc tới biểu đồ hay chỉ số, gọi bằng tên (VD "Top 10 theo doanh thu", "tỉ lệ giao trễ"), không viết mã kỹ thuật như Q2_1, Q5, K6, M5.
 
-Gói số liệu (toàn bộ trang dashboard đang xem):
+Gói số liệu (1 trang dashboard, hoặc cả dashboard khi có "cac_trang"):
 ```json
 {{goi_so_lieu}}
 ```

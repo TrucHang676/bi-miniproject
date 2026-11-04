@@ -31,7 +31,7 @@ chấp nhận được, nhưng không gõ thông tin cá nhân vào ô chat.
 | `kiem_tra_so_lieu.py` | Đối chiếu số của `queries.py` với bảng nghiệm thu B6 (`powerbi/README.md`) |
 | `llm.py` | Gọi LLM (Gemini -> Groq -> Ollama), công cụ `lay_so_lieu` cho AI lấy số của biểu đồ khác, 3 chức năng `tom_tat_trang` / `giai_thich` / `hoi_dap`, ghi log |
 | `kiem_so.py` | Tách mọi con số trong câu trả lời AI, đối chiếu với dữ liệu AI được xem; số không khớp được tô cam |
-| `app.py` | App Streamlit: chọn trang / biểu đồ / bộ lọc, hiện thẻ KPI, biểu đồ, bảng số, gói số liệu gửi AI, nút Tóm tắt / Giải thích, ô chat |
+| `app.py` | App Streamlit bố cục giống dashboard: thanh bên chọn trang + bộ lọc, header, thẻ KPI tô màu, 4 biểu đồ của trang; khung Trợ lý AI hỏi theo phạm vi **1 biểu đồ** (nút 💬 Hỏi trên thẻ) / **cả trang** / **cả dashboard**, nút Tóm tắt / Giải thích, ô chat. Theme màu ở `.streamlit/config.toml` (gốc repo) |
 | `prompts/` | Prompt cho tóm tắt (`summary.md`), giải thích biến động (`explain_trend.md`), hỏi đáp (`qa.md`) – mỗi file có phần `## System` và `## User` |
 | `outputs/` | Log mỗi lần hỏi: số liệu đầu vào, công cụ AI đã gọi, câu trả lời, kết quả kiểm số, số token |
 

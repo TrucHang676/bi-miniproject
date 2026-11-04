@@ -264,13 +264,27 @@ def goi_so_lieu_trang(trang: int, bl: q.BoLoc, so_dong: int = 8) -> dict:
     })
 
 
-def tom_tat_trang(trang: int, bl: q.BoLoc, goi: dict) -> TraLoi:
+def goi_so_lieu_tat_ca(nam: int | None, thang: int | None, so_dong: int = 3) -> dict:
+    """Gói cho câu hỏi về cả dashboard: gói của cả 3 trang, cùng lọc năm / tháng (slicer Năm, Tháng đồng bộ 3 trang)."""
+    return {
+        "trang": "Cả dashboard (3 trang)",
+        "bo_loc": q.BoLoc(nam=nam, thang=thang).mo_ta(),
+        "cac_trang": [goi_so_lieu_trang(t, q.bo_loc_cua_trang(t, nam=nam, thang=thang), so_dong) for t in q.TRANG],
+    }
+
+
+def tom_tat(ma_log: str, bl: q.BoLoc, goi: dict) -> TraLoi:
+    """Tóm tắt 1 trang (goi_so_lieu_trang) hoặc cả dashboard (goi_so_lieu_tat_ca)."""
     he_thong, nguoi_dung = _doc_prompt("summary.md")
     tin_nhan = [
         {"role": "system", "content": _dien(he_thong, goi_so_lieu=goi)},
-        {"role": "user", "content": _dien(nguoi_dung, trang=goi["trang"], bo_loc=bl.mo_ta())},
+        {"role": "user", "content": _dien(nguoi_dung, trang=goi["trang"], bo_loc=goi["bo_loc"])},
     ]
-    return _hoan_tat("tom_tat", f"trang{trang}", bl, "", goi, _hoi(tin_nhan, dung_cong_cu=False))
+    return _hoan_tat("tom_tat", ma_log, bl, "", goi, _hoi(tin_nhan, dung_cong_cu=False))
+
+
+def tom_tat_trang(trang: int, bl: q.BoLoc, goi: dict) -> TraLoi:
+    return tom_tat(f"trang{trang}", bl, goi)
 
 
 def giai_thich(ma: str, bl: q.BoLoc, goi: dict) -> TraLoi:

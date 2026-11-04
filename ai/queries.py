@@ -550,7 +550,7 @@ def the_kpi(trang: int, bl: BoLoc) -> dict:
         k12 = _gia_tri(f"""SELECT COUNT(*) FILTER (WHERE ds.handover_status = 'Trễ hạn')::float
                                     / NULLIF(COUNT(*) FILTER (WHERE ds.handover_status IN ('Đúng hạn', 'Trễ hạn')), 0) AS v
                              FROM {_tu('fact_delivery')} {_DS} WHERE {w}""", ts).v
-        ghi_k10 = "Không có cùng kỳ để so"
+        ghi_k10, ck_k10 = "Không có cùng kỳ để so", None
         if bl.nam != 2017 and (bl.thang or 0) <= 8:
             w_ck, ts_ck = _loc(bl, bo_nam=True)
             ck = truy_van(f"""SELECT d.year AS nam, COUNT(DISTINCT f.seller_key) AS n FROM {_tu('fact_sales')}
@@ -560,10 +560,12 @@ def the_kpi(trang: int, bl: BoLoc) -> dict:
                 ky = f"tháng {bl.thang:02d}" if bl.thang else "01–08"
                 ghi_k10 = (f"{ck[2018] / ck[2017] - 1:+.0%} và {ck[2018] - ck[2017]:+d} người bán so cùng kỳ {ky} "
                            f"({ck[2017]} → {ck[2018]})")
+                ck_k10 = (ck[2017], ck[2018])
         return {
-            "K10": {"ten": "Số người bán hoạt động", "gia_tri": n, "kieu": "so", "ghi_chu": ghi_k10},
+            "K10": {"ten": "Số người bán hoạt động", "gia_tri": n, "kieu": "so", "ghi_chu": ghi_k10, "ck": ck_k10},
             "K11": {"ten": "Doanh thu TB mỗi người bán", "gia_tri": nb.dt.sum() / n if n else math.nan, "kieu": "brl",
-                    "ghi_chu": f"trung vị chỉ {so_vn(nb.dt.median(), 0)} BRL" if n else ""},
+                    "ghi_chu": f"trung vị chỉ {so_vn(nb.dt.median(), 0)} BRL" if n else "",
+                    "trung_vi": nb.dt.median() if n else None},
             "K12": {"ten": "Tỉ lệ bàn giao trễ", "gia_tri": k12, "kieu": "pct",
                     "ghi_chu": "mục tiêu ≤ 5%, cảnh báo > 10%"},
             "K13": {"ten": "Tỷ trọng doanh thu top 10% người bán",
@@ -571,6 +573,76 @@ def the_kpi(trang: int, bl: BoLoc) -> dict:
                     "ghi_chu": f"{so_top} / {n} người bán dẫn đầu"},
         }
     raise ValueError(f"Không có trang {trang}")
+
+
+def _theo_nguong(v, tot: float, xau: float, nho_la_tot: bool, don_vi: str) -> tuple[str, str]:
+    """Dòng phụ thẻ theo ngưỡng, cùng chữ với các measure '… so mục tiêu' trong measures.dax."""
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return "Chưa có số liệu", "trung_tinh"
+    vuot_xau = v > xau if nho_la_tot else v < xau
+    vuot_tot = v > tot if nho_la_tot else v < tot
+    f = (lambda x: f"{so_vn(x * 100, 0)}%") if don_vi == "%" else (lambda x: f"{so_vn(x, 1)}★")
+    if vuot_xau:
+        return f"⚠ {'Vượt' if nho_la_tot else 'Dưới'} ngưỡng cảnh báo {f(xau)}", "xau"
+    if vuot_tot:
+        return f"⚠ {'Cao' if nho_la_tot else 'Thấp'} hơn mục tiêu {f(tot)}", "canh_bao"
+    return f"✓ Đạt mục tiêu (từ {f(tot)} trở {'xuống' if nho_la_tot else 'lên'})", "tot"
+
+
+def the_powerbi(trang: int, bl: BoLoc) -> list[dict]:
+    """Thẻ KPI y như trên dashboard: tiêu đề, số đã định dạng (measure '… (thẻ)'), dòng phụ và kiểu màu dòng phụ.
+
+    Kiểu màu: tang | giam | tot | canh_bao | xau | trung_tinh (app đổi thành màu theo nền thẻ).
+    """
+    k = the_kpi(trang, bl)
+
+    def ss(cu_moi, dinh_dang_chenh, hau_to, pct_le=0):
+        if not cu_moi:
+            return "Không có cùng kỳ để so", "trung_tinh"
+        truoc, nay = cu_moi
+        tang = nay / truoc - 1
+        return (f"{'↑' if tang >= 0 else '↓'} {'+' if tang >= 0 else '−'}{so_vn(abs(tang) * 100, pct_le)}% và "
+                f"{dinh_dang_chenh(nay - truoc)}{hau_to}", "tang" if tang >= 0 else "giam")
+
+    dau = lambda x, le=0: ("+" if x >= 0 else "−") + so_vn(abs(x), le)
+    if trang == 1:
+        ck = _cung_ky_ban_hang(bl)
+        lay = lambda cot: (ck[cot]["2017"], ck[cot]["2018"]) if ck else None
+        return [
+            {"ten": "Doanh thu", "so": f"{so_vn(k['K1']['gia_tri'] / 1e6, 2)} tr",
+             **dict(zip(("ghi", "kieu"), ss(lay("doanh_thu"), lambda x: dau(x / 1e6, 2), " tr so cùng kỳ")))},
+            {"ten": "Số đơn", "so": so_vn(k["K2"]["gia_tri"]),
+             **dict(zip(("ghi", "kieu"), ss(lay("so_don"), dau, " đơn")))},
+            {"ten": "Giá trị đơn TB", "so": f"{k['K3']['gia_tri']:,.2f}",
+             **dict(zip(("ghi", "kieu"), ss(lay("gia_tri_don_tb"), lambda x: dau(x, 2), " BRL", pct_le=1)))},
+            {"ten": "Số khách hàng", "so": so_vn(k["K4"]["gia_tri"]),
+             **dict(zip(("ghi", "kieu"), ss(lay("so_khach"), dau, " khách")))},
+            {"ten": "Tỉ lệ khách mua lại", "so": f"{k['K5']['gia_tri']:.2%}",
+             "ghi": f"↓ {so_vn((1 - k['K5']['gia_tri']) * 100, 1)}% chỉ mua 1 lần", "kieu": "giam"},
+        ]
+    if trang == 2:
+        return [
+            {"ten": "Tỉ lệ giao trễ", "so": f"{so_vn(k['K6']['gia_tri'] * 100, 1)}%",
+             **dict(zip(("ghi", "kieu"), _theo_nguong(k["K6"]["gia_tri"], 0.05, 0.10, True, "%")))},
+            {"ten": "Thời gian giao trung bình", "so": f"{so_vn(k['K7']['gia_tri'], 1)} ngày",
+             "ghi": "Từ lúc đặt đến khi khách nhận", "kieu": "trung_tinh"},
+            {"ten": "Điểm đánh giá trung bình", "so": f"{so_vn(k['K8']['gia_tri'], 2)} ★",
+             **dict(zip(("ghi", "kieu"), _theo_nguong(k["K8"]["gia_tri"], 4.0, 3.5, False, "★")))},
+            {"ten": "Tỉ lệ đánh giá 1–2 ★", "so": f"{so_vn(k['K9']['gia_tri'] * 100, 1)}%",
+             **dict(zip(("ghi", "kieu"), _theo_nguong(k["K9"]["gia_tri"], 0.10, 0.20, True, "%")))},
+        ]
+    n = k["K10"]["gia_tri"]
+    tv = k["K11"].get("trung_vi")
+    return [
+        {"ten": "Người bán hoạt động", "so": so_vn(n),
+         **dict(zip(("ghi", "kieu"), ss(k["K10"].get("ck"), dau, " người bán so cùng kỳ")))},
+        {"ten": "Doanh thu TB mỗi người bán", "so": f"{so_vn(k['K11']['gia_tri'])} BRL",
+         "ghi": f"Trung vị chỉ {so_vn(tv)} BRL" if tv is not None else "Chưa có doanh thu", "kieu": "giam"},
+        {"ten": "Người bán bàn giao trễ", "so": f"{so_vn(k['K12']['gia_tri'] * 100, 1)}%",
+         **dict(zip(("ghi", "kieu"), _theo_nguong(k["K12"]["gia_tri"], 0.05, 0.10, True, "%")))},
+        {"ten": "Tỉ trọng DT của top 10% người bán", "so": f"{so_vn(k['K13']['gia_tri'] * 100, 1)}%",
+         "ghi": f"{so_vn(math.ceil(n * 0.1))} / {so_vn(n)} người bán dẫn đầu", "kieu": "giam"},
+    ]
 
 
 # ---------------------------------------------------------------------------

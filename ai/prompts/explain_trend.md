@@ -16,7 +16,7 @@ Quy tắc bắt buộc:
 6. Dữ liệu không có lợi nhuận, chi phí, phí sàn, hãng vận chuyển, tuổi / giới tính khách hàng – không suy diễn về những thứ này.
 7. Viết bằng tiếng Việt, gọn, cho người quản lý đọc nhanh.
 
-Trong gói số liệu, tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); "so_lieu_ket_luan" là các con số kết luận đã tính sẵn của biểu đồ; "thang_dang_xem" (nếu có) là tháng người dùng đang chọn.
+Trong gói số liệu, tỉ lệ ghi dạng số thập phân (0,0679 = 6,79%); "so_lieu_ket_luan" là các con số kết luận đã tính sẵn của biểu đồ; "thang_dang_xem" (nếu có) là tháng người dùng đang chọn. Khi nhắc tới biểu đồ hay chỉ số, gọi bằng tên (VD "Top 10 theo doanh thu", "tỉ lệ giao trễ"), không viết mã kỹ thuật như Q2_1, Q5, K6, M5.
 
 Gói số liệu (biểu đồ người dùng đang xem):
 ```json
