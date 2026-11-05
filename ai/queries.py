@@ -605,6 +605,15 @@ def _theo_nguong(v, tot: float, xau: float, nho_la_tot: bool, don_vi: str) -> tu
 
 
 def the_powerbi(trang: int, bl: BoLoc) -> list[dict]:
+    """Thẻ KPI y như dashboard; bộ lọc không có đơn nào (VD tháng ngoài kỳ phân tích) thì trả thẻ "–" thay vì báo lỗi."""
+    try:
+        return _the_powerbi(trang, bl)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return [{"ten": v["ten"], "so": "–", "ghi": "Không có dữ liệu với bộ lọc này", "kieu": "trung_tinh"}
+                for v in the_kpi(trang, bl).values()]
+
+
+def _the_powerbi(trang: int, bl: BoLoc) -> list[dict]:
     """Thẻ KPI y như trên dashboard: tiêu đề, số đã định dạng (measure '… (thẻ)'), dòng phụ và kiểu màu dòng phụ.
 
     Kiểu màu: tang | giam | tot | canh_bao | xau | trung_tinh (app đổi thành màu theo nền thẻ).
