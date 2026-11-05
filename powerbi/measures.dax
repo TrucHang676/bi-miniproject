@@ -792,6 +792,28 @@ Thời gian vận chuyển TB =
     )
 
 // -----------------------------------------------------------------------------
+// [Q5]  Thời gian xử lý TB  |  thư mục: 3 Người bán  |  định dạng: 0.00  |  thêm 05/11/2026
+// Số ngày TB từ lúc đặt hàng đến lúc người bán bàn giao cho vận chuyển = delivery_days - transit_days (yêu cầu 3.1.3);
+// mỗi đơn 1 lần, đơn đã giao như M4; bỏ 165 đơn handover_status = 'Không xác định' (ngày bàn giao trước ngày mua → số âm).
+// Đường nét đứt xám cạnh M4 ở biểu đồ theo tháng trang Người bán. Mong đợi: cả kỳ 3,20 · 11/2017 4,07 · 03/2018 3,33.
+Thời gian xử lý TB =
+    CALCULATE (
+        AVERAGEX (
+            VALUES ( fact_delivery[order_id] ),
+            CALCULATE ( MAX ( fact_delivery[delivery_days] ) - MAX ( fact_delivery[transit_days] ) )
+        ),
+        dim_delivery_status[delivery_result] IN { "Đúng hạn", "Trễ hạn" },
+        dim_delivery_status[handover_status] IN { "Đúng hạn", "Trễ hạn" }
+    )
+
+// -----------------------------------------------------------------------------
+// [Q5]  Số lượt bàn giao trễ  |  thư mục: 3 Người bán  |  định dạng: #,0  |  thêm 05/11/2026
+// Tử số của K12: số dòng fact_delivery (đơn, người bán) bàn giao sau hạn. Tooltip biểu đồ theo tháng trang Người bán.
+// Mong đợi: cả kỳ 8.773 · 11/2017 953 · 02/2018 819 · 03/2018 608.
+Số lượt bàn giao trễ =
+    CALCULATE ( COUNTROWS ( fact_delivery ), dim_delivery_status[handover_status] = "Trễ hạn" )
+
+// -----------------------------------------------------------------------------
 // [M5]  Cờ người bán cần xử lý  |  thư mục: 3 Người bán  |  định dạng: 0
 // M5. 1 nếu người bán có >= 30 đơn và (K8 < 3,5 hoặc K12 > 10%), ngược lại 0; dùng làm filter visual (tính trong ngữ cảnh 1 người bán).
 Cờ người bán cần xử lý =
