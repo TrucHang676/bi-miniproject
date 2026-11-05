@@ -31,7 +31,7 @@ chấp nhận được, nhưng không gõ thông tin cá nhân vào ô chat.
 | `kiem_tra_so_lieu.py` | Đối chiếu số của `queries.py` với bảng nghiệm thu B6 (`powerbi/README.md`) |
 | `llm.py` | Gọi LLM (Gemini -> Groq -> Ollama), công cụ `lay_so_lieu` cho AI lấy số của biểu đồ khác, 3 chức năng `tom_tat_trang` / `giai_thich` / `hoi_dap`, ghi log |
 | `kiem_so.py` | Tách mọi con số trong câu trả lời AI, đối chiếu với dữ liệu AI được xem; số không khớp được tô cam |
-| `app.py` | App Streamlit bố cục giống dashboard: thanh bên chọn trang + bộ lọc, header, thẻ KPI tô màu, 4 biểu đồ của trang; khung Trợ lý AI hỏi theo phạm vi **1 biểu đồ** (nút 💬 Hỏi trên thẻ) / **cả trang** / **cả dashboard**, nút Tóm tắt / Giải thích, ô chat. Theme màu ở `.streamlit/config.toml` (gốc repo) |
+| `app.py` | App Streamlit bố cục giống dashboard: thanh bên chọn trang + bộ lọc (như slicer), header, thẻ KPI tô màu, các biểu đồ của trang dựng lại theo cấu hình visual trong bản PBIP (kiểu, màu, nhãn, trục Năm → Quý → Tháng, đường ngưỡng, bản đồ bang trang 1, bảng top 10 có thanh dữ liệu); bấm **Hỏi AI** trên thẻ mở chế độ phóng to: biểu đồ lớn + 3 ô số nổi bật + nút ‹ › chuyển biểu đồ, bên phải khung Trợ lý AI hỏi theo phạm vi **Biểu đồ này** / **Cả trang** / **Toàn báo cáo** (nút Giải thích / Tóm tắt, câu hỏi có sẵn, Hỏi tiếp, ô chat), giao diện theo bản thiết kế Figma Make. Theme màu ở `.streamlit/config.toml` (gốc repo) |
 | `prompts/` | Prompt cho tóm tắt (`summary.md`), giải thích biến động (`explain_trend.md`), hỏi đáp (`qa.md`) – mỗi file có phần `## System` và `## User` |
 | `outputs/` | Log mỗi lần hỏi: số liệu đầu vào, công cụ AI đã gọi, câu trả lời, kết quả kiểm số, số token |
 
@@ -74,7 +74,7 @@ Link mở thẳng 1 biểu đồ (nút "Hỏi AI" trong Power BI sẽ ghép link
 | `bieu_do` | `Q1_1`, `Q1_2` … `Q6_2` (câu hỏi + số thứ tự biểu đồ trên trang) |
 | `nam`, `thang` | Năm, tháng (bỏ trống = không lọc) |
 | `vung`, `bang` | Vùng, bang nhận hàng (trang 1; trang 2 chỉ có vùng) |
-| `bang_nb` | Bang người bán (trang 3) |
+| `vung_nb`, `bang_nb` | Vùng, bang người bán (trang 3) |
 
 Biểu đồ theo tháng (Q1, Q3 (1), Q4 (2), Q5 (2)) luôn hiện đủ các tháng và đánh dấu tháng đang chọn, để AI có
 tháng khác mà so sánh; thẻ KPI thì lọc đúng tháng như trên Power BI.
@@ -98,8 +98,8 @@ thấy đều tính bằng cùng công thức với dashboard.
 
 | Chức năng | Nút / ô trong app | Đầu vào | Đầu ra | Prompt |
 |-----------|---|---------|--------|--------|
-| AI-generated Summary | 📝 Tóm tắt trang | Thẻ KPI + kết luận của cả 4 biểu đồ trên trang | Tình hình chung, điểm nổi bật, cần chú ý | `prompts/summary.md` |
-| Giải thích biến động | 🔍 Giải thích biểu đồ này | Gói số liệu biểu đồ đang xem (+ biểu đồ khác qua công cụ) | Biến động, yếu tố đóng góp, giả thuyết, đề xuất | `prompts/explain_trend.md` |
+| AI-generated Summary | Tóm tắt cả trang / Tóm tắt toàn báo cáo | Thẻ KPI + kết luận của cả 4 biểu đồ trên trang | Tình hình chung, điểm nổi bật, cần chú ý | `prompts/summary.md` |
+| Giải thích biến động | Giải thích biểu đồ này | Gói số liệu biểu đồ đang xem (+ biểu đồ khác qua công cụ) | Biến động (câu chính), yếu tố đóng góp (thẻ Điểm nổi bật), giả thuyết, đề xuất (Nên làm gì tiếp) – AI trả theo khuôn TOM_TAT / NOI_BAT / GIA_THUYET / DE_XUAT để app chia thẻ | `prompts/explain_trend.md` |
 | Hỏi đáp ngôn ngữ tự nhiên (khuyến khích) | Ô chat | Câu hỏi + lịch sử chat + gói số liệu | Câu trả lời kèm số | `prompts/qa.md` |
 
 ## Kiểm chứng & hạn chế suy diễn

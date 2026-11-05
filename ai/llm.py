@@ -117,6 +117,8 @@ CONG_CU = [{
                 "vung": {"type": "string",
                          "description": "Vùng nhận hàng: Norte, Nordeste, Centro-Oeste, Sudeste, Sul (trang 1, 2)"},
                 "bang": {"type": "string", "description": "Mã bang nhận hàng 2 chữ, VD SP (chỉ trang 1)"},
+                "vung_nb": {"type": "string",
+                            "description": "Vùng của người bán: Norte, Nordeste, Centro-Oeste, Sudeste, Sul (chỉ trang 3)"},
                 "bang_nb": {"type": "string", "description": "Mã bang người bán 2 chữ, VD SP (chỉ trang 3)"},
             },
             "required": ["bieu_do"],
@@ -136,7 +138,7 @@ def _chay_cong_cu(ten: str, tham_so_json: str) -> tuple[dict, dict]:
         return ts, {"loi": f"Không có biểu đồ '{ts.get('bieu_do')}'. Chọn 1 trong: {', '.join(q.BIEU_DO)}"}
     bd = q.BIEU_DO[ma]
     try:
-        loc = {k: ts.get(k) for k in ("vung", "bang", "bang_nb")}
+        loc = {k: ts.get(k) for k in ("vung", "bang", "vung_nb", "bang_nb")}
         for k in ("nam", "thang"):
             loc[k] = int(ts[k]) if str(ts.get(k, "")).strip().isdigit() else None
         bl = q.bo_loc_cua_trang(bd.trang, **loc)

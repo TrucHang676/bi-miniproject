@@ -24,9 +24,11 @@ Gói số liệu (biểu đồ người dùng đang xem):
 ```
 
 ## User
-Giải thích biến động trên biểu đồ "{{bieu_do}}" để trả lời câu hỏi nghiệp vụ của biểu đồ. Trình bày đúng 4 phần:
+Giải thích biến động trên biểu đồ "{{bieu_do}}" để trả lời câu hỏi nghiệp vụ của biểu đồ. Trả lời ĐÚNG khuôn dưới đây: mỗi mục một dòng, giữ nguyên nhãn viết hoa và dấu "|" (app dựa vào đó để trình bày), không thêm tiêu đề hay dòng nào khác.
 
-**1. Biến động** – tăng / giảm bao nhiêu, ở đâu, khi nào (kèm số).
-**2. Yếu tố đóng góp** – yếu tố nào giải thích biến động, mức đóng góp (kèm số).
-**3. Giả thuyết** – lý do có thể có, ghi rõ là giả thuyết, dữ liệu chưa chứng minh.
-**4. Đề xuất** – 1–2 hành động hoặc phân tích nên làm tiếp.
+TOM_TAT: <Biến động – 1 câu: tăng / giảm bao nhiêu, ở đâu, khi nào, kèm số>
+NOI_BAT: <Yếu tố đóng góp – tiêu đề ngắn> | <nhãn ngắn ≤ 16 ký tự, thường là con số chính> | <1–2 câu: yếu tố này giải thích biến động thế nào, mức đóng góp, kèm số>
+NOI_BAT: <2–3 dòng NOI_BAT như trên>
+GIA_THUYET: <tiêu đề ngắn> | <lý do có thể có, ghi rõ dữ liệu chưa chứng minh>
+DE_XUAT: <tiêu đề ngắn> | <hành động hoặc phân tích nên làm tiếp>
+DE_XUAT: <1–2 dòng DE_XUAT như trên>

@@ -48,6 +48,8 @@ COT = {
     "tuyen": ("Tuyến", "chu"),
     "ti_le_ban_giao_tre": ("Tỉ lệ bàn giao trễ", "pct"),
     "van_chuyen_tb": ("Thời gian vận chuyển TB (ngày)", "ngay"),
+    "xu_ly_tb": ("Thời gian xử lý TB của người bán (ngày, đặt hàng → bàn giao)", "ngay"),
+    "luot_ban_giao_tre": ("Số lượt bàn giao trễ", "so"),
     "nguoi_ban": ("Người bán", "chu"),
     "seller_id": ("Mã người bán", "chu"),
     "can_xu_ly": ("Vượt ngưỡng (M5)", "chu"),
@@ -66,6 +68,7 @@ class BoLoc:
     thang: int | None = None
     vung: str | None = None     # dim_geography.region – nơi nhận hàng (trang 1, 2)
     bang: str | None = None     # dim_geography.state_code (trang 1)
+    vung_nb: str | None = None  # dim_seller.seller_region – vùng của người bán (trang 3)
     bang_nb: str | None = None  # dim_seller.seller_state – nơi người bán (trang 3)
 
     def mo_ta(self) -> str:
@@ -78,6 +81,8 @@ class BoLoc:
             phan.append(f"vùng {self.vung}")
         if self.bang:
             phan.append(f"bang {self.bang}")
+        if self.vung_nb:
+            phan.append(f"vùng người bán {self.vung_nb}")
         if self.bang_nb:
             phan.append(f"bang người bán {self.bang_nb}")
         return ", ".join(phan) if phan else "không lọc (toàn kỳ 01/2017 – 08/2018)"
@@ -99,6 +104,9 @@ def _loc(bl: BoLoc, *, bo_nam: bool = False, bo_dia_ly: bool = False) -> tuple[s
         if bl.bang:
             dk.append("g.state_code = %(bang)s")
             ts["bang"] = bl.bang
+    if bl.vung_nb:
+        dk.append("s.seller_region = %(vung_nb)s")
+        ts["vung_nb"] = bl.vung_nb
     if bl.bang_nb:
         dk.append("s.seller_state = %(bang_nb)s")
         ts["bang_nb"] = bl.bang_nb
@@ -385,18 +393,24 @@ def tre_theo_ban_giao(bl: BoLoc) -> KetQua:
 
 
 def ban_giao_va_van_chuyen_theo_thang(bl: BoLoc) -> KetQua:
-    """Q5 (2): tỉ lệ bàn giao trễ K12 (cột) và thời gian vận chuyển TB M4 (đường) theo tháng, kèm K6."""
+    """Q5 (2): tỉ lệ bàn giao trễ K12 (cột), thời gian xử lý TB và thời gian vận chuyển TB M4 (2 đường) theo tháng,
+    kèm số lượt bàn giao trễ (tooltip) và K6. Thời gian xử lý = delivery_days - transit_days (đặt hàng -> bàn giao),
+    mỗi đơn 1 lần, đơn đã giao, bỏ đơn bàn giao "Không xác định" – như measure 'Thời gian xử lý TB'."""
     w, ts = _loc(_ca_cac_thang(bl))
     df = truy_van(f"""
-        WITH van_chuyen AS (
-            SELECT d.year AS nam, d.month AS thang, f.order_id, MAX(f.transit_days) AS ngay
+        WITH don AS (
+            SELECT d.year AS nam, d.month AS thang, f.order_id, MAX(f.transit_days) AS van_chuyen,
+                   MAX(f.delivery_days) FILTER (WHERE ds.handover_status IN ('Đúng hạn', 'Trễ hạn'))
+                   - MAX(f.transit_days) FILTER (WHERE ds.handover_status IN ('Đúng hạn', 'Trễ hạn')) AS xu_ly
             FROM {_tu('fact_delivery')} {_DS}
             WHERE {w} AND ds.delivery_result IN {_DA_GIAO}
             GROUP BY 1, 2, 3)
         SELECT d.year AS nam, d.month AS thang,
                COUNT(*) FILTER (WHERE ds.handover_status = 'Trễ hạn')::float
                  / NULLIF(COUNT(*) FILTER (WHERE ds.handover_status IN ('Đúng hạn', 'Trễ hạn')), 0) AS ti_le_ban_giao_tre,
-               (SELECT AVG(v.ngay) FROM van_chuyen v WHERE v.nam = d.year AND v.thang = d.month) AS van_chuyen_tb,
+               COUNT(*) FILTER (WHERE ds.handover_status = 'Trễ hạn') AS luot_ban_giao_tre,
+               (SELECT AVG(v.xu_ly) FROM don v WHERE v.nam = d.year AND v.thang = d.month) AS xu_ly_tb,
+               (SELECT AVG(v.van_chuyen) FROM don v WHERE v.nam = d.year AND v.thang = d.month) AS van_chuyen_tb,
                {_SO_DA_GIAO} AS don_da_giao, {_SO_TRE} AS don_tre
         FROM {_tu('fact_delivery')} {_DS} WHERE {w}
         GROUP BY 1, 2 ORDER BY 1, 2""", ts)
@@ -406,14 +420,15 @@ def ban_giao_va_van_chuyen_theo_thang(bl: BoLoc) -> KetQua:
     df["ti_le_tre"] = df.don_tre / df.don_da_giao
     df.insert(0, "ky", _ky(df))
     dot_bien = df.ti_le_tre > 0.10  # tháng đột biến = tháng K6 > 10%, cột tô đỏ trên dashboard
-    tom_tat = {"thang_dot_bien_K6_tren_10": df.loc[dot_bien, ["ky", "ti_le_tre", "ti_le_ban_giao_tre", "van_chuyen_tb"]]
-                                              .to_dict("records")}
+    cot = ["ky", "ti_le_tre", "ti_le_ban_giao_tre", "luot_ban_giao_tre", "xu_ly_tb", "van_chuyen_tb"]
+    tom_tat = {"thang_dot_bien_K6_tren_10": df.loc[dot_bien, cot].to_dict("records")}
     if (~dot_bien).any():
         tom_tat["trung_binh_cong_cac_thang_con_lai"] = {
             "ti_le_ban_giao_tre": df.loc[~dot_bien, "ti_le_ban_giao_tre"].mean(),
+            "xu_ly_tb": df.loc[~dot_bien, "xu_ly_tb"].mean(),
             "van_chuyen_tb": df.loc[~dot_bien, "van_chuyen_tb"].mean(),
         }
-    tom_tat.update(_thang_dang_xem(df, bl, ["ky", "ti_le_tre", "ti_le_ban_giao_tre", "van_chuyen_tb"]))
+    tom_tat.update(_thang_dang_xem(df, bl, cot))
     return KetQua(df, tom_tat)
 
 
@@ -613,11 +628,11 @@ def the_powerbi(trang: int, bl: BoLoc) -> list[dict]:
              **dict(zip(("ghi", "kieu"), ss(lay("doanh_thu"), lambda x: dau(x / 1e6, 2), " tr so cùng kỳ")))},
             {"ten": "Số đơn", "so": so_vn(k["K2"]["gia_tri"]),
              **dict(zip(("ghi", "kieu"), ss(lay("so_don"), dau, " đơn")))},
-            {"ten": "Giá trị đơn TB", "so": f"{k['K3']['gia_tri']:,.2f}",
+            {"ten": "Giá trị đơn TB", "so": so_vn(k['K3']['gia_tri'], 2),
              **dict(zip(("ghi", "kieu"), ss(lay("gia_tri_don_tb"), lambda x: dau(x, 2), " BRL", pct_le=1)))},
             {"ten": "Số khách hàng", "so": so_vn(k["K4"]["gia_tri"]),
              **dict(zip(("ghi", "kieu"), ss(lay("so_khach"), dau, " khách")))},
-            {"ten": "Tỉ lệ khách mua lại", "so": f"{k['K5']['gia_tri']:.2%}",
+            {"ten": "Tỉ lệ khách mua lại", "so": f"{so_vn(k['K5']['gia_tri'] * 100, 2)}%",
              "ghi": f"↓ {so_vn((1 - k['K5']['gia_tri']) * 100, 1)}% chỉ mua 1 lần", "kieu": "giam"},
         ]
     if trang == 2:
@@ -657,7 +672,7 @@ class Trang:
 TRANG = {
     1: Trang("Tổng quan kinh doanh", ("nam", "thang", "vung", "bang")),
     2: Trang("Giao hàng & trải nghiệm khách hàng", ("nam", "thang", "vung")),
-    3: Trang("Người bán & vận chuyển", ("nam", "thang", "bang_nb")),
+    3: Trang("Người bán & vận chuyển", ("nam", "thang", "vung_nb", "bang_nb")),
 }
 
 CAU_HOI = {
@@ -693,7 +708,7 @@ BIEU_DO = {b.ma: b for b in [
     BieuDo("Q4_1", 2, "Q4", "Điểm đánh giá theo mức trễ", diem_theo_muc_tre),
     BieuDo("Q4_2", 2, "Q4", "Tỉ lệ giao trễ và điểm đánh giá theo tháng", tre_va_diem_theo_thang),
     BieuDo("Q5_1", 3, "Q5", "Tỉ lệ giao trễ theo khâu bàn giao", tre_theo_ban_giao),
-    BieuDo("Q5_2", 3, "Q5", "Bàn giao trễ và thời gian vận chuyển theo tháng", ban_giao_va_van_chuyen_theo_thang),
+    BieuDo("Q5_2", 3, "Q5", "Bàn giao trễ, thời gian xử lý và vận chuyển theo tháng", ban_giao_va_van_chuyen_theo_thang),
     BieuDo("Q6_1", 3, "Q6", "Người bán có ≥ 30 đơn", nguoi_ban_tu_30_don),
     BieuDo("Q6_2", 3, "Q6", "10 người bán cần xử lý trước", top10_nguoi_ban_can_xu_ly),
 ]}
@@ -707,11 +722,13 @@ def bo_loc_cua_trang(trang: int, **gia_tri) -> BoLoc:
 def danh_sach_lua_chon() -> dict[str, list]:
     """Giá trị cho các ô lọc của app."""
     g = truy_van("SELECT DISTINCT region, state_code FROM dds.dim_geography WHERE geography_key <> -1 ORDER BY 1, 2")
-    s = truy_van("SELECT DISTINCT seller_state FROM dds.dim_seller WHERE seller_key <> -1 ORDER BY 1")
+    s = truy_van("SELECT DISTINCT seller_region, seller_state FROM dds.dim_seller WHERE seller_key <> -1 ORDER BY 1, 2")
     return {
         "vung": sorted(g.region.unique().tolist()),
         "bang_theo_vung": g.groupby("region").state_code.apply(list).to_dict(),
-        "bang_nb": s.seller_state.tolist(),
+        "vung_nb": sorted(s.seller_region.unique().tolist()),
+        "bang_nb_theo_vung": s.groupby("seller_region").seller_state.apply(list).to_dict(),
+        "bang_nb": sorted(s.seller_state.unique().tolist()),
     }
 
 
