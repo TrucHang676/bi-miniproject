@@ -1,0 +1,37 @@
+triggers:
+- description: 'Demo/test: every 5 minutes loads the next batch (5 minutes = 1 month of data). docs/schedule_rules.md B2'
+  envs: []
+  last_enabled_at: null
+  name: incremental_demo
+  pipeline_uuid: incremental_load
+  schedule_interval: '*/5 * * * *'
+  schedule_type: time
+  settings:
+    allow_blocks_to_fail: false
+    create_initial_pipeline_run: false
+    skip_if_previous_running: true
+  sla: null
+  start_time: 2026-11-05 00:00:00+00:00
+  status: inactive
+  token: null
+  variables:
+    rerun_last: false
+    triggered_by: schedule
+- description: 'Production schedule: 00:00 UTC on day 1 of each month = 07:00 Vietnam time. docs/schedule_rules.md B2'
+  envs: []
+  last_enabled_at: null
+  name: incremental_monthly
+  pipeline_uuid: incremental_load
+  schedule_interval: 0 0 1 * *
+  schedule_type: time
+  settings:
+    allow_blocks_to_fail: false
+    create_initial_pipeline_run: false
+    skip_if_previous_running: true
+  sla: null
+  start_time: 2026-11-05 00:00:00+00:00
+  status: inactive
+  token: null
+  variables:
+    rerun_last: false
+    triggered_by: schedule

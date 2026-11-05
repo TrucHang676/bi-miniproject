@@ -1,6 +1,6 @@
 -- =====================================================================
 -- 01_pipeline_demo.sql - Câu truy vấn xem kết quả pipeline Mage (docs/pipeline_rules.md B10.4)
---   Dùng khi kiểm thử và khi chụp ảnh demo (báo cáo mục 6.1.6). Q6, Q7: bước dbt trong pipeline (BS-34).
+--   Dùng khi kiểm thử và khi chụp ảnh demo (báo cáo mục 6.1.6). Q6, Q7: bước dbt trong pipeline (BS-34). Q8: lập lịch (báo cáo mục 6.4).
 --   DBeaver: đặt con trỏ vào 1 câu -> Ctrl + Enter. Câu có :run_id thì DBeaver hỏi giá trị -> điền run_id lấy ở Q1.
 --   Đối chiếu số liệu với data/batches/manifest.csv (data/batches/README.md mục 3).
 -- =====================================================================
@@ -66,3 +66,20 @@ FROM etl_log.dbt_result
 WHERE run_id = :run_id
   AND (relation_name LIKE 'dds.%' OR status NOT IN ('success', 'pass'))
 ORDER BY status IN ('success', 'pass'), relation_name;
+
+-- Q8. Lập lịch (Seminar 3 - docs/schedule_rules.md B9): các lần chạy Incremental gần nhất,
+--   chạy tay (manual) hay theo lịch (schedule), mất bao lâu, cách lần trước bao lâu.
+--   Mong đợi khi trigger incremental_demo (*/5) chạy bình thường: triggered_by = schedule, batch tăng dần,
+--   gap_from_prev ~ 5 phút, duration ~ 1 phút. Lần theo lịch khi đã nạp hết batch KHÔNG có dòng ở đây (B7 điểm 1).
+SELECT run_id,
+       batch_id,
+       triggered_by,
+       status,
+       started_at,
+       finished_at - started_at                                AS duration,
+       started_at - LAG(started_at) OVER (ORDER BY run_id)     AS gap_from_prev,
+       error_message
+FROM etl_log.pipeline_run
+WHERE pipeline_name = 'incremental_load'
+ORDER BY run_id DESC
+LIMIT 20;

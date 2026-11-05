@@ -125,12 +125,43 @@ Kiểm thử (24/10/2026, máy Hằng, DB tạm `olist_test` đã xóa sau khi t
 - Đối soát: `rows_rejected` = số dòng `dq.rejected_rows` cùng `run_id` + bảng = tổng `failed_rows` của các phép cấp dòng.
 - Câu truy vấn xem kết quả: [`sql/checks/01_pipeline_demo.sql`](../sql/checks/01_pipeline_demo.sql).
 
-## Lưu ý khi lập lịch (Seminar 3)
+## Lập lịch (Seminar 3)
 
-> Kế hoạch đầy đủ (trigger nào, cài đặt, kịch bản kiểm thử): [docs/schedule_rules.md](../docs/schedule_rules.md).
+> Làm 05/11/2026 (Hằng). Lý do từng lựa chọn: [docs/schedule_rules.md](../docs/schedule_rules.md). Báo cáo: mục 6.4.
 
-- Cột `pipeline_run.triggered_by` lấy từ biến `triggered_by` (mặc định `manual`). Khi tạo trigger chạy theo lịch, thêm runtime variable `triggered_by = schedule` cho trigger đó để dashboard ETL phân biệt được lần chạy tay và lần chạy theo lịch.
-- Pipeline không tự khóa chống chạy chồng: hai lần `incremental_load` chạy cùng lúc có thể cùng đọc một LSET. Khi lập lịch, để khoảng cách giữa các lần chạy dài hơn thời gian một lần chạy (~1 phút kể cả bước dbt – mục [Bước dbt](#bước-dbt-bs-34)) và không bấm Run@once trong lúc trigger đang chạy. Mỗi lần chạy mới cũng đổi mọi dòng còn `RUNNING` thành `FAILED`, nên chạy chồng sẽ làm sai trạng thái lần chạy kia.
+Chỉ `incremental_load` có lịch; `full_load` **chỉ chạy tay** (lịch lặp lại sẽ TRUNCATE staging và kéo Incremental về `2018-01`). Lịch chỉ quyết định **lúc nào** chạy, batch nào vẫn do LSET trong `etl_log` quyết định. Code pipeline không sửa gì.
+
+**2 trigger – lưu trong code** [`pipelines/incremental_load/triggers.yaml`](olist_etl/pipelines/incremental_load/triggers.yaml), commit ở trạng thái `inactive`:
+
+| Trigger | Cron (Mage tính theo **UTC**) | Dùng khi |
+|---|---|---|
+| `incremental_demo` | `*/5 * * * *` – 5 phút / lần | Kiểm thử, quay video: 5 phút = 1 tháng dữ liệu, 9 batch ≈ 45 phút |
+| `incremental_monthly` | `0 0 1 * *` = 07:00 giờ VN ngày 1 hằng tháng | Lịch thật để trình bày thiết kế, không bật khi demo |
+
+Cả 2: runtime variables `triggered_by = schedule`, `rerun_last = false`; **Skip run if previous run still in progress = bật**; không cho block lỗi chạy tiếp; không tạo lần chạy ngay khi bật.
+
+**Bật / tắt:** Mage → `incremental_load` → **Triggers** → bật / tắt `incremental_demo` (hoặc sửa `status: active` / `inactive` trong `triggers.yaml` – Mage đọc lại file sau vài giây).
+- Bật trên giao diện thì Mage **ghi ngược vào `triggers.yaml`** (`status`, `last_enabled_at`) → `git status` thấy file đổi chỉ vì vậy thì **không commit** (`git restore` file).
+- Restart container **không** làm tắt trigger: Mage đọc lại `triggers.yaml`, mà trạng thái trong file chính là trạng thái trên giao diện.
+- **Không** chạy tay (Run@once, `mage run`) và không gõ `dbt` khi trigger đang bật: ô "Skip…" chỉ chặn lần chạy của **chính trigger đó** (kiểm thử T5 bên dưới).
+- Bật Docker lại sau khi lỡ giờ: Mage **chạy bù 1 lần** cho mốc vừa lỡ (không chạy bù nhiều mốc), vẫn nạp đúng batch kế tiếp.
+
+**Kiểm thử 05/11/2026** trên `olist_dw` máy Hằng (đủ 10 batch, rồi chạy lại từ đầu bằng lịch; câu truy vấn: `sql/checks/01_pipeline_demo.sql` **Q8**):
+
+| # | Kịch bản | Kết quả |
+|---|---|---|
+| T1 | `full_load` chạy tay | run 11 `SUCCESS`, `manual`, 48 giây, dbt `PASS=177` |
+| T2 | Bật `incremental_demo` (18:44) | run 12 `2018-01` `schedule` `SUCCESS` lúc 18:45:12 – đúng mốc 5 phút đầu tiên |
+| T3 | Để lịch nạp tới hết | 9 batch `2018-01` → `2018-09+` đều do lịch nạp, đúng thứ tự, cách nhau ~5 phút (trừ 2 batch cuối chạy cron 1 phút ở T5 và lần chạy bù); mỗi lần 49–71 giây (TB 59 giây), dbt `PASS=177` |
+| T4 | Lịch chạy tiếp khi đã hết batch | Mage báo `completed`, **không** thêm dòng `pipeline_run` |
+| T5 | (a) Đổi cron thành `* * * * *` cho 2 batch cuối | Mốc trùng lúc lần trước còn chạy bị Mage **CANCELLED** (bỏ qua); không có `FAILED`, không batch nào nạp 2 lần |
+|  | (b) `mage run incremental_load` tay đúng lúc lần theo lịch bắt đầu | **Chạy chồng được**: run 52 (tay) và 53 (lịch) mở cách nhau 2 giây, cùng nạp `2018-07`; 2 lần `dbt build` đụng nhau → run 52 `FAILED` (`relation ... does not exist`), run 53 `SUCCESS` (MERGE 0/0, `PASS=177`). Dữ liệu vẫn đúng nhưng log có 1 lần FAILED giả → **chốt 05/11: không thêm khóa `pg_try_advisory_lock`, giữ quy tắc "tắt trigger trước khi chạy tay"** (schedule_rules B7 điểm 3) |
+| T6 | 1 dòng `payment_type = pix` ở `2018-02` khi lịch đang bật | run 13, 14 `FAILED` (test `accepted_values` fail 1, bảng `dq`), LSET đứng yên; trả file đúng → run 15 **tự** nạp lại `2018-02` (`order_payments` 0 INSERT / 1 UPDATE) `SUCCESS`, run 16 đi tiếp `2018-03` |
+| T7 | `docker compose restart mage` khi trigger đang bật | Trigger vẫn `active`; mốc kế tiếp nạp đúng `2018-04` |
+| T8 | Lần chạy kế tiếp của `incremental_monthly` | 2026-12-01 00:00 UTC = **07:00 giờ VN** → Mage dùng UTC, cron đúng |
+| T9 | Tắt cả 2 trigger, restart Mage, chờ qua 1 mốc 5 phút | Cả 2 `inactive`, không có lần chạy nào. **Còn phải làm trên máy Thanh / Yến** (pull → mở Mage → thấy 2 trigger tắt, không tự chạy) |
+| – | (ngoài kế hoạch) Docker Desktop tắt lúc 19:11–19:17, lỡ mốc 19:15 | Bật lại → Mage chạy bù 1 lần (19:17:53) đúng batch `2018-05`, không nhảy batch. `run_id` nhảy 17 → 50: PostgreSQL bị tắt đột ngột thì bộ đếm IDENTITY bỏ qua tối đa 32 số – bình thường, không mất dữ liệu |
+| – | Đối soát cuối | md5 toàn bộ nội dung 9 bảng `dds` (kể cả khóa thay thế) **giống hệt** trước kiểm thử |
 
 ## Chạy thử từ dòng lệnh (không cần mở giao diện)
 

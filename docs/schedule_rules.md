@@ -4,7 +4,7 @@
 > Phạm vi: **chỉ phần lập lịch**. Hai phần còn lại của Seminar 3 (dashboard theo dõi ETL, AI giải thích kết quả) có tài liệu riêng; file này chỉ nói lập lịch để lại dữ liệu gì cho dashboard ETL (B9).
 > Code pipeline **không cần sửa** (B7): biến `triggered_by` và cột `etl_log.pipeline_run.triggered_by` đã chừa sẵn từ Seminar 1.
 > **[Bắt buộc]** = nhóm đã chốt, muốn làm khác phải bàn lại · **[Gợi ý]** = cách đề xuất, làm khác được nếu ra cùng kết quả · **(cần kiểm chứng)** = hành vi của Mage 0.9.79 chưa thử trên máy nhóm – kiểm thử B8 sẽ trả lời.
-> Trạng thái: **kế hoạch, chưa làm**. Cập nhật: 28/10/2026.
+> Trạng thái: **đã làm 05/11/2026** (Hằng) – 2 trigger trong `triggers.yaml`, T1–T8 đạt, T9 còn chờ máy Thanh / Yến; kết quả chi tiết ở [mage/README.md](../mage/README.md) mục "Lập lịch". 3 điểm ở B7 đã chốt 05/11/2026; T5 cho thấy chạy tay **vẫn chạy chồng được** → điểm 3 đã chốt lại cùng ngày: **không thêm khóa, giữ quy tắc tắt trigger trước khi chạy tay** (B6 #8, #9). Các chỗ "(cần kiểm chứng)" bên dưới đã ghi kết quả. Cập nhật: 05/11/2026.
 
 ---
 
@@ -120,13 +120,13 @@ Trigger tạo trên giao diện chỉ nằm trong DB nội bộ của Mage trên
 3. **Trước khi commit đặt cả 2 trigger `status: inactive`.** Nếu commit `active`, máy nào `git pull` mà đang bật Docker sẽ tự nạp batch → `dds` của bạn đó đổi giữa lúc đang làm Power BI.
 4. Bật / tắt khi cần thì làm trên giao diện. Nếu sau đó `git status` thấy `triggers.yaml` đổi chỉ vì `status` → **không commit** phần đó (`git restore` file).
 
-(cần kiểm chứng – T7) Mage đọc lại `triggers.yaml` khi khởi động: có thể restart container làm trigger về lại `inactive`. Nếu đúng vậy thì ghi vào `mage/README.md`: "restart Mage xong phải bật lại trigger".
+(đã kiểm chứng – T7) Mage đọc lại `triggers.yaml` khi khởi động **và** ở mỗi vòng lặp của bộ lập lịch; bật / tắt trên giao diện cũng được Mage ghi ngược vào file. Vì vậy restart container **không** làm tắt trigger (trạng thái trong file = trạng thái trên giao diện). Sửa thẳng `status` trong file cũng có tác dụng sau vài giây.
 
 ## B5. Giờ và múi giờ
 
 | Thứ | Múi giờ | Ghi chú |
 |---|---|---|
-| Lịch cron + Start date của trigger | **UTC** (cần kiểm chứng – T8) | Giờ Việt Nam = UTC + 7. 07:00 VN ngày 1 = 00:00 UTC ngày 1 → `0 0 1 * *` |
+| Lịch cron + Start date của trigger | **UTC** (đã kiểm chứng – T8: lần kế tiếp của `incremental_monthly` = 2026-12-01 00:00 UTC = 07:00 VN) | Giờ Việt Nam = UTC + 7. 07:00 VN ngày 1 = 00:00 UTC ngày 1 → `0 0 1 * *` |
 | `started_at`, `finished_at` trong `etl_log` | Giờ Việt Nam | DB đặt `Asia/Ho_Chi_Minh` (`00_schemas.sql`) |
 | `lset`, `cet` | Thời gian **mô phỏng** của dữ liệu (2018) | Không liên quan giờ chạy |
 
@@ -141,22 +141,22 @@ Trigger 5 phút không bị ảnh hưởng bởi múi giờ.
 | 3 | Tới giờ, **đã nạp hết** batch | `get_lset` trả `DONE` → Mage báo run `completed`, **không** ghi `pipeline_run` | Tắt trigger `incremental_demo` |
 | 4 | Lần trước `FAILED` (file lỗi, dbt test FAIL…) | LSET không tiến → lần sau **tự nạp lại đúng batch đó**. Lỗi do dữ liệu thì cứ 5 phút lại `FAILED` 1 lần cho tới khi sửa | Tắt trigger → sửa → bật lại |
 | 5 | Full Load lỗi ở bước dbt | Mọi lần Incremental theo lịch báo lỗi "chạy lại full_load" (B12 #5 của [pipeline_rules.md](pipeline_rules.md)) | Tắt trigger → chạy `full_load` tay → bật lại |
-| 6 | Máy / Docker tắt lúc tới giờ | Lần đó không chạy. Bật lại thì lần kế tiếp nạp tiếp từ LSET – không mất, không nhảy batch. (cần kiểm chứng) Mage có chạy bù lần bị lỡ không – có bù thì cũng chỉ là nạp batch kế | Không |
+| 6 | Máy / Docker tắt lúc tới giờ | Lần đó không chạy. Bật lại thì lần kế tiếp nạp tiếp từ LSET – không mất, không nhảy batch. (đã kiểm chứng 05/11) Mage **chạy bù 1 lần** ngay khi bật lại, cho mốc gần nhất bị lỡ (không bù nhiều mốc) – vẫn chỉ là nạp batch kế | Không |
 | 7 | Container tắt **giữa lúc** đang chạy | Dòng `pipeline_run` kẹt `RUNNING`; staging không dở dang (1 transaction). Lần theo lịch kế tiếp đổi nó thành `FAILED` rồi nạp lại batch đó | Không |
-| 8 | Bấm **Run@once** tay trong lúc trigger lịch đang bật | (cần kiểm chứng – T5) Cài đặt "skip" có thể chỉ xét các lần chạy của **cùng** trigger → lần tay và lần theo lịch có thể chạy chồng như #2 | **Không làm.** Muốn chạy tay thì tắt trigger trước |
+| 8 | Bấm **Run@once** tay trong lúc trigger lịch đang bật | (đã kiểm chứng – T5) Cài đặt "skip" chỉ đếm lần chạy của **cùng** trigger (mã Mage: `pipeline_schedule_id == self.id`) → lần tay và lần theo lịch **chạy chồng được**: cùng nạp 1 batch, 2 lần `dbt build` đụng nhau, 1 lần `FAILED`. Dữ liệu vẫn đúng (MERGE idempotent) nhưng log có lần FAILED giả | **Không làm.** Muốn chạy tay thì tắt trigger trước |
 | 9 | Gõ `dbt` tay trong lúc trigger đang bật | Hai lần dbt cùng dựng `dds` (B12 #8 của [pipeline_rules.md](pipeline_rules.md)) | **Không làm.** Tắt trigger trước |
 
 ## B7. Có phải sửa code không
 
 **Không** [Bắt buộc]: `start_full_run` và `set_cet` đã đọc biến `triggered_by`; bảng log đã có cột + `CHECK`. Lập lịch chỉ là cấu hình Mage + 1 file `triggers.yaml`.
 
-Ba điểm nhóm cần chốt (ghi kết quả vào bảng cuối [decisions.md](decisions.md)):
+Ba điểm dưới đây **đã chốt 05/11/2026 theo đúng đề xuất** (ghi ở bảng cuối [decisions.md](decisions.md)). Điểm 3 xem lại sau kiểm thử T5:
 
 | # | Câu hỏi | Đề xuất | Lý do |
 |---|---|---|---|
 | 1 | Lần chạy theo lịch mà **không có batch mới** (B6 #3) có ghi vào `etl_log` không? | **Không ghi** (giữ như hiện tại) | Ghi thì phải thêm trạng thái mới (VD `NO_DATA`), sửa `CHECK`, sửa `get_lset` / `set_cet` / `set_lset` và dashboard ETL. Tab **Runs** của Mage vẫn thấy các lần này |
 | 2 | Có gửi thông báo khi chạy lỗi (email / Slack – Mage có sẵn `notification_config`)? | **Không làm**, ghi vào "hướng phát triển" trong báo cáo | Cần tài khoản email / Slack; dashboard ETL đã cho thấy lần `FAILED` |
-| 3 | Có thêm khóa chống chạy chồng ngay trong code (VD `pg_try_advisory_lock` ở `get_lset`)? | **Chưa**, chỉ dựa vào cài đặt B3 + quy tắc B6 #8, #9 | Nếu T5 cho thấy Run@once tay vẫn chạy chồng được với lần theo lịch thì mới thêm (sửa nhỏ ở `get_lset` + `set_lset`, phải báo Yến vì là block của Yến) |
+| 3 | Có thêm khóa chống chạy chồng ngay trong code (VD `pg_try_advisory_lock` ở `get_lset`)? | **Chưa**, chỉ dựa vào cài đặt B3 + quy tắc B6 #8, #9 | Nếu T5 cho thấy Run@once tay vẫn chạy chồng được với lần theo lịch thì mới thêm (sửa nhỏ ở `get_lset` + `set_lset`, phải báo Yến vì là block của Yến). **05/11: T5 cho thấy chạy chồng được (run 52 + 53) → chốt không thêm khóa, giữ quy tắc "tắt trigger trước khi chạy tay"; khóa trong code là hướng phát triển** |
 
 ## B8. Kịch bản kiểm thử – tiêu chí hoàn thành
 

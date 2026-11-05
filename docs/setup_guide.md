@@ -285,6 +285,8 @@ docker compose exec mage python scripts/split_batches.py
 
 Không mở giao diện cũng chạy được: `docker compose exec mage mage run /home/src/mage/olist_etl full_load` (thay `incremental_load` cho Incremental).
 
+**Nạp 9 batch tự động theo lịch** (Seminar 3 – thay cho bấm Run@once 9 lần): chạy `full_load` tay như bước 2 → `incremental_load` → **Triggers** → bật `incremental_demo` → cứ 5 phút Mage tự nạp 1 batch (~45 phút hết 9 batch; xem tiến độ bằng Q8 trong `01_pipeline_demo.sql`) → nạp hết thì **tắt** trigger. Trong lúc trigger bật **không** bấm Run@once và không gõ `dbt` (sẽ chạy chồng). Sau khi bật / tắt, `git status` thấy `triggers.yaml` đổi thì **không commit** (`git restore` file). Chi tiết: [mage/README.md](../mage/README.md) mục "Lập lịch".
+
 ⚠ Chạy lại `full_load` sau khi đã nạp vài batch = làm lại từ đầu: staging chỉ còn batch FULL, Incremental kế tiếp nạp lại từ 2018-01.
 
 ### 6.3. Transformation (dbt)
