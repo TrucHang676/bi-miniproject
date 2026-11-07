@@ -26,7 +26,7 @@ data/batches/<batch>/*.csv ──► Mage ──► staging (8 bảng)         �
 | Thứ | Ở đâu | Ghi chú |
 |---|---|---|
 | 10 batch + `manifest.csv` | `data/batches/` – sinh bằng `docker compose exec mage python scripts/split_batches.py` | Đã tự kiểm tra 9/9 PASS. Định dạng: [data/batches/README.md](../data/batches/README.md) |
-| Bảng đích | `staging.*` (8 bảng), `etl_log.pipeline_run` / `table_load` / `quality_check`, `dq.rejected_rows` | Tạo bởi `sql/init/00` → `04`; kiểm tra bằng `sql/checks/00_check_init.sql` (19 dòng PASS) |
+| Bảng đích | `staging.*` (8 bảng), `etl_log.pipeline_run` / `table_load` / `quality_check`, `dq.rejected_rows` | Tạo bởi `sql/init/00` → `04`; kiểm tra bằng `sql/checks/00_check_init.sql` (19 dòng PASS lúc viết; từ 06/11/2026 là 23 dòng – thêm `05_dbt_log.sql`, `06_etl_monitor.sql`) |
 | Môi trường | Container `olist-mage` (Mage 0.9.79, pandas 1.5.3, psycopg2, sqlalchemy) | Trong container, repo nằm ở `/home/src` → batch ở `/home/src/data/batches/` |
 | Project Mage | `mage/olist_etl/` (còn trống) | `io_config.yaml` profile `default` đã nối Postgres qua biến môi trường |
 

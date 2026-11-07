@@ -194,6 +194,8 @@ LIMIT 20;
 
 Cùng dữ liệu này là đầu vào cho dashboard theo dõi ETL (phần 2 Seminar 3): số lần chạy theo `triggered_by` / `status`, thời gian chạy từng batch, số dòng INSERT / UPDATE / bị loại (`table_load`), kết quả dbt test (`dbt_result`).
 
+→ Đã làm (06/11/2026, BS-54): app Streamlit [monitor/](../monitor/README.md) đọc 3 view của `sql/init/06_etl_monitor.sql`; bật lịch `incremental_demo` cùng lúc với nút **Tự làm mới 30 giây** của app thì thấy từng lần chạy theo lịch hiện ra.
+
 ## B10. Cập nhật tài liệu và ảnh cho báo cáo [Bắt buộc]
 
 | File | Sửa gì |

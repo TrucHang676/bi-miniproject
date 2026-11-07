@@ -163,6 +163,8 @@ Cả 2: runtime variables `triggered_by = schedule`, `rerun_last = false`; **Ski
 | – | (ngoài kế hoạch) Docker Desktop tắt lúc 19:11–19:17, lỡ mốc 19:15 | Bật lại → Mage chạy bù 1 lần (19:17:53) đúng batch `2018-05`, không nhảy batch. `run_id` nhảy 17 → 50: PostgreSQL bị tắt đột ngột thì bộ đếm IDENTITY bỏ qua tối đa 32 số – bình thường, không mất dữ liệu |
 | – | Đối soát cuối | md5 toàn bộ nội dung 9 bảng `dds` (kể cả khóa thay thế) **giống hệt** trước kiểm thử |
 
+**Theo dõi các lần chạy:** dashboard [monitor/](../monitor/README.md) (BS-54) đọc `etl_log` + `dq` – dòng thời gian, thời gian từng khâu, tiến độ 10 batch, kiểm tra chất lượng, chi tiết 1 lần chạy.
+
 ## Chạy thử từ dòng lệnh (không cần mở giao diện)
 
 ```powershell

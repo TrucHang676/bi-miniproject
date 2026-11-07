@@ -206,7 +206,7 @@ Kết quả đúng: `Core: installed: 1.8.7` và trong *Plugins* có `postgres: 
 
 ## 5. Khởi tạo Data Warehouse
 
-**Không cần chạy tay gì cả.** Lần đầu `docker compose up` (mục 3.4), Postgres **tự chạy** 6 script trong `sql/init/` theo thứ tự tên file:
+**Không cần chạy tay gì cả.** Lần đầu `docker compose up` (mục 3.4), Postgres **tự chạy** 7 script trong `sql/init/` theo thứ tự tên file:
 
 | File | Tạo gì |
 |---|---|
@@ -216,6 +216,7 @@ Kết quả đúng: `Core: installed: 1.8.7` và trong *Plugins* có `postgres: 
 | `03_dq.sql` | Bảng `dq.rejected_rows`: **nguyên nội dung** từng dòng Mage loại (dạng JSON) + lần chạy, phép kiểm tra, lý do – khóa ngoại về `etl_log.quality_check` |
 | `04_soft_delete.sql` | Xóa mềm đơn bị xóa ở nguồn: thêm cột `_is_deleted`, `_deleted_at` vào `staging.orders` và `rows_deleted` vào `etl_log.table_load` (viết dạng `ALTER ... ADD COLUMN IF NOT EXISTS`) – cách dùng: [pipeline_rules.md](pipeline_rules.md) B6 |
 | `05_dbt_log.sql` | Bảng `etl_log.dbt_result`: kết quả từng seed / model / test của bước dbt mà pipeline Mage gọi sau khi nạp staging (BS-34) – [pipeline_rules.md](pipeline_rules.md) B12 |
+| `06_etl_monitor.sql` | 3 **view** trong `etl_log` cho dashboard theo dõi ETL (BS-54): `v_run` (1 dòng = 1 lần chạy + tổng hợp số dòng, kiểm tra chất lượng, dbt, thời gian từng khâu), `v_batch_progress` (tiến độ 10 batch theo từng lượt nạp), `v_quality_issue` (mọi phép kiểm tra WARN / FAIL + dbt test không đạt). Không tạo bảng, không lưu dữ liệu – [monitor/README.md](../monitor/README.md) |
 
 Database sau khi khởi tạo:
 
@@ -224,6 +225,7 @@ olist_dw
 ├── staging   8 bảng  – Mage nạp CSV vào (orders, order_items, order_payments, order_reviews,
 │                       customers, sellers, products, category_translation)
 ├── etl_log   4 bảng  – Mage ghi nhật ký mỗi lần chạy (pipeline_run, table_load, quality_check, dbt_result)
+│             3 view  – v_run, v_batch_progress, v_quality_issue (dashboard theo dõi ETL)
 ├── dq        1 bảng  – dòng dữ liệu lỗi Mage loại (rejected_rows); dbt test ghi thêm bảng khi bật store_failures
 ├── dds       trống   – dbt tạo dim / fact
 └── public    trống
@@ -231,7 +233,7 @@ olist_dw
 
 Vai trò từng schema theo kiến trúc Single DDS: [architecture.md](architecture.md).
 
-**Cơ chế:** `compose.yaml` gắn thư mục `sql/init/` vào thư mục khởi tạo `/docker-entrypoint-initdb.d` của image Postgres. Lần đầu tạo DB, Postgres chạy mọi file `.sql` trong đó (vì vậy tên file đánh số `00` → `05` để chạy đúng thứ tự).
+**Cơ chế:** `compose.yaml` gắn thư mục `sql/init/` vào thư mục khởi tạo `/docker-entrypoint-initdb.d` của image Postgres. Lần đầu tạo DB, Postgres chạy mọi file `.sql` trong đó (vì vậy tên file đánh số `00` → `06` để chạy đúng thứ tự).
 
 ⚠ Postgres **chỉ tự chạy khi volume dữ liệu còn trống** (lần dựng đầu tiên, hoặc sau `docker compose down -v`). Những lần `up` sau, script **không** chạy lại.
 
@@ -241,7 +243,7 @@ Vai trò từng schema theo kiến trúc Single DDS: [architecture.md](architect
 docker compose exec postgres psql -U olist_user -d olist_dw -f /sql/checks/00_check_init.sql
 ```
 
-Kết quả đúng: 20 dòng, cột `ket_qua` **đều là `PASS`** (4 schema, `unaccent`, encoding UTF8, múi giờ, 13 bảng đủ cột và có khóa chính). Dòng nào `FAIL` thì cột `thuc_te` cho biết thiếu gì – VD dòng `etl_log.dbt_result` báo `0/12 cột` nghĩa là DB tạo trước khi repo có `05_dbt_log.sql` (BS-34) → chạy tay file đó theo mục 5.2.
+Kết quả đúng: 23 dòng, cột `ket_qua` **đều là `PASS`** (4 schema, `unaccent`, encoding UTF8, múi giờ, 13 bảng đủ cột và có khóa chính, 3 view của dashboard ETL). Dòng nào `FAIL` thì cột `thuc_te` cho biết thiếu gì – VD dòng `etl_log.dbt_result` báo `0/12 cột` nghĩa là DB tạo trước khi repo có `05_dbt_log.sql` (BS-34); 3 dòng `etl_log.v_*` FAIL nghĩa là chưa có `06_etl_monitor.sql` (BS-54) → chạy tay file đó theo mục 5.2.
 
 > `compose.yaml` gắn cả thư mục `sql/` của repo vào container tại `/sql` (chỉ đọc), nên file SQL nào trong repo cũng chạy được bằng `psql -f /sql/<đường dẫn>`. Có thể chạy trong DBeaver thay thế: dán cả file vào SQL Editor rồi Ctrl + Enter.
 
@@ -249,6 +251,7 @@ Kết quả đúng: 20 dòng, cột `ket_qua` **đều là `PASS`** (4 schema, `
 
 | Thay đổi | Cách áp dụng | Mất dữ liệu? |
 |---|---|---|
+| Thêm / sửa **view** (`06_etl_monitor.sql`) | Chạy lại đúng file đó như dòng dưới – file tự `DROP VIEW` rồi tạo lại | Không (view không lưu dữ liệu) |
 | Thêm **bảng mới** / schema mới | Chạy lại đúng file đó: `docker compose exec postgres psql -U olist_user -d olist_dw -f /sql/init/<tên file>` (các lệnh dùng `IF NOT EXISTS` nên phần đã có được bỏ qua) | Không |
 | **Thêm cột** vào bảng đã có | Viết thành **file mới** dạng `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` (như `04_soft_delete.sql`) rồi chạy tay file đó như dòng trên – DB mới cũng tự chạy file này | Không |
 | Sửa **bảng đã có** (đổi / xóa cột, đổi kiểu) | `IF NOT EXISTS` sẽ **bỏ qua** bảng đã tồn tại → dựng lại DB: `docker compose down -v` rồi `docker compose up -d` | **Có** – nạp lại bằng pipeline |
@@ -330,6 +333,17 @@ Từng bước, cách dùng và lỗi thường gặp: [ai/HUONG_DAN_CHAY.md](..
 python -m pip install -r ai/requirements.txt   # lần đầu
 ai\chay_app.bat                                  # mỗi lần dùng (hoặc bấm đúp file này)
 ```
+
+### 6.6. Dashboard theo dõi ETL
+
+App Streamlit chạy trên máy (`localhost:8502`), chỉ **đọc** `etl_log` + `dq` qua 3 view của `06_etl_monitor.sql` (DB đã có từ trước BS-54 thì chạy tay file đó theo mục 5.2). Cách dùng, ý nghĩa từng biểu đồ, cách đọc số: [monitor/README.md](../monitor/README.md).
+
+```powershell
+py -m pip install -r monitor/requirements.txt    # lần đầu
+monitor\chay_monitor.bat                          # mỗi lần dùng (hoặc bấm đúp file này)
+```
+
+Mở song song với lúc bật lịch `incremental_demo` (mục 6.2) và bật **Tự làm mới 30 giây** trên thanh bên → mỗi lần lịch chạy xong, dashboard tự hiện lần chạy mới.
 
 ## 7. Dùng hằng ngày
 
