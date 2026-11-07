@@ -3,11 +3,16 @@
 -- Cách chạy (chọn 1):
 --   * Terminal: docker compose exec postgres psql -U olist_user -d olist_dw -f /sql/checks/00_check_init.sql
 --   * DBeaver : dán cả file vào SQL Editor, đặt con trỏ trong câu lệnh, Ctrl + Enter
--- Kết quả đúng: MỌI dòng có ket_qua = PASS.
+-- Kết quả đúng: 23 dòng, MỌI dòng có ket_qua = PASS.
 -- =====================================================================
 WITH
 expected_schemas(stt, schema_name) AS (
     VALUES (1, 'staging'), (2, 'etl_log'), (3, 'dq'), (4, 'dds')
+),
+expected_views(stt, table_name, so_cot) AS (                    -- view cho dashboard theo dõi ETL (06)
+    VALUES (40, 'v_run',            44),
+           (41, 'v_batch_progress', 13),
+           (42, 'v_quality_issue',  12)
 ),
 expected_tables(stt, table_schema, table_name, so_cot) AS (     -- số cột theo sql/init/01 - 05
     VALUES (10, 'staging', 'orders',               12),    -- 10 + _is_deleted, _deleted_at (04)
@@ -66,6 +71,13 @@ results(stt, kiem_tra, thuc_te, dat) AS (
     FROM expected_tables e
     LEFT JOIN actual_cols a USING (table_schema, table_name)
     LEFT JOIN actual_pk  p USING (table_schema, table_name)
+
+    UNION ALL
+    SELECT e.stt, 'View etl_log.' || e.table_name,
+           format('%s/%s cột', coalesce(a.so_cot, 0), e.so_cot),
+           a.so_cot = e.so_cot
+    FROM expected_views e
+    LEFT JOIN actual_cols a ON a.table_schema = 'etl_log' AND a.table_name = e.table_name
 )
 SELECT kiem_tra, thuc_te, CASE WHEN dat THEN 'PASS' ELSE 'FAIL' END AS ket_qua
 FROM results
