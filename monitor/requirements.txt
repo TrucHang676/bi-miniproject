@@ -1,0 +1,7 @@
+# Dashboard theo dõi ETL (BS-54). Cài: pip install -r monitor/requirements.txt  (dùng chung phần lớn thư viện với ai/)
+streamlit>=1.55
+pandas>=2.2
+plotly>=6.0
+psycopg[binary]>=3.2
+python-dotenv>=1.0
+pyyaml>=6.0   # đọc triggers.yaml để hiện trạng thái lịch
