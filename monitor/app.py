@@ -94,14 +94,18 @@ def thoi_luong(giay) -> str:
     return f"{g // 3600} giờ {(g % 3600) // 60:02d} phút"
 
 
-def cach_day(giay) -> str:
+def cach_day(giay, truoc: bool = True) -> str:
+    """Khoảng thời gian tính tới bây giờ: '7 ngày 16 giờ trước' (truoc=False: bỏ chữ 'trước', dùng dưới nhãn 'Cách đây')."""
     if giay is None or pd.isna(giay):
         return "–"
     if giay < 5:
         return "vừa xong"
+    duoi = " trước" if truoc else ""
     if giay >= 86400:
-        return f"{int(giay // 86400)} ngày {int(giay % 86400 // 3600)} giờ trước"
-    return thoi_luong(giay) + " trước"
+        return f"{int(giay // 86400)} ngày {int(giay % 86400 // 3600)} giờ{duoi}"
+    if giay >= 3600:
+        return f"{int(giay // 3600)} giờ {int(giay % 3600 // 60):02d} phút{duoi}"
+    return thoi_luong(giay) + duoi
 
 
 def gio(ts, day_du: bool = True) -> str:
@@ -124,9 +128,52 @@ def rut_gon(x, n: int = 90) -> str:
     return t if len(t) <= n else t[:n - 1] + "…"
 
 
-def chip(trang_thai: str) -> str:
+def chip(trang_thai: str, chu_hien: str | None = None) -> str:
     nen, chu = CHIP.get(trang_thai, (NHAT, CHU2))
-    return f'<span class="chip" style="background:{nen};color:{chu}">{esc(trang_thai)}</span>'
+    return f'<span class="chip" style="background:{nen};color:{chu}">{esc(chu_hien or trang_thai)}</span>'
+
+
+def chip_dbt(trang_thai: str, chu_hien: str | None = None) -> str:
+    """Chip trạng thái dbt: success / pass xanh, warn vàng, skipped xám, còn lại (fail, error, chữ lạ) đỏ."""
+    s = str(trang_thai)
+    ma = s if s in ("success", "pass", "warn", "skipped") else "error"
+    return chip(ma, chu_hien or s)
+
+
+def lop_0(x) -> str:
+    """Ô số trong bảng: giá trị 0 tô xám nhạt (C6) để số khác 0 nổi lên."""
+    return " z" if x is not None and not pd.isna(x) and float(x) == 0 else ""
+
+
+def ten_test_ngan(ten: str) -> str:
+    """Tên dbt test rút gọn = phần trước dấu '__' đầu tiên (bỏ danh sách giá trị dbt nối vào cuối tên)."""
+    return str(ten).split("__")[0]
+
+
+def tom_tat_model(msg) -> str:
+    """Lỗi 1 node dbt -> 1 câu: 'relation "x" does not exist' thành 'Không tìm thấy bảng x';
+    lỗi khác lấy dòng cuối có chữ của thông báo, cắt 120 ký tự."""
+    import re
+    m = str(msg or "")
+    k = re.search(r'relation "([^"]+)" does not exist', m)
+    if k:
+        return f"Không tìm thấy bảng {k.group(1)}"
+    dong = [d.strip() for d in m.splitlines() if d.strip()]
+    return rut_gon(dong[-1] if dong else "", 120)
+
+
+def tom_tat_loi(r) -> str:
+    """Cột Lỗi của bảng 20 lần chạy (T1.6): tóm tắt từ cột có sẵn của v_run (failed_stage, dbt_test_fail, dbt_model_error)."""
+    if r.status != "FAILED":
+        return ""
+    if r.failed_stage == "dbt":
+        phan = []
+        if r.dbt_model_error:
+            phan.append(f"{so_vn(r.dbt_model_error)} model lỗi")
+        if r.dbt_test_fail:
+            phan.append(f"{so_vn(r.dbt_test_fail)} test không đạt")
+        return "Khâu dbt: " + (", ".join(phan) if phan else "dbt không chạy được")
+    return {"staging": "Khâu nạp staging lỗi", "bi_ngat": "Bị ngắt giữa chừng"}.get(r.failed_stage, "Lỗi khác")
 
 
 # ---------------------------------------------------------------------------
@@ -217,14 +264,24 @@ def _css() -> None:
     [data-testid="stExpandSidebarButton"]:hover {{ background: {KE}; }}
     .block-container {{ padding: 1rem 1.2rem 1.5rem; max-width: 100%; }}
     [data-testid="stSidebar"] {{ background: {THE}; border-right: 1px solid {KE}; }}
-    [data-testid="stSidebar"] [data-testid="stSidebarContent"] {{ padding-top: .4rem; }}
     .stApp button [data-testid="stMarkdownContainer"], .stApp button p {{ font-size: inherit !important; color: inherit; }}
 
-    /* ---------- thanh bên ---------- */
-    .sb_logo {{ display: flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 700; color: {DEN}; margin: 0 0 14px 4px; }}
+    /* ---------- thanh bên (S1): bỏ hàng riêng của nút thu gọn «, đưa nút lên góc trên phải cùng hàng với logo ---------- */
+    [data-testid="stSidebarContent"] {{ position: relative; }}
+    [data-testid="stSidebarHeader"] {{ position: absolute !important; top: 14px; right: 12px; height: 40px !important;
+        padding: 0 !important; margin: 0 !important; z-index: 5; display: flex; align-items: center; width: auto !important; }}
+    [data-testid="stSidebarHeader"] [data-testid="stLogoSpacer"] {{ display: none; }}
+    [data-testid="stSidebarCollapseButton"] {{ display: flex !important; visibility: visible !important; opacity: 1 !important; }}
+    [data-testid="stSidebarCollapseButton"] button {{ width: 30px; height: 30px; border-radius: 9px; }}
+    [data-testid="stSidebarCollapseButton"] button:hover {{ background: {NHAT}; }}
+    [data-testid="stSidebarUserContent"] {{ padding-top: 14px !important; }}
+    .sb_dau {{ display: flex; align-items: center; gap: 10px; height: 40px; margin: 0 40px 12px 2px; }}
+    .sb_ten .a {{ font-size: 11px; color: {XAM}; line-height: 1.1; }}
+    .sb_ten .b {{ font-size: 14.5px; font-weight: 700; color: {DEN}; line-height: 1.25; }}
     .lg {{ width: 28px; height: 28px; border-radius: 9px; background: {CHANH}; display: flex; align-items: flex-end;
         justify-content: center; gap: 2px; padding-bottom: 7px; box-sizing: border-box; flex: none; }}
     .lg i {{ display: block; width: 3px; background: {DEN}; border-radius: 1px; }}
+    .sb_dau .lg {{ width: 30px; height: 30px; padding-bottom: 8px; }}
     .sb_muc {{ font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: {XAM}; margin: 14px 0 6px 6px; }}
     [class*="st-key-nut_trang_"] button {{ justify-content: flex-start; text-align: left; border-radius: 12px; min-height: 40px;
         padding: 0 12px; border: none; background: transparent; color: {CHU2}; font-size: 13px; box-shadow: none; }}
@@ -237,15 +294,15 @@ def _css() -> None:
         background: {NHAT}; border: 1px solid transparent; border-radius: 12px; font-size: 12.5px; min-height: 36px; }}
     [data-testid="stSidebar"] .stButton button {{ padding: 0 8px; font-size: 12px; white-space: nowrap; min-height: 36px; border-radius: 12px; }}
     .pillc code {{ color: {CHU2}; background: none; font-size: 11.5px; padding: 0; }}
-    .sb_ghi {{ font-size: 11px; line-height: 1.5; color: {XAM}; background: {TIM_NHAT}; border-radius: 12px; padding: 10px 12px;
-        margin-top: 14px; }}
+    /* S3: ghi chú cuối thanh bên chỉ là chữ nhỏ xám, có đường kẻ mảnh phía trên */
+    .sb_ghi {{ font-size: 11px; line-height: 1.55; color: {XAM}; margin-top: 14px; padding-top: 14px; border-top: 1px solid {KE}; }}
 
     /* ---------- thanh trên ---------- */
     .appbar {{ background: {THE}; border-radius: 16px;
         box-shadow: 0 1px 2px rgba(18,19,22,.03), 0 8px 24px rgba(18,19,22,.05), 0 -16px 0 16px {NEN};
         display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 8px 14px; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }}
     .brand {{ display: flex; align-items: center; gap: 10px; font-size: 15px; color: {DEN}; }}
-    .brand b {{ font-weight: 700; }} .brand .sep {{ color: {XAM}; }} .brand .pg {{ font-weight: 600; }}
+    .brand b {{ font-weight: 700; }} .brand .sep {{ color: #B6BAC2; }} .brand .pg {{ font-weight: 600; }}
     .bar_r {{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }}
     .pillc {{ height: 34px; border-radius: 999px; background: {NHAT}; display: inline-flex; align-items: center; gap: 8px;
         padding: 0 14px; font-size: 12.5px; color: {CHU2}; white-space: nowrap; }}
@@ -253,27 +310,57 @@ def _css() -> None:
     .dot {{ width: 9px; height: 9px; border-radius: 50%; display: inline-block; }}
     .dot.bat {{ background: {XANH}; box-shadow: 0 0 0 3px rgba(29,94,18,.18); }} .dot.tat {{ background: #B6BAC2; }}
 
-    /* ---------- thẻ KPI ---------- */
+    /* ---------- thẻ KPI (C2): số lớn + hàng ô nhỏ có nhãn ở đáy thẻ ---------- */
     .hang_kpi {{ display: grid; gap: 12px; margin-bottom: 12px; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); }}
-    .kc {{ border-radius: 18px; padding: 13px 16px 11px; min-height: 112px; box-sizing: border-box; display: flex; flex-direction: column;
-        justify-content: space-between; background: {THE}; color: {DEN}; box-shadow: 0 1px 2px rgba(18,19,22,.03), 0 8px 24px rgba(18,19,22,.05); }}
+    .kc {{ border-radius: 18px; padding: 13px 15px 11px; min-height: 120px; box-sizing: border-box; display: flex; flex-direction: column;
+        background: {THE}; color: {DEN}; box-shadow: 0 1px 2px rgba(18,19,22,.03), 0 8px 24px rgba(18,19,22,.05); min-width: 0; }}
     .kc.chanh {{ background: {CHANH}; }} .kc.tim {{ background: {TIM}; }} .kc.den {{ background: {DEN}; color: #fff; }}
     .kc .lab {{ font-size: 12px; color: {XAM}; }}
     .kc.chanh .lab, .kc.tim .lab {{ color: {CHU2}; }} .kc.den .lab {{ color: rgba(255,255,255,.7); }}
-    .kc .so {{ font-size: clamp(18px, 1.7vw, 24px); font-weight: 700; letter-spacing: -.015em; line-height: 1.25; margin: 2px 0;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-    .kc .so small {{ font-size: 12px; font-weight: 600; margin-left: 4px; color: {CHU2}; letter-spacing: 0; white-space: nowrap; }}
-    .kc.den .so small {{ color: rgba(255,255,255,.8); }}
-    .kc .ghi {{ font-size: 11.5px; font-weight: 600; line-height: 1.35; padding-top: 7px; border-top: 1px solid rgba(18,19,22,.10); color: {CHU2}; }}
-    .kc.den .ghi {{ border-top-color: rgba(255,255,255,.14); color: rgba(255,255,255,.85); }}
-    .kc .ghi.tot {{ color: {XANH}; }} .kc .ghi.xau {{ color: #D9483B; }} .kc.den .ghi.xau {{ color: #FF9B8F; }}
+    .kc .so {{ font-size: clamp(20px, 1.9vw, 26px); font-weight: 700; letter-spacing: -.015em; line-height: 1.2; margin: 3px 0 10px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }}
+    .kc .so small {{ font-size: 12.5px; font-weight: 600; margin-left: 5px; color: {CHU2}; letter-spacing: 0; }}
+    .kc.den .so small {{ color: rgba(255,255,255,.75); }}
     .kc .so.xau {{ color: #D9483B; }} .kc .so.tot {{ color: {XANH}; }}
+    .kc .chia {{ display: flex; gap: 16px; margin: 3px 0 10px; flex-wrap: nowrap; overflow: hidden; }}
+    .kc .chia .n {{ font-size: clamp(18px, 1.75vw, 26px); white-space: nowrap; font-weight: 700; letter-spacing: -.015em; line-height: 1.2; font-variant-numeric: tabular-nums; }}
+    .kc .chia .l {{ font-size: 11px; color: {CHU2}; margin-top: 1px; }}
+    .kc .day {{ margin-top: auto; padding-top: 8px; border-top: 1px solid rgba(18,19,22,.10); display: flex; gap: 6px 14px; flex-wrap: wrap; }}
+    .kc.den .day {{ border-top-color: rgba(255,255,255,.14); }}
+    .mini .l {{ font-size: 10.5px; color: {CHU2}; line-height: 1.3; white-space: nowrap; }}
+    .kc.chanh .mini .l, .kc.tim .mini .l {{ color: rgba(18,19,22,.62); }}
+    .kc.den .mini .l {{ color: rgba(255,255,255,.62); }}
+    .mini .v {{ font-size: 13px; font-weight: 700; line-height: 1.35; white-space: nowrap; font-variant-numeric: tabular-nums; }}
+    .mini .v.xau {{ color: #D9483B; }} .kc.den .mini .v.xau {{ color: #FF9B8F; }}
+    .kc .chu_day {{ font-size: 11.5px; font-weight: 600; color: {CHU2}; line-height: 1.35; }}
+    .kc.den .chu_day {{ color: rgba(255,255,255,.85); }}
+    .kc .chu_day.xau {{ color: #D9483B; }}
+    .tien {{ height: 6px; border-radius: 999px; background: {NHAT}; overflow: hidden; margin: 3px 0 7px; }}
+    .tien i {{ display: block; height: 100%; background: {CHANH_BAR}; border-radius: 999px; }}
 
-    /* ---------- thẻ biểu đồ ---------- */
-    [class*="st-key-the_"] {{ background: {THE}; border-radius: 20px; padding: 14px 16px 10px;
+    /* ---------- thẻ trắng ---------- */
+    [class*="st-key-the_"] {{ background: {THE}; border-radius: 20px; padding: 14px 16px 12px;
         box-shadow: 0 1px 2px rgba(18,19,22,.03), 0 8px 24px rgba(18,19,22,.05); }}
-    .tt {{ font-size: 13.5px; font-weight: 600; color: {DEN}; margin: 0 0 2px; }}
-    .tp {{ font-size: 11.5px; color: {XAM}; margin: 0 0 6px; line-height: 1.4; }}
+    /* C3: các thẻ đặt cạnh nhau trong một hàng (st.columns) luôn cao bằng nhau: cột giãn hết chiều cao hàng, thẻ cuối
+       của mỗi cột giãn phần còn lại (cột trái của trang 3 xếp chồng 2 thẻ thì thẻ dưới giãn). */
+    [data-testid="stHorizontalBlock"]:has([class*="st-key-the_"]) > [data-testid="stColumn"] > [data-testid="stVerticalBlock"] {{ height: 100%; }}
+    [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(> [class*="st-key-the_"]):last-child {{ flex: 1 1 auto; }}
+    [data-testid="stColumn"] [class*="st-key-the_"] {{ height: 100%; }}
+    /* nội dung cần chiếm hết phần còn lại của thẻ (khung trống căn giữa, bảng có dòng tổng kết ở đáy) */
+    [class*="st-key-the_"] > [data-testid="stElementContainer"]:has(.gian) {{ flex: 1 1 auto; display: flex; flex-direction: column; }}
+    [class*="st-key-the_"] > [data-testid="stElementContainer"]:has(.gian) > [data-testid="stMarkdown"],
+    [class*="st-key-the_"] > [data-testid="stElementContainer"]:has(.gian) [data-testid="stMarkdown"] div:has(.gian) {{
+        flex: 1 1 auto; display: flex; flex-direction: column; }}
+    .gian {{ flex: 1 1 auto; display: flex; flex-direction: column; }}
+    .tt {{ font-size: 13.5px; font-weight: 600; color: {DEN}; margin: 0; }}
+    .tp {{ font-size: 11.5px; color: {XAM}; margin: 2px 0 6px; line-height: 1.45; }}
+    /* C4: chú thích (legend) tự vẽ, 1 hàng ngay dưới tiêu đề phụ */
+    .chu_giai {{ display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: {CHU2}; margin: 0 0 2px; }}
+    .chu_giai span {{ display: inline-flex; align-items: center; gap: 6px; }}
+    .chu_giai i {{ width: 9px; height: 9px; border-radius: 2px; display: inline-block; }}
+    .chu_giai i.tron {{ border-radius: 50%; background: {DEN}; width: 7px; height: 7px; }}
+    .chu_giai i.thoi {{ background: {DEN}; width: 7px; height: 7px; transform: rotate(45deg); border-radius: 1px; }}
+    .chu_giai .v {{ font-weight: 700; color: {DEN}; margin-left: 2px; font-variant-numeric: tabular-nums; }}
     .nhom_hd {{ display: flex; align-items: center; gap: 10px; margin: 14px 0 8px; }}
     .nhom_hd .tag {{ font-size: 11px; font-weight: 700; background: {CHANH}; color: {DEN}; border-radius: 999px; padding: 0 10px; line-height: 20px; }}
     .nhom_hd h3 {{ margin: 0; font-size: 15px; font-weight: 600; color: {DEN}; padding: 0; }}
@@ -285,65 +372,131 @@ def _css() -> None:
     .cb.ok {{ background: #EAF7B2; color: {XANH}; }}
     .cb b {{ white-space: nowrap; }}
 
-    /* ---------- chip, lưới batch ---------- */
-    .chip {{ display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 700; letter-spacing: .02em; }}
-    .luoi_batch {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; padding-bottom: 16px; }}
-    .o_batch {{ border-radius: 14px; padding: 7px 11px; min-height: 64px; box-sizing: border-box; display: flex; flex-direction: column;
+    /* ---------- chip, lưới batch (T1.5: 2 cột x 5 hàng) ---------- */
+    .chip {{ display: inline-block; border-radius: 999px; padding: 2px 9px; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }}
+    .luoi_batch {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }}
+    .o_batch {{ border-radius: 14px; padding: 8px 12px 8px 13px; min-height: 64px; box-sizing: border-box; display: flex; flex-direction: column;
         justify-content: space-between; border: 1.5px solid transparent; }}
-    .o_batch .b {{ font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 4px; flex-wrap: wrap; }}
-    .o_batch .m {{ font-size: 10.5px; line-height: 1.4; color: {CHU2}; }}
+    .o_batch .b {{ font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 6px; }}
+    .o_batch .m {{ font-size: 11.5px; line-height: 1.45; color: {CHU2}; margin-top: 3px; font-variant-numeric: tabular-nums; }}
     .o_batch.SUCCESS {{ background: #F3FBC9; border-color: {CHANH_BAR}; }}
     .o_batch.FAILED {{ background: #FDE3E0; border-color: {DO}; }}
     .o_batch.RUNNING {{ background: #E4E8FD; border-color: {TIM_DAM}; }}
     .o_batch.PENDING {{ background: {NHAT}; border-color: {KE}; color: {XAM}; }}
     .o_batch.PENDING .b {{ color: {XAM}; }}
 
+    /* ---------- bảng HTML (bảng dòng bị loại, dbt, table_load...) ---------- */
+    .bang_wrap {{ overflow-x: auto; }}
+    /* Streamlit tô viền cả 4 cạnh + nền cho thẻ table trong markdown -> bỏ, chỉ giữ đường kẻ ngang */
+    .stApp table.bang {{ width: 100%; border-collapse: collapse; border: none !important; margin: 0; display: table; }}
+    .stApp table.bang th, .stApp table.bang td {{ border: none !important; border-bottom: 1px solid {KE} !important; }}
+    .stApp table.bang tbody tr:last-child td {{ border-bottom: none !important; }}
+    .stApp table.bang thead tr, .stApp table.bang tbody tr {{ background: none !important; }}
+    .bang th {{ font-size: 11.5px; color: {XAM}; font-weight: 500; text-align: left; padding: 7px 8px; border-bottom: 1px solid {KE};
+        white-space: nowrap; background: none; }}
+    .bang td {{ font-size: 12.5px; color: {DEN}; padding: 0 8px; height: 34px; border-bottom: 1px solid {KE}; white-space: nowrap;
+        border-left: none; border-right: none; }}
+    .bang tr {{ border: none; }}
+    .bang tbody tr:last-child td {{ border-bottom: 0; }}
+    .bang tbody tr:hover td {{ background: #F6F7F9; }}
+    .bang .r {{ text-align: right; font-variant-numeric: tabular-nums; }}
+    .bang td.z, .o_bang.z {{ color: #B6BAC2; }}
+    .bang td.go {{ white-space: normal; padding-top: 7px; padding-bottom: 7px; height: auto; }}
+    .mono {{ font-family: "Cascadia Mono", Consolas, monospace; font-size: 11.5px; }}
+    .cat {{ display: inline-block; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }}
+    .kv_wrap {{ display: flex; flex-wrap: wrap; gap: 4px; min-width: 380px; max-width: 560px; }}
+    .kv {{ background: {NHAT}; border-radius: 6px; padding: 1px 7px; font-family: "Cascadia Mono", Consolas, monospace; font-size: 11px; color: {CHU2}; }}
+    .kv.loi {{ background: #FDE3E0; color: #B8382B; font-weight: 700; }}
+    .thanh_so {{ display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; width: 100%; }}
+    .thanh_so i {{ display: inline-block; height: 8px; border-radius: 3px; background: {TIM}; }}
+    .tong_ket {{ margin-top: auto; padding-top: 10px; border-top: 1px solid {KE}; font-size: 12px; color: {CHU2}; }}
+    .tong_ket b {{ color: {DEN}; }}
+
+    /* ---------- ma trận HTML (trang 3, T3.7): cùng kiểu ô với ma trận trang 2 ---------- */
+    .mt {{ display: grid; gap: 3px; align-items: center; margin-top: 4px; }}
+    .mt .hd {{ font-size: 11px; color: {CHU2}; text-align: center; padding: 0 2px 4px; line-height: 1.25; }}
+    .mt .rh {{ font-size: 11.5px; color: {CHU2}; text-align: right; padding-right: 8px; white-space: nowrap; }}
+    .mt .o {{ height: 34px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: {DEN}; cursor: default; }}
+    .mt .o.PASS {{ background: #DDF08A; }} .mt .o.WARN {{ background: {VANG}; }} .mt .o.FAIL {{ background: {DO}; }}
+    .mt .o.NA {{ background: {NHAT}; }}
+
+    /* ---------- trống dữ liệu (C3) ---------- */
+    .trong {{ flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+        color: {CHU2}; font-size: 12.5px; text-align: center; min-height: 110px; }}
+    .trong .ic {{ width: 34px; height: 34px; border-radius: 50%; background: #EAF7B2; display: flex; align-items: center; justify-content: center; }}
+    .trong_dong {{ display: flex; align-items: center; gap: 10px; background: #F6F7F9; border-radius: 12px; padding: 10px 12px;
+        font-size: 12.5px; color: {CHU2}; }}
+    .trong .ic.xam, .trong_dong .ic.xam {{ background: {NHAT}; }}
+    .ic.xam i {{ display: block; width: 8px; height: 2px; border-radius: 1px; background: {XAM}; }}
+    .trong_dong .ic.xam {{ background: {KE}; }}
+    .trong_dong .ic {{ width: 22px; height: 22px; border-radius: 50%; background: #EAF7B2; display: flex; align-items: center;
+        justify-content: center; flex: none; }}
+
     /* ---------- trang chi tiết ---------- */
-    .dau_run {{ padding-bottom: 4px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 18px; }}
-    .dau_run .k {{ font-size: 10.5px; color: {XAM}; text-transform: uppercase; letter-spacing: .06em; }}
-    .dau_run .v {{ font-size: 14px; font-weight: 600; color: {DEN}; margin-top: 2px; word-break: break-word; }}
-    .hop_loi {{ background: #FDE3E0; color: #8E2A20; border-radius: 12px; padding: 10px 14px; font-size: 12.5px; line-height: 1.55;
-        margin-top: 10px; word-break: break-word; }}
+    .dau_tieu {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }}
+    .dau_tieu .so_run {{ font-size: 21px; font-weight: 700; letter-spacing: -.01em; }}
+    .dau_tieu .chip {{ font-size: 11px; padding: 3px 10px; }}
+    .dau_run {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 20px; }}
+    .dau_run .k {{ font-size: 11.5px; color: {XAM}; }}
+    .dau_run .v {{ font-size: 14px; font-weight: 600; color: {DEN}; margin-top: 2px; word-break: break-word; font-variant-numeric: tabular-nums; }}
+    .hop_loi {{ background: #FDE3E0; color: #7E2419; border-radius: 12px; padding: 11px 14px; font-size: 12.5px; line-height: 1.55;
+        margin-top: 14px; word-break: break-word; }}
+    .hop_loi .tom {{ font-size: 13px; font-weight: 700; margin: 0 0 4px; }}
+    .hop_loi ul {{ margin: 0; padding-left: 18px; }}
+    .hop_loi li {{ margin: 1px 0; font-size: 12.5px; }}
+    .hop_loi li .mono {{ font-weight: 600; }}
+    .hop_loi details {{ margin-top: 6px; }}
+    .hop_loi summary {{ cursor: pointer; font-size: 12px; font-weight: 600; color: #8E2A20; list-style: none; }}
+    .hop_loi summary::-webkit-details-marker {{ display: none; }}
+    .hop_loi summary::after {{ content: " ›"; }}
+    .hop_loi details[open] summary::after {{ content: " ⌄"; }}
+    .hop_loi .goc {{ margin-top: 6px; background: rgba(255,255,255,.55); border-radius: 8px; padding: 8px 10px; font-size: 11.5px;
+        line-height: 1.5; color: #8E2A20; }}
     .hop_ghi {{ background: {NHAT}; color: {CHU2}; border-radius: 12px; padding: 10px 14px; font-size: 12.5px; line-height: 1.55; }}
+    .ds_loi {{ display: flex; flex-direction: column; gap: 8px; }}
+    .mot_loi {{ border-left: 3px solid {DO}; background: #F6F7F9; border-radius: 0 10px 10px 0; padding: 8px 12px; font-size: 12.5px;
+        line-height: 1.5; word-break: break-word; }}
+    .mot_loi.canh {{ border-left-color: {VANG}; }}
+    .mot_loi .mono {{ color: {CHU2}; }}
     [data-testid="stDataFrame"] {{ border-radius: 12px; overflow: hidden; }}
     [class*="st-key-the_dau_run"] {{ padding: 16px; }}
     /* Streamlit đặt margin-bottom: -16px cho mọi khối markdown (để bù lề dưới của thẻ <p>). Khung thông báo tự vẽ
        không có <p> nên bị bù sai: khung tràn khỏi đáy thẻ trắng hoặc dính sát mép dưới. Trả lề về 0 cho các khối này. */
     [data-testid="stMarkdownContainer"]:has(> .hop_ghi), [data-testid="stMarkdownContainer"]:has(> .hop_loi),
-    [data-testid="stMarkdownContainer"]:has(> .cb), [data-testid="stMarkdownContainer"]:has(> .dau_run) {{ margin-bottom: 0; }}
-    /* khung thông báo là phần tử cuối của thẻ trắng: lề dưới bằng lề hai bên (thẻ có padding dưới 10px, hai bên 16px) */
-    [class*="st-key-the_"] .hop_ghi:last-child, [class*="st-key-the_"] .hop_loi:last-child {{ margin-bottom: 6px; }}
-    [class*="st-key-the_dau_run"] .hop_loi:last-child {{ margin-bottom: 0; }}
-    /* ---------- bảng 20 lần chạy (hàng st.columns + nút Xem chi tiết) ---------- */
+    [data-testid="stMarkdownContainer"]:has(> .cb), [data-testid="stMarkdownContainer"]:has(> .dau_run),
+    [data-testid="stMarkdownContainer"]:has(> .gian), [data-testid="stMarkdownContainer"]:has(> .trong_dong),
+    [data-testid="stMarkdownContainer"]:has(> .bang_wrap), [data-testid="stMarkdownContainer"]:has(> .mt),
+    [data-testid="stMarkdownContainer"]:has(> .luoi_batch), [data-testid="stMarkdownContainer"]:has(> .chu_giai) {{ margin-bottom: 0; }}
+    /* ---------- bảng 20 lần chạy (hàng st.columns + nút Chi tiết) ---------- */
     .st-key-bang_run {{ background: {THE}; border-radius: 20px; padding: 6px 14px 8px; gap: 0 !important; overflow-x: auto;
         box-shadow: 0 1px 2px rgba(18,19,22,.03), 0 8px 24px rgba(18,19,22,.05); }}
-    /* bảng hẹp hơn ~900px thì cột bị ép cắt chữ -> giữ độ rộng tối thiểu, màn hình hẹp thì cuộn ngang trong thẻ
-       (màn hình 1280px có thanh bên: bảng rộng ~900px, vừa khít) */
-    .st-key-bang_run > * {{ min-width: 900px; }}
+    /* bảng hẹp hơn ~905px thì cột bị ép cắt chữ -> giữ độ rộng tối thiểu, màn hình hẹp thì cuộn ngang trong thẻ */
+    .st-key-bang_run > * {{ min-width: 905px; }}
     /* cột 11 (Lỗi, căn trái) đứng sau cột số căn phải (Test lỗi) -> đệm trái để chữ không dính số */
     .st-key-bang_run [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(11) {{ padding-left: 14px; }}
-    [data-testid="stMain"] .st-key-bang_run [data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap !important; gap: 8px;
-        padding: 6px 6px; border-bottom: 1px solid {KE}; min-height: 44px; }}
+    [data-testid="stMain"] .st-key-bang_run [data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap !important; gap: 6px;
+        padding: 4px 6px; border-bottom: 1px solid {KE}; min-height: 40px; }}
     [data-testid="stMain"] .st-key-bang_run [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
         min-width: 0 !important; overflow: hidden; }}
-    .st-key-bang_run [data-testid="stHorizontalBlock"]:hover {{ background: {NHAT}; border-radius: 10px; }}
+    .st-key-bang_run [data-testid="stHorizontalBlock"]:hover {{ background: #F6F7F9; border-radius: 10px; }}
     .st-key-bang_run [data-testid="stMarkdownContainer"] {{ margin-bottom: 0; }}
     .o_bang {{ font-size: 12.5px; color: {DEN}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }}
     .o_bang.phai {{ text-align: right; font-variant-numeric: tabular-nums; }}
-    .o_bang.giua {{ text-align: center; }}
     /* tiêu đề cột: thiếu chỗ thì xuống dòng thay vì cắt "…" (font mỗi máy rộng hẹp khác nhau một chút) */
-    .o_bang.tieu {{ font-size: 12px; color: {XAM}; font-weight: 500; cursor: default; white-space: normal;
+    .o_bang.tieu {{ font-size: 11.5px; color: {XAM}; font-weight: 500; cursor: default; white-space: normal;
         overflow: visible; line-height: 1.25; overflow-wrap: normal; word-break: keep-all; }}
-    .o_bang.loi {{ color: #8E2A20; font-size: 12.5px; cursor: help; }}
+    .o_bang.loi {{ color: #B8382B; font-size: 12.5px; cursor: help; }}
     .o_bang .chip {{ font-size: 10.5px; padding: 2px 8px; }}
-    [class*="st-key-xem_"] button {{ min-height: 30px; height: 30px; padding: 0 12px; border-radius: 999px; border: none;
-        background: {NHAT}; color: {DEN}; font-size: 12px; font-weight: 600; white-space: nowrap; width: 100%; }}
+    [class*="st-key-xem_"] {{ display: flex; justify-content: flex-end; }}
+    [class*="st-key-xem_"] button {{ min-height: 28px; height: 28px; padding: 0 12px; border-radius: 999px; border: none;
+        background: {NHAT}; color: {DEN}; font-size: 12px; font-weight: 600; white-space: nowrap; }}
     [class*="st-key-xem_"] button:hover {{ background: {CHANH}; color: {DEN}; }}
     [class*="st-key-xem_"] button p {{ white-space: nowrap; }}
     /* màn hình hẹp (<= 1000px): các cặp thẻ đặt cạnh nhau xếp thành 1 cột cho bảng / biểu đồ đủ rộng */
     @media (max-width: 1000px) {{
         [data-testid="stMain"] [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap !important; }}
         [data-testid="stMain"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{ min-width: 100% !important; }}
+        .dau_run {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
     }}
     </style>""", unsafe_allow_html=True)
 
@@ -351,10 +504,34 @@ def _css() -> None:
 # ---------------------------------------------------------------------------
 # Thành phần giao diện dùng chung
 # ---------------------------------------------------------------------------
-def the_kpi(ten: str, so: str, ghi: str, kieu: str = "trang", don_vi: str = "", mau_so: str = "", mau_ghi: str = "") -> str:
-    dv = f"<small>{esc(don_vi)}</small>" if don_vi else ""
+ICON_OK = ('<span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1D5E12" stroke-width="3" '
+           'stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>')
+ICON_OK_NHO = ('<span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1D5E12" stroke-width="3.5" '
+               'stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>')
+
+
+def mini(nhan: str, gia_tri: str, lop: str = "") -> str:
+    """Ô nhỏ ở đáy thẻ KPI (C2): nhãn nhỏ ở trên, số đậm ở dưới."""
+    return f'<div class="mini"><div class="l">{esc(nhan)}</div><div class="v {lop}">{gia_tri}</div></div>'
+
+
+def chu_day(noi_dung: str, lop: str = "") -> str:
+    """Đáy thẻ KPI chỉ có 1 câu (VD 'Đã commit', 'dbt báo lỗi sau khi staging đã nạp xong')."""
+    return f'<div class="chu_day {lop}">{noi_dung}</div>'
+
+
+def the_kpi(ten: str, so: str, day: str, kieu: str = "trang", don_vi: str = "", mau_so: str = "") -> str:
+    """Thẻ KPI: nhãn, số lớn (+ đơn vị / phần nhỏ cạnh số), đáy thẻ = các ô mini() hoặc chu_day()."""
+    dv = f"<small>{don_vi}</small>" if don_vi else ""
     return (f'<div class="kc {kieu}"><div class="lab">{esc(ten)}</div>'
-            f'<div class="so {mau_so}">{so}{dv}</div><div class="ghi {mau_ghi}">{ghi}</div></div>')
+            f'<div class="so {mau_so}">{so}{dv}</div><div class="day">{day}</div></div>')
+
+
+def the_chia(ten: str, cap: list[tuple[str, str]], day: str, kieu: str = "trang") -> str:
+    """Thẻ KPI có 2 số lớn đứng riêng, mỗi số một nhãn bên dưới (T3.4: Thêm mới 746, Cập nhật 67)."""
+    so = "".join(f'<div><div class="n">{v}</div><div class="l">{esc(n)}</div></div>' for n, v in cap)
+    return (f'<div class="kc {kieu}"><div class="lab">{esc(ten)}</div><div class="chia">{so}</div>'
+            f'<div class="day">{day}</div></div>')
 
 
 def hang_kpi(cac_the: list[str]) -> None:
@@ -365,21 +542,35 @@ def tieu_de(ma: str, noi_dung: str) -> None:
     st.markdown(f'<div class="nhom_hd"><span class="tag">{esc(ma)}</span><h3>{esc(noi_dung)}</h3></div>', unsafe_allow_html=True)
 
 
-def the_ve(key: str, tieu: str, phu: str = ""):
-    """Mở một thẻ trắng (container) có tiêu đề; trả về container để vẽ vào."""
+def chu_giai(muc: list[tuple]) -> str:
+    """Chú thích (C4) 1 hàng: mỗi mục (tên, màu) hoặc (tên, màu, giá trị in đậm); màu 'tron' / 'thoi' = ký hiệu chạy tay / theo lịch."""
+    o = []
+    for m in muc:
+        ten, mau = m[0], m[1]
+        ky = f'<i class="{mau}"></i>' if mau in ("tron", "thoi") else f'<i style="background:{mau}"></i>'
+        gt = f'<span class="v">{m[2]}</span>' if len(m) > 2 and m[2] else ""
+        o.append(f"<span>{ky}{esc(ten)}{gt}</span>")
+    return '<div class="chu_giai">' + "".join(o) + "</div>"
+
+
+def the_ve(key: str, tieu: str, phu: str = "", cg: str = ""):
+    """Mở một thẻ trắng (container) có tiêu đề, tiêu đề phụ (1 câu) và chú thích; trả về container để vẽ vào."""
     c = st.container(key=f"the_{key}")
-    c.markdown(f'<div class="tt">{esc(tieu)}</div>' + (f'<div class="tp">{phu}</div>' if phu else ""), unsafe_allow_html=True)
+    c.markdown(f'<div class="tt">{esc(tieu)}</div>' + (f'<div class="tp">{phu}</div>' if phu else "") + cg,
+               unsafe_allow_html=True)
     return c
 
 
 def khung_plotly(fig: go.Figure, cao: int = 300, **tuy_chon) -> go.Figure:
-    fig.update_layout(height=cao, margin=dict(l=8, r=8, t=8, b=8), paper_bgcolor="rgba(0,0,0,0)", separators=",.",
-                      font=dict(family="Segoe UI, Arial, sans-serif", size=11, color=CHU2),
-                      legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0, font=dict(size=11),
-                                  bgcolor="rgba(0,0,0,0)"),
-                      hoverlabel=dict(bgcolor=DEN, font=dict(color="#fff", size=12)), **{"plot_bgcolor": "rgba(0,0,0,0)", **tuy_chon})
-    fig.update_xaxes(gridcolor=LUOI, linecolor=KE, zeroline=False, tickfont=dict(color=XAM))
-    fig.update_yaxes(gridcolor=LUOI, linecolor=KE, zeroline=False, tickfont=dict(color=XAM))
+    """Khung chung của mọi biểu đồ: không legend của Plotly (chú thích vẽ bằng HTML ngay dưới tiêu đề phụ - C4),
+    không chữ trục (đơn vị ghi ở tiêu đề phụ - C5), cột bo góc 3px."""
+    fig.update_layout(height=cao, margin=dict(l=6, r=6, t=6, b=6), paper_bgcolor="rgba(0,0,0,0)", separators=",.",
+                      font=dict(family="Segoe UI, Arial, sans-serif", size=11, color=CHU2), showlegend=False,
+                      barcornerradius=3,
+                      hoverlabel=dict(bgcolor=DEN, bordercolor=DEN, font=dict(color="#fff", size=12)),
+                      **{"plot_bgcolor": "rgba(0,0,0,0)", **tuy_chon})
+    fig.update_xaxes(gridcolor=LUOI, linecolor=KE, zeroline=False, tickfont=dict(color=XAM), title=None, automargin=True)
+    fig.update_yaxes(gridcolor=LUOI, linecolor=KE, zeroline=False, tickfont=dict(color=XAM), title=None, automargin=True)
     return fig
 
 
@@ -387,27 +578,29 @@ def ve(c, fig: go.Figure, key: str) -> None:
     c.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=key)
 
 
-def trong(c, thong_bao: str) -> None:
-    c.markdown(f'<div class="hop_ghi">{esc(thong_bao)}</div>', unsafe_allow_html=True)
+def trong(c, thong_bao: str, ok: bool = True) -> None:
+    """Thẻ không có dữ liệu, thẻ nằm cạnh thẻ khác: biểu tượng + câu thông báo căn giữa thẻ (C3, class .trong).
+    ok=True: ✓ xanh (không có lỗi nào); ok=False: chấm xám (chưa có dữ liệu, không phải tin tốt hay xấu)."""
+    ic = ICON_OK if ok else '<span class="ic xam"><i></i></span>'
+    c.markdown(f'<div class="gian"><div class="trong">{ic}<span>{thong_bao}</span></div></div>', unsafe_allow_html=True)
 
 
-def to_mau_trang_thai(v, dbt: bool = False):
-    nen, chu = CHIP.get(v, (None, None))
-    if nen is None and dbt and q.la_loi_dbt(str(v).lower()):
-        nen, chu = CHIP["FAILED"]   # trạng thái dbt lạ = lỗi
-    return f"background-color:{nen};color:{chu};font-weight:700;text-align:center" if nen else ""
+def trong_dong(c, thong_bao: str, ok: bool = True) -> None:
+    """Thẻ không có dữ liệu, thẻ chiếm cả hàng: dạng 1 dòng (C3, class .trong_dong). ok như trong()."""
+    ic = ICON_OK_NHO if ok else '<span class="ic xam"><i></i></span>'
+    c.markdown(f'<div class="trong_dong">{ic}<span>{thong_bao}</span></div>', unsafe_allow_html=True)
 
 
-def style_bang(df: pd.DataFrame, cot_tt: list[str], dbt: bool = False):
-    """Tô màu chip cho các cột trạng thái (dbt=True: trạng thái dbt lạ tô như lỗi).
-    pandas >=2.1 dùng Styler.map, bản cũ dùng applymap."""
-    s = df.style
-    ap = s.map if hasattr(s, "map") else s.applymap
-    return ap(lambda v: to_mau_trang_thai(v, dbt), subset=cot_tt) if cot_tt else s
+def bang_html(cot: list[tuple[str, str]], hang: list[list[tuple[str, str]]], lop_bang: str = "") -> str:
+    """Bảng HTML gọn: cot = [(tiêu đề, lớp th)], hang = [[(nội dung html, lớp td), ...]]. Lớp 'r' = căn phải, 'z' = số 0 xám."""
+    th = "".join(f'<th class="{l}">{esc(t)}</th>' for t, l in cot)
+    tb = "".join("<tr>" + "".join(f'<td class="{l}">{v}</td>' for v, l in h) + "</tr>" for h in hang)
+    return f'<div class="bang_wrap"><table class="bang {lop_bang}"><thead><tr>{th}</tr></thead><tbody>{tb}</tbody></table></div>'
 
 
-def mau_thanh(bang: pd.DataFrame, cot: str = "status") -> list[str]:
-    return [MAU_TT.get(s, "#D5D8DE") for s in bang[cot]]
+def o_so(x, nd: int = 0) -> tuple[str, str]:
+    """Ô số căn phải của bang_html; 0 tô xám (C6)."""
+    return so_vn(x, nd), "r" + lop_0(x)
 
 
 # ---------------------------------------------------------------------------
@@ -421,16 +614,16 @@ def _thanh_tren(trang: int, bay_gio: pd.Timestamp) -> None:
         dang_bat = [t for t in lich if t["bat"]]
         if dang_bat:
             pill_lich = "".join(
-                f'<span class="pillc"><span class="dot bat"></span>Lịch <b>{esc(t["ten"])}</b> đang bật · '
+                f'<span class="pillc"><span class="dot bat"></span>Lịch <b>{esc(t["ten"])}</b> đang bật, '
                 f'<code style="background:none;padding:0">{esc(t["cron"])}</code></span>' for t in dang_bat)
         else:
             pill_lich = '<span class="pillc"><span class="dot tat"></span>Lịch: <b>tắt</b> (chỉ chạy tay)</span>'
     st.markdown(
         f'<div class="appbar"><div class="brand"><span class="lg"><i style="height:6px"></i><i style="height:10px"></i>'
-        f'<i style="height:14px"></i></span><b>Olist BI</b><span class="sep">·</span><span>Theo dõi ETL</span>'
+        f'<i style="height:14px"></i></span><b>Olist BI</b><span class="sep">/</span><span>Theo dõi ETL</span>'
         f'<span class="sep">/</span><span class="pg">{esc(TEN_TRANG[trang])}</span></div>'
         f'<div class="bar_r">{pill_lich}<span class="pillc">Cập nhật lúc <b>{bay_gio.strftime("%H:%M:%S")}</b> '
-        f'· {bay_gio.strftime("%d/%m/%Y")}</span></div></div>', unsafe_allow_html=True)
+        f'ngày {bay_gio.strftime("%d/%m/%Y")}</span></div></div>', unsafe_allow_html=True)
 
 
 def _doi_trang(t: int) -> None:
@@ -445,10 +638,15 @@ def _dat_lai() -> None:
     st.session_state.f_ngay = ()
 
 
+# S1, S2: logo cùng hàng với nút thu gọn « (nút do Streamlit vẽ, CSS đưa lên góc trên phải); tên viết 2 dòng
+LOGO_THANH_BEN = ('<div class="sb_dau"><span class="lg"><i style="height:6px"></i><i style="height:10px"></i>'
+                  '<i style="height:14px"></i></span><div class="sb_ten"><div class="a">Olist BI</div>'
+                  '<div class="b">Theo dõi ETL</div></div></div>')
+
+
 def _thanh_ben(lc: dict) -> q.BoLoc:
     sb = st.sidebar
-    sb.markdown('<div class="sb_logo"><span class="lg"><i style="height:6px"></i><i style="height:10px"></i>'
-                '<i style="height:14px"></i></span>Olist BI · Theo dõi ETL</div>', unsafe_allow_html=True)
+    sb.markdown(LOGO_THANH_BEN, unsafe_allow_html=True)
     sb.markdown('<div class="sb_muc">Trang</div>', unsafe_allow_html=True)
     for t, ten, icon in zip((1, 2, 3), ("Tổng quan vận hành", "Chất lượng dữ liệu", "Chi tiết một lần chạy"),
                             (":material/monitor_heart:", ":material/fact_check:", ":material/manage_search:")):
@@ -458,8 +656,8 @@ def _thanh_ben(lc: dict) -> q.BoLoc:
     sb.markdown('<div class="sb_muc">Bộ lọc</div>', unsafe_allow_html=True)
     luot_df = lc["luot"]
     moi_nhat = int(luot_df.cycle_no.max()) if len(luot_df) else None
-    mo_ta = {int(r.cycle_no): (f"Lượt {int(r.cycle_no)} · từ {pd.Timestamp(r.bat_dau):%d/%m %H:%M} · {int(r.so_lan)} lần"
-                               if r.cycle_no > 0 else f"Trước Full Load đầu tiên · {int(r.so_lan)} lần")
+    mo_ta = {int(r.cycle_no): (f"Lượt {int(r.cycle_no)}, từ {pd.Timestamp(r.bat_dau):%d/%m %H:%M}, {int(r.so_lan)} lần"
+                               if r.cycle_no > 0 else f"Trước Full Load đầu tiên, {int(r.so_lan)} lần")
              for r in luot_df.itertuples()}
     tuy_chon = [-1, None] + list(mo_ta)
     st.session_state.setdefault("f_luot", -1)
@@ -501,9 +699,8 @@ def _thanh_ben(lc: dict) -> q.BoLoc:
         st.rerun()
     c2.button("Đặt lại", icon=":material/restart_alt:", width="stretch", key="dat_lai", on_click=_dat_lai)
     sb.toggle("Tự làm mới 30 giây", key="tu_lam_moi")
-    sb.markdown('<div class="sb_ghi">Lần chạy theo lịch khi đã nạp hết batch <b>không</b> ghi vào etl_log '
-                '(decisions.md 05/11/2026) nên không xuất hiện ở đây. Giờ hiển thị là giờ Việt Nam.</div>',
-                unsafe_allow_html=True)
+    sb.markdown('<div class="sb_ghi">Lần chạy theo lịch khi đã nạp hết batch không ghi vào etl_log nên không xuất hiện '
+                'ở đây. Giờ hiển thị là giờ Việt Nam.</div>', unsafe_allow_html=True)
     return q.BoLoc(luot=luot, pipeline=None if pipeline == TAT_CA else pipeline,
                    kich_hoat=None if kich_hoat == TAT_CA else kich_hoat,
                    trang_thai=None if trang_thai == TAT_CA else trang_thai, tu_ngay=tu_ngay, den_ngay=den_ngay)
@@ -550,10 +747,11 @@ def _nghi_txt(giay: float, day_du: bool = True) -> str:
     return f"{tien_to}{round(giay / 60)} phút"
 
 
-def _nhan_truc(d0: pd.Timestamp, d1: pd.Timestamp, nghi: list, muc_tieu: int = 5) -> tuple[list, list]:
+def _nhan_truc(d0: pd.Timestamp, d1: pd.Timestamp, nghi: list, muc_tieu: int = 5, mot_ngay: bool = False) -> tuple[list, list]:
     """Nhãn trục tự tính khi có cắt khoảng nghỉ: mỗi đoạn nhìn thấy có ít nhất 1 nhãn, số nhãn tỉ lệ với độ dài đoạn.
     Trả về (tickvals, ticktext); ticktext kiểu VN 'HH:MM', kèm dòng 'dd/mm/yyyy' ở nhãn đầu và mỗi khi sang ngày khác
-    (nhãn ngắn nên không chồng nhau); không có 2 nhãn trùng giờ trùng ngày."""
+    (nhãn ngắn nên không chồng nhau); không có 2 nhãn trùng giờ trùng ngày. mot_ngay=True: mọi lần chạy cùng một ngày
+    (ngày đã ghi ở tiêu đề phụ) nên nhãn chỉ ghi giờ."""
     moc = [d0] + [x for b, k in nghi for x in (b, k)] + [d1]
     doan = [(moc[i], moc[i + 1]) for i in range(0, len(moc), 2)]
     tong = max(sum((k - b).total_seconds() for b, k in doan), 1.0)
@@ -569,18 +767,26 @@ def _nhan_truc(d0: pd.Timestamp, d1: pd.Timestamp, nghi: list, muc_tieu: int = 5
             da_co.add(khoa)
             ngay = t.strftime("%d/%m" if nhieu else "%d/%m/%Y")
             vals.append(t)
-            texts.append(t.strftime("%H:%M") + (f"<br>{ngay}" if ngay != ngay_truoc else ""))
+            texts.append(t.strftime("%H:%M") + (f"<br>{ngay}" if ngay != ngay_truoc and not mot_ngay else ""))
             ngay_truoc = ngay
     return vals, texts
 
 
+def _mot_ngay(df: pd.DataFrame, bay_gio: pd.Timestamp) -> bool:
+    """Mọi lần chạy (kể cả lần đang chạy) bắt đầu và kết thúc trong cùng một ngày."""
+    kt = df.finished_at.fillna(bay_gio)
+    return df.started_at.min().date() == kt.max().date()
+
+
 def _bieu_do_dong_thoi_gian(df: pd.DataFrame, batches: list[str]):
     """(a) mỗi lần chạy = 1 thanh nằm đúng lúc chạy, hàng = batch; chấm tròn = chạy tay, thoi = theo lịch.
-    Khoảng nghỉ dài giữa các đợt chạy bị cắt khỏi trục (rangebreaks); chỗ cắt có vạch đứt kèm chú thích 'nghỉ 4 giờ'."""
+    Khoảng nghỉ dài giữa các đợt chạy bị cắt khỏi trục (rangebreaks); chỗ cắt có vạch đứt kèm chú thích 'nghỉ 4 giờ'.
+    Mọi lần chạy cùng một ngày thì trục chỉ ghi giờ (ngày ghi ở tiêu đề phụ - T1.2)."""
     fig = go.Figure()
     bay_gio = _gio_db()
     ket_thuc = df.finished_at.fillna(bay_gio)
     nghi = _khoang_nghi(df, bay_gio)
+    mot_ngay = _mot_ngay(df, bay_gio)
     nhip = (ket_thuc.max() - df.started_at.min()).total_seconds() - sum((k - b).total_seconds() for b, k in nghi)
     nhip = max(nhip, 60)   # độ dài trục sau khi đã cắt khoảng nghỉ
     rong_toi_thieu = nhip / 140   # lần chạy quá ngắn so với khoảng thời gian đang xem vẫn nhìn thấy được
@@ -591,23 +797,22 @@ def _bieu_do_dong_thoi_gian(df: pd.DataFrame, batches: list[str]):
             continue
         fig.add_trace(go.Bar(
             y=d.batch_id, x=[max(v, rong_toi_thieu) * 1000 for v in thoi_gian[d.index]], base=d.started_at, orientation="h",
-            name=tt, marker=dict(color=MAU_TT[tt], line=dict(width=0)), width=0.55,
+            name=tt, marker=dict(color=MAU_TT[tt], line=dict(width=0)), width=0.5,
             customdata=list(zip(d.run_id, d.pipeline_name, d.triggered_by, [thoi_luong(v) for v in thoi_gian[d.index]],
                                 [rut_gon(e, 80) for e in d.error_message.fillna("")])),
-            hovertemplate="<b>#%{customdata[0]} · %{y}</b><br>%{customdata[1]} · %{customdata[2]}<br>"
-                          "Chạy %{customdata[3]}<br>%{customdata[4]}<extra>" + tt + "</extra>"))
-    for kich, ky_hieu, ten in (("manual", "circle", "Chạy tay"), ("schedule", "diamond", "Theo lịch")):
+            hovertemplate="<b>#%{customdata[0]}, batch %{y}</b><br>" + tt + ", %{customdata[2]}, %{customdata[1]}<br>"
+                          "Chạy %{customdata[3]}<br>%{customdata[4]}<extra></extra>"))
+    for kich, ky_hieu in (("manual", "circle"), ("schedule", "diamond")):
         d = df[df.triggered_by == kich]
         if d.empty:
             continue
         fig.add_trace(go.Scatter(
-            y=d.batch_id, x=d.started_at, mode="markers", name=ten,
-            marker=dict(symbol=ky_hieu, size=9, color=DEN, line=dict(color="#fff", width=1.5)),
-            hoverinfo="skip"))
-    fig.update_yaxes(type="category", categoryorder="array", categoryarray=batches, autorange="reversed", title=None)
-    cau_hinh = dict(type="date", title=None, tickformat="%H:%M<br>%d/%m/%Y")
+            y=d.batch_id, x=d.started_at, mode="markers",
+            marker=dict(symbol=ky_hieu, size=8, color=DEN, line=dict(color="#fff", width=1.5)), hoverinfo="skip"))
+    fig.update_yaxes(type="category", categoryorder="array", categoryarray=batches, autorange="reversed")
+    cau_hinh = dict(type="date", tickformat="%H:%M" if mot_ngay else "%H:%M<br>%d/%m/%Y")
     if nghi:
-        vals, texts = _nhan_truc(df.started_at.min(), ket_thuc.max(), nghi)
+        vals, texts = _nhan_truc(df.started_at.min(), ket_thuc.max(), nghi, mot_ngay=mot_ngay)
         cau_hinh.update(rangebreaks=[dict(bounds=[b.isoformat(), k.isoformat()]) for b, k in nghi],
                         tickmode="array", tickvals=vals, ticktext=texts, tickangle=0)
         for b, k in nghi:   # vạch đứt ở chỗ cắt + chú thích độ dài khoảng nghỉ thật (cộng lại phần lề đã giữ)
@@ -618,59 +823,56 @@ def _bieu_do_dong_thoi_gian(df: pd.DataFrame, batches: list[str]):
                                xanchor="left", xshift=3, textangle=-90, font=dict(size=10, color=XAM))
     fig.update_xaxes(**cau_hinh)
     fig.update_layout(barmode="overlay")
-    return khung_plotly(fig, 350)
+    return khung_plotly(fig, 310)
+
+
+MAU_MAGE = "#C9CDD4"
 
 
 def _bieu_do_thoi_gian_tung_lan(df: pd.DataFrame):
-    """(b) mỗi lần chạy 1 cột chồng: nạp staging / dbt khởi động / dbt build / Mage (đang chạy tính tới bây giờ)."""
+    """(b) mỗi lần chạy 1 cột chồng: nạp staging / dbt khởi động / dbt build / Mage (đang chạy tính tới bây giờ).
+    Lần FAILED: số run trên trục ngang tô đỏ đậm (T1.3); lần đang chạy tô tím đậm."""
     d = df.tail(40).copy()
     stg, prep, dbt, mage = (d.staging_s.fillna(0), d.dbt_prep_s.fillna(0), d.dbt_s.fillna(0), d.mage_s.fillna(0))
     # đang ở khâu dbt (chưa có kết quả dbt): phần "còn lại" thực ra là dbt đang chạy
     dang_dbt = (d.status == "RUNNING") & (d.phase == "dbt")
     dbt = dbt.where(~dang_dbt, mage)
     mage = mage.where(~dang_dbt, 0)
-    tong = stg + prep + dbt + mage
     nhan = [f"#{r}" for r in d.run_id]
+    tick = [f'<span style="color:#B8382B"><b>#{r.run_id}</b></span>' if r.status == "FAILED" else
+            f'<span style="color:#3A47C4"><b>#{r.run_id}</b></span>' if r.status == "RUNNING" else f"#{r.run_id}"
+            for r in d.itertuples()]
     fig = go.Figure()
-    for ten, gt, mau in (("Nạp staging", stg, CHANH_BAR), ("dbt khởi động / parse", prep, TIM_NHAT), ("dbt build", dbt, TIM),
-                         ("Mage (khởi động block, ghi log)", mage, "#D5D8DE")):
-        fig.add_trace(go.Bar(x=nhan, y=gt, name=ten, marker_color=mau, hovertemplate="%{x} · " + ten + ": %{y:.1f} giây<extra></extra>"))
-    cao_nhat = max(float(tong.max()), 1.0)
-    loi = d[d.status == "FAILED"]
-    if len(loi):
-        fig.add_trace(go.Scatter(x=[f"#{r}" for r in loi.run_id], y=(tong[loi.index] + cao_nhat * 0.06), mode="markers",
-                                 name="FAILED", marker=dict(symbol="x", size=9, color=DO, line=dict(width=2)), hoverinfo="skip"))
-    dang = d[d.status == "RUNNING"]
-    if len(dang):
-        fig.add_trace(go.Scatter(x=[f"#{r}" for r in dang.run_id], y=(tong[dang.index] + cao_nhat * 0.06), mode="markers",
-                                 name="RUNNING", marker=dict(symbol="circle-open", size=10, color=TIM_DAM, line=dict(width=2)),
-                                 hoverinfo="skip"))
-    fig.update_layout(barmode="stack", bargap=0.25)
-    fig.update_xaxes(type="category", title=None)
-    fig.update_yaxes(title="giây")
-    return khung_plotly(fig, 330)
+    for ten, gt, mau in (("Nạp staging", stg, CHANH_BAR), ("dbt khởi động", prep, TIM_NHAT), ("dbt build", dbt, TIM_DAM),
+                         ("Mage", mage, MAU_MAGE)):
+        fig.add_trace(go.Bar(x=nhan, y=gt, name=ten, marker=dict(color=mau, line=dict(color="#fff", width=1)),
+                             customdata=d.status, hovertemplate="%{x}, %{customdata}<br>" + ten + ": %{y:.1f} giây<extra></extra>"))
+    fig.update_layout(barmode="stack", bargap=0.32)
+    fig.update_xaxes(type="category", tickmode="array", tickvals=nhan, ticktext=tick, showgrid=False,
+                     tickangle=0 if len(nhan) * max(map(len, nhan), default=0) <= 40 else None)   # vừa chỗ thì nằm ngang
+    fig.update_yaxes(rangemode="tozero")
+    return khung_plotly(fig, 310)
 
 
 def _bieu_do_so_dong(theo_batch: pd.DataFrame):
     """(c) INSERT / UPDATE đã commit theo batch (cột chồng) + số dòng bị loại vào dq (nhãn đỏ ngay trên cột). Full Load vẽ riêng ngoài."""
     d = theo_batch[theo_batch.batch_id != q.FULL_BATCH]
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=d.batch_id, y=d.rows_inserted, name="INSERT (thêm mới)", marker_color=CHANH_BAR,
-                         hovertemplate="%{x} · INSERT: %{y:,}<extra></extra>"))
-    fig.add_trace(go.Bar(x=d.batch_id, y=d.rows_updated, name="UPDATE (cập nhật)", marker_color=TIM,
-                         hovertemplate="%{x} · UPDATE: %{y:,}<extra></extra>"))
+    fig.add_trace(go.Bar(x=d.batch_id, y=d.rows_inserted, name="INSERT", marker_color=CHANH_BAR,
+                         hovertemplate="Batch %{x}<br>INSERT: %{y:,}<extra></extra>"))
+    fig.add_trace(go.Bar(x=d.batch_id, y=d.rows_updated, name="UPDATE", marker_color=TIM,
+                         hovertemplate="Batch %{x}<br>UPDATE: %{y:,}<extra></extra>"))
     cao = float((d.rows_inserted + d.rows_updated).max()) if len(d) else 0.0
-    fig.add_trace(go.Scatter(x=[None], y=[None], mode="markers", name="Số dòng bị loại vào dq (chữ đỏ trên cột)",
-                             marker=dict(color=DO, symbol="square", size=9), hoverinfo="skip"))
     for r in d[d.rows_rejected > 0].itertuples():
         fig.add_annotation(x=r.batch_id, y=float(r.rows_inserted + r.rows_updated), yshift=12, showarrow=False,
                            text=f"{so_vn(r.rows_rejected)} bị loại", font=dict(color=DO, size=11))
-    fig.update_layout(barmode="stack", bargap=0.3, yaxis=dict(title="số dòng", tickformat=",", range=[0, max(cao * 1.15, 1)]))
-    fig.update_xaxes(type="category", title=None)
-    return khung_plotly(fig, 330)
+    fig.update_layout(barmode="stack", bargap=0.42, yaxis=dict(tickformat=",d", range=[0, max(cao * 1.12, 1)]))
+    fig.update_xaxes(type="category", showgrid=False)
+    return khung_plotly(fig, 372)
 
 
 def _luoi_batch(tien_do: pd.DataFrame) -> str:
+    """Tiến độ 10 batch: giữ kiểu ô (nền + viền theo trạng thái, chip góc phải), xếp 2 cột x 5 hàng (T1.5)."""
     o = []
     for r in tien_do.itertuples():
         # lần chạy gần nhất đang RUNNING thì hiện RUNNING; đã nạp thành công (da_nap) thì ưu tiên SUCCESS dù trong lượt
@@ -681,13 +883,52 @@ def _luoi_batch(tien_do: pd.DataFrame) -> str:
             tt = "SUCCESS"
         else:
             tt = r.trang_thai_cuoi if r.trang_thai_cuoi in ("FAILED", "PENDING") else "PENDING"
-        dong2 = ("chưa nạp" if tt == "PENDING" else
+        dong1 = ("chưa nạp" if tt == "PENDING" else
                  f"xong {gio(r.xong_luc, False)}" if tt == "SUCCESS" else
                  "đang chạy…" if tt == "RUNNING" else "lần cuối bị lỗi")
-        thu = (f"{r.so_lan_thu} lần thử" + (f" · {r.so_lan_failed} lỗi" if r.so_lan_failed else "")) if r.so_lan_thu else "–"
+        dong2 = "" if not r.so_lan_thu else (f"{r.so_lan_thu} lần thử, {r.so_lan_failed} lỗi" if r.so_lan_failed
+                                             else f"{r.so_lan_thu} lần thử")
         o.append(f'<div class="o_batch {tt}"><div class="b"><span>{esc(r.batch_id)}</span>{chip(tt)}</div>'
-                 f'<div class="m">{dong2}<br>{thu}</div></div>')
+                 f'<div class="m">{dong1}{"<br>" + dong2 if dong2 else ""}</div></div>')
     return '<div class="luoi_batch">' + "".join(o) + "</div>"
+
+
+def _the_kpi_trang1(k: dict) -> list[str]:
+    """5 thẻ KPI trang 1 theo T1.1: dòng phụ tách thành các ô nhỏ có nhãn."""
+    gn = k["gan_nhat"]
+    t1 = the_kpi("Số lần chạy", so_vn(k["so_lan"]),
+                 mini("Chạy tay", so_vn(k["so_manual"])) + mini("Theo lịch", so_vn(k["so_schedule"])), "chanh")
+    t2 = the_kpi("Tỉ lệ thành công", phan_tram(k["ti_le_thanh_cong"]),
+                 mini("SUCCESS", so_vn(k["so_success"])) + mini("FAILED", so_vn(k["so_failed"]))
+                 + (mini("Đang chạy", so_vn(k["so_running"])) if k["so_running"] else ""), "tim")
+    if gn:
+        t3 = the_kpi("Lần chạy gần nhất", esc(gn["status"]),
+                     mini("Batch", esc(gn["batch_id"])) + mini("Cách đây", esc(cach_day(gn["giay_truoc"], truoc=False))),
+                     "trang", don_vi=f'#{gn["run_id"]}', mau_so="xau" if gn["status"] == "FAILED" else "")
+    else:
+        t3 = the_kpi("Lần chạy gần nhất", "–", chu_day("Chưa có lần chạy nào"), "trang")
+    # tiến độ batch ("đã nạp hết" dựa vào batch cuối 2018-09+ đã nạp, không dựa vào cet)
+    if k["da_het"]:
+        lset = "Đã nạp hết batch"
+    elif k["lset"] is not None and pd.notna(k["lset"]):
+        lset = f'LSET hiện tại: {pd.Timestamp(k["lset"]):%d/%m/%Y}'
+    else:
+        lset = "Chưa nạp batch nào" if not k["batch_da_nap"] else "LSET: –"
+    ti_le = k["batch_da_nap"] / k["batch_tong"] * 100 if k["batch_tong"] else 0
+    t4 = the_kpi("Tiến độ batch", f'{k["batch_da_nap"]}/{k["batch_tong"]}',
+                 f'<div style="width:100%"><div class="tien"><i style="width:{ti_le:.0f}%"></i></div>{chu_day(esc(lset))}</div>',
+                 "trang", don_vi="batch")
+    # thời gian trung bình (chỉ các lần SUCCESS): dbt = dbt khởi động + dbt build (biểu đồ bên dưới vẫn tách 4 khâu)
+    if k["tb_giay"] is not None:
+        def g(*x):
+            x = [v for v in x if v is not None]
+            return so_vn(sum(x), 1) if x else "–"
+        t5 = the_kpi("Thời gian chạy TB", so_vn(k["tb_giay"], 1),
+                     mini("Staging", g(k["tb_staging"])) + mini("dbt", g(k["tb_dbt_prep"], k["tb_dbt"])) + mini("Mage", g(k["tb_mage"])),
+                     "den", don_vi="giây")
+    else:
+        t5 = the_kpi("Thời gian chạy TB", "–", chu_day("Chưa có lần SUCCESS"), "den")
+    return [t1, t2, t3, t4, t5]
 
 
 def trang_tong_quan(bl: q.BoLoc, bay_gio: pd.Timestamp) -> None:
@@ -697,89 +938,70 @@ def trang_tong_quan(bl: q.BoLoc, bay_gio: pd.Timestamp) -> None:
     if df.empty:
         st.markdown('<div class="hop_ghi">Không có lần chạy nào khớp bộ lọc (hoặc <b>etl_log</b> còn trống). '
                     'Hãy nới bộ lọc ở thanh bên hoặc chạy pipeline <b>full_load</b> trước.</div>', unsafe_allow_html=True)
-    k = q.kpi_trang1(df, tien_do, bay_gio)
-    gn = k["gan_nhat"]
-    # thẻ 1: số lần chạy
-    t1 = the_kpi("Số lần chạy", so_vn(k["so_lan"]),
-                 f'{so_vn(k["so_manual"])} chạy tay · {so_vn(k["so_schedule"])} theo lịch', "chanh")
-    # thẻ 2: tỉ lệ thành công
-    t2 = the_kpi("Tỉ lệ thành công", phan_tram(k["ti_le_thanh_cong"]),
-                 f'{so_vn(k["so_success"])} SUCCESS · {so_vn(k["so_failed"])} FAILED' +
-                 (f' · {so_vn(k["so_running"])} đang chạy' if k["so_running"] else ""), "tim")
-    # thẻ 3: lần chạy gần nhất
-    if gn:
-        mau3 = "xau" if gn["status"] == "FAILED" else ""
-        t3 = the_kpi("Lần chạy gần nhất", esc(gn["status"]),
-                     f'#{gn["run_id"]} · batch {esc(gn["batch_id"])} · {esc(gn["triggered_by"])} · {esc(cach_day(gn["giay_truoc"]))}',
-                     "trang", mau_so=mau3)
-    else:
-        t3 = the_kpi("Lần chạy gần nhất", "–", "chưa có lần chạy nào", "trang")
-    # thẻ 4: tiến độ batch ("đã nạp hết" dựa vào batch cuối 2018-09+ đã nạp, không dựa vào cet)
-    if k["da_het"]:
-        lset = "đã nạp hết batch"
-    elif k["lset"] is not None and pd.notna(k["lset"]):
-        lset = f'LSET hiện tại: {pd.Timestamp(k["lset"]):%d/%m/%Y}'
-    else:
-        lset = "chưa nạp batch nào" if not k["batch_da_nap"] else "LSET: –"
-    t4 = the_kpi("Tiến độ batch", f'{k["batch_da_nap"]}/{k["batch_tong"]}', esc(lset), "trang", don_vi="batch")
-    # thẻ 5: thời gian trung bình (chỉ các lần SUCCESS), tách từng đoạn
-    if k["tb_giay"] is not None:
-        def g(x):
-            return so_vn(x, 1) if x is not None else "–"
-        t5 = the_kpi("Thời gian chạy TB", so_vn(k["tb_giay"], 1),
-                     f'staging {g(k["tb_staging"])} · dbt khởi động {g(k["tb_dbt_prep"])} · dbt {g(k["tb_dbt"])} · Mage {g(k["tb_mage"])} giây',
-                     "den", don_vi="giây")
-    else:
-        t5 = the_kpi("Thời gian chạy TB", "–", "chưa có lần SUCCESS", "den")
-    hang_kpi([t1, t2, t3, t4, t5])
-
+    hang_kpi(_the_kpi_trang1(q.kpi_trang1(df, tien_do, bay_gio)))
     if df.empty:
         return
+
     batches = tien_do.batch_id.tolist()
     c1, c2 = st.columns([3, 2])
     with c1:
-        phu_a = "Mỗi thanh là một lần chạy (dài = thời gian chạy). Chấm tròn: chạy tay · thoi: theo lịch. Cùng một hàng bị lỗi nhiều lần = chạy lại cùng batch."
-        if _khoang_nghi(df, bay_gio):
-            phu_a += f" Trục thời gian đã bỏ các khoảng nghỉ dài hơn {NGUONG_NGHI_PHUT} phút giữa các đợt chạy."
-        c = the_ve("dong_thoi_gian", "Các lần chạy theo thời gian", phu_a)
+        kt = df.finished_at.fillna(bay_gio)
+        d0, d1 = df.started_at.min(), kt.max()
+        ngay = f"Ngày {d0:%d/%m/%Y}." if _mot_ngay(df, bay_gio) else f"Từ {d0:%d/%m/%Y} đến {d1:%d/%m/%Y}."
+        phu_a = f"{ngay} Mỗi thanh là một lần chạy; nhiều thanh trên cùng một hàng là batch phải chạy lại"
+        phu_a += "; vạch đứt là chỗ bỏ bớt khoảng nghỉ dài." if _khoang_nghi(df, bay_gio) else "."
+        co_tt = [tt for tt in q.TRANG_THAI if (df.status == tt).any()]
+        co_kh = [(t, k) for t, k in (("Chạy tay", "manual"), ("Theo lịch", "schedule")) if (df.triggered_by == k).any()]
+        cg = chu_giai([(tt, MAU_TT[tt]) for tt in co_tt]
+                      + [(t, "tron" if k == "manual" else "thoi") for t, k in co_kh])
+        c = the_ve("dong_thoi_gian", "Các lần chạy theo thời gian", phu_a, cg)
         ve(c, _bieu_do_dong_thoi_gian(df, batches), "bd_dong_thoi_gian")
     with c2:
-        c = the_ve("thoi_gian_lan", "Thời gian chạy từng lần", "Cột chồng: nạp staging · dbt khởi động · dbt build · Mage. Dấu ✕ = FAILED.")
+        phu_b = "Đơn vị: giây. Số lần chạy màu đỏ là lần chạy FAILED"
+        phu_b += ", màu tím là lần đang chạy." if (df.tail(40).status == "RUNNING").any() else "."
+        cg = chu_giai([("Nạp staging", CHANH_BAR), ("dbt khởi động", TIM_NHAT), ("dbt build", TIM_DAM), ("Mage", MAU_MAGE)])
+        c = the_ve("thoi_gian_lan", "Thời gian chạy từng lần", phu_b, cg)
         ve(c, _bieu_do_thoi_gian_tung_lan(df), "bd_thoi_gian_lan")
     c3, c4 = st.columns([3, 2])
     theo_batch = _so_dong_batch(bl)
     with c3:
-        phu_c = "INSERT / UPDATE đã commit vào staging của 5 bảng giao dịch (cột); lần FAILED bị hoàn tác tính 0. Chữ đỏ = số dòng bị loại vào dq."
+        full = theo_batch[theo_batch.batch_id == q.FULL_BATCH]
+        co_incr = bool(len(theo_batch) and (theo_batch.batch_id != q.FULL_BATCH).any())
+        phu_c = "Số dòng đã commit vào staging"
+        if len(full) and full.rows_inserted.sum() > 0:
+            phu_c += (f". Batch {q.FULL_BATCH} ({so_vn(full.rows_inserted.sum())} dòng) không vẽ để các batch khác dễ so sánh."
+                      if co_incr else f"; batch {q.FULL_BATCH} nạp {so_vn(full.rows_inserted.sum())} dòng.")
+        else:
+            phu_c += "."
         if bl.luot is None:
-            phu_c += " Đang chọn “Tất cả” lượt nạp nên mỗi cột là tổng của nhiều lượt."
-        c = the_ve("so_dong", "Số dòng nạp theo batch", phu_c)
-        co_incr = len(theo_batch) and (theo_batch.batch_id != q.FULL_BATCH).any()
+            phu_c += " Đang xem tất cả lượt nạp nên mỗi cột cộng dồn nhiều lượt."
+        muc = [("INSERT (thêm mới)", CHANH_BAR), ("UPDATE (cập nhật)", TIM)]
+        if co_incr and (theo_batch[theo_batch.batch_id != q.FULL_BATCH].rows_rejected > 0).any():
+            muc.append(("Số dòng bị loại vào dq (chữ đỏ trên cột)", DO))
+        c = the_ve("so_dong", "Số dòng nạp theo batch", phu_c, chu_giai(muc) if co_incr else "")
         if co_incr:
             ve(c, _bieu_do_so_dong(theo_batch), "bd_so_dong")
         else:
-            trong(c, "Chưa có batch Incremental nào trong bộ lọc này.")
-        full = theo_batch[theo_batch.batch_id == q.FULL_BATCH]
-        if len(full) and full.rows_inserted.sum() > 0:
-            c.caption(f"Batch {q.FULL_BATCH} nạp {so_vn(full.rows_inserted.sum())} dòng INSERT"
-                      + (", không vẽ để các batch còn lại nhìn rõ." if co_incr else "."))
+            trong(c, "Chưa có batch Incremental nào trong bộ lọc này.", ok=False)
     with c4:
-        c = the_ve("luoi_batch", "Tiến độ 10 batch", "Của lượt nạp đang chọn (không phụ thuộc bộ lọc trạng thái / kích hoạt).")
+        c = the_ve("luoi_batch", "Tiến độ 10 batch", "Của lượt nạp đang chọn, không phụ thuộc bộ lọc trạng thái và kích hoạt.")
         c.markdown(_luoi_batch(tien_do), unsafe_allow_html=True)
 
     tieu_de("20 lần gần nhất", "Danh sách lần chạy")
     _bang_lan_chay(df.sort_values("run_id", ascending=False).head(20).reset_index(drop=True))
 
 
-# Bảng 20 lần chạy dựng bằng hàng st.columns (không dùng st.dataframe) để mỗi dòng có nút "Xem chi tiết" thật:
-# bấm là sang trang 3 trong cùng phiên (giữ bộ lọc), ô Lỗi dài thì "…" và rê chuột vào thấy đủ (thuộc tính title).
+# Bảng 20 lần chạy dựng bằng hàng st.columns (không dùng st.dataframe) để mỗi dòng có nút "Chi tiết ›" thật:
+# bấm là sang trang 3 trong cùng phiên (giữ bộ lọc); ô Lỗi ghi tóm tắt, rê chuột vào thấy thông báo đầy đủ (thuộc tính title).
 # (tiêu đề cột, tỉ lệ độ rộng, căn phải, chú thích khi rê chuột vào tiêu đề)
 COT_BANG_RUN = [
-    ("Run", .5, False, ""), ("Pipeline", 1.15, False, "Tên pipeline bỏ đuôi _load: full / incremental"),
-    ("Batch", .9, False, ""), ("Kích hoạt", .9, False, ""), ("Trạng thái", 1.2, False, ""),
-    ("Bắt đầu", 1.4, False, ""), ("Thời lượng", 1.35, False, ""),
-    ("Dòng nạp", 1.0, True, "INSERT + UPDATE ĐÃ COMMIT vào staging (lần FAILED bị hoàn tác tính 0)"),
-    ("WARN", .7, True, "Số phép kiểm tra chất lượng WARN"), ("Test lỗi", .75, True, "Số dbt test fail / error"),
-    ("Lỗi", 2.1, False, "Rê chuột vào ô lỗi để xem đầy đủ; trang chi tiết có thông báo lỗi nguyên văn"), ("", 1.35, False, "")]
+    ("Run", .45, False, ""), ("Pipeline", 1.25, False, "Tên pipeline bỏ đuôi _load: full / incremental"),
+    ("Batch", .85, False, ""), ("Kích hoạt", .9, False, ""), ("Trạng thái", 1.05, False, ""),
+    ("Bắt đầu", 1.4, False, ""), ("Thời lượng", 1.4, True, ""),
+    ("Dòng nạp", .9, True, "INSERT + UPDATE ĐÃ COMMIT vào staging (lần FAILED bị hoàn tác tính 0)"),
+    ("WARN", .6, True, "Số phép kiểm tra chất lượng WARN"), ("Test lỗi", .7, True, "Số dbt test fail / error"),
+    ("Lỗi", 2.6, False, "Tóm tắt lỗi; rê chuột vào ô để xem thông báo đầy đủ, trang chi tiết có thông báo nguyên văn"),
+    ("", 1.3, False, "")]
 
 
 def _xem_chi_tiet(run_id: int) -> None:
@@ -792,24 +1014,25 @@ def _bang_lan_chay(g: pd.DataFrame) -> None:
     khung = st.container(key="bang_run")
     rong = [c[1] for c in COT_BANG_RUN]
     for cot, (ten, _, phai, goi_y) in zip(khung.columns(rong, gap="small", vertical_alignment="center"), COT_BANG_RUN):
-        can = " phai" if phai else (" giua" if ten == "Lỗi" else "")   # cột Lỗi rộng nhất: tiêu đề căn giữa cho cân
-        cot.markdown(f'<div class="o_bang tieu{can}" title="{esc(goi_y)}">{esc(ten)}</div>',
+        cot.markdown(f'<div class="o_bang tieu{" phai" if phai else ""}" title="{esc(goi_y)}">{esc(ten)}</div>',
                      unsafe_allow_html=True)
     for r in g.itertuples():
-        loi = " ".join(str(r.error_message).split()) if pd.notna(r.error_message) else ""
+        loi_day_du = " ".join(str(r.error_message).split()) if pd.notna(r.error_message) else ""
         dang_chay = pd.isna(r.duration_s)
-        o = [(str(r.run_id), ""), (esc(str(r.pipeline_name).replace("_load", "")), ""), (esc(r.batch_id), ""),
+        dong = r.rows_inserted + r.rows_updated
+        o = [(f"<b>{r.run_id}</b>", ""), (esc(str(r.pipeline_name).replace("_load", "")), ""), (esc(r.batch_id), ""),
              (esc(r.triggered_by), ""), (chip(r.status), ""), (pd.Timestamp(r.started_at).strftime("%d/%m %H:%M:%S"), ""),
-             (thoi_luong(r.elapsed_s if dang_chay else r.duration_s) + ("…" if dang_chay else ""), ""),
-             (so_vn(r.rows_inserted + r.rows_updated), "phai"), (so_vn(r.n_check_warn), "phai"),
-             (so_vn(r.dbt_test_fail), "phai")]
+             (thoi_luong(r.elapsed_s if dang_chay else r.duration_s) + ("…" if dang_chay else ""), "phai"),
+             (so_vn(dong), "phai" + lop_0(dong)), (so_vn(r.n_check_warn), "phai" + lop_0(r.n_check_warn)),
+             (so_vn(r.dbt_test_fail), "phai" + lop_0(r.dbt_test_fail))]
         hang = khung.columns(rong, gap="small", vertical_alignment="center")
         for cot, (noi_dung, lop) in zip(hang, o):
             cot.markdown(f'<div class="o_bang {lop}">{noi_dung}</div>', unsafe_allow_html=True)
-        hang[-2].markdown(f'<div class="o_bang loi" title="{esc(loi)}">{esc(loi)}</div>', unsafe_allow_html=True)
+        tom = tom_tat_loi(r) or (rut_gon(loi_day_du, 60) if loi_day_du else "")
+        hang[-2].markdown(f'<div class="o_bang loi" title="{esc(loi_day_du)}">{esc(tom)}</div>', unsafe_allow_html=True)
         # không dùng on_click: khi bật "Tự làm mới" trang nằm trong st.fragment, callback chỉ chạy lại fragment (vẫn
         # trang cũ) -> bấm xong gọi st.rerun() để chạy lại cả app với trang mới
-        if hang[-1].button("Xem chi tiết", key=f"xem_{r.run_id}"):
+        if hang[-1].button("Chi tiết ›", key=f"xem_{r.run_id}"):
             _xem_chi_tiet(int(r.run_id))
             st.rerun()
 
@@ -828,21 +1051,21 @@ def _bieu_do_ma_tran(mt: pd.DataFrame, batches: list[str]):
         for c in cot:
             r = tra.get((b, c))
             if r is None:
-                zz.append(None); tt.append(""); hh.append(f"{b} · {TEN_CHECK[c][1]}<br>không có dữ liệu")
+                zz.append(None); tt.append(""); hh.append(f"{b}, {TEN_CHECK[c][1]}<br>chưa có dữ liệu")
             else:
                 zz.append(ma[r.status])
                 # WARN / FAIL chỉ kèm số dòng khi có dòng vi phạm (VD row_count_match WARN không có dòng nào bị loại)
-                tt.append(r.status if r.status == "PASS" or not r.failed_rows else f"{r.status} · {so_vn(r.failed_rows)}")
-                hh.append(f"{b} · {TEN_CHECK[c][1]}<br>{r.status}, {so_vn(r.failed_rows)} dòng vi phạm, {r.so_phep} phép đã chạy"
-                          + (f"<br>bảng: {r.bang_loi}" if r.bang_loi else ""))
+                tt.append(r.status if r.status == "PASS" or not r.failed_rows else f"{r.status} {so_vn(r.failed_rows)}")
+                hh.append(f"{b}, {TEN_CHECK[c][1]}<br>{r.status}, {so_vn(r.failed_rows)} dòng vi phạm, {r.so_phep} phép đã chạy"
+                          + (f"<br>bảng {r.bang_loi}" if r.bang_loi else ""))
         z.append(zz); text.append(tt); hover.append(hh)
     fig = go.Figure(go.Heatmap(
         z=z, x=[TEN_CHECK[c][1] for c in cot], y=hang, text=text, texttemplate="%{text}", hovertext=hover,
         hovertemplate="%{hovertext}<extra></extra>", xgap=3, ygap=3, showscale=False, zmin=0, zmax=2,
         colorscale=[[0, "#DDF08A"], [0.333, "#DDF08A"], [0.334, VANG], [0.666, VANG], [0.667, DO], [1, DO]],
         textfont=dict(size=11, color=DEN)))
-    fig.update_yaxes(autorange="reversed", type="category")
-    fig.update_xaxes(side="top", type="category", tickangle=0, tickfont=dict(size=11, color=CHU2))
+    fig.update_yaxes(autorange="reversed", type="category", showgrid=False)
+    fig.update_xaxes(side="top", type="category", tickangle=0, tickfont=dict(size=11, color=CHU2), showgrid=False)
     return khung_plotly(fig, max(260, 36 * len(hang) + 90), plot_bgcolor=NHAT)
 
 
@@ -850,14 +1073,62 @@ def _bieu_do_dbt_theo_lan(df: pd.DataFrame):
     d = df[df.dbt_n_node > 0].tail(40)
     nhan = [f"#{r}" for r in d.run_id]
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=nhan, y=d.dbt_test_fail, name="Test FAIL / ERROR", marker_color=DO,
-                         hovertemplate="%{x} · fail: %{y}<extra></extra>"))
-    fig.add_trace(go.Bar(x=nhan, y=d.dbt_test_warn, name="Test WARN", marker_color=VANG,
-                         hovertemplate="%{x} · warn: %{y}<extra></extra>"))
-    fig.update_layout(barmode="stack", bargap=0.3)
-    fig.update_xaxes(type="category", title=None)
-    fig.update_yaxes(title="số test", dtick=1, rangemode="tozero")
-    return khung_plotly(fig, 280)
+    fig.add_trace(go.Bar(x=nhan, y=d.dbt_test_fail, name="Test FAIL hoặc ERROR", marker_color=DO,
+                         hovertemplate="%{x}<br>Test FAIL hoặc ERROR: %{y}<extra></extra>"))
+    if d.dbt_test_warn.sum():
+        fig.add_trace(go.Bar(x=nhan, y=d.dbt_test_warn, name="Test WARN", marker_color=VANG,
+                             hovertemplate="%{x}<br>Test WARN: %{y}<extra></extra>"))
+    cao = float((d.dbt_test_fail + d.dbt_test_warn).max()) if len(d) else 1.0
+    fig.update_layout(barmode="stack", bargap=0.62)
+    fig.update_xaxes(type="category", tickangle=0 if len(nhan) * max(map(len, nhan), default=0) <= 40 else None, showgrid=False)
+    fig.update_yaxes(dtick=1, rangemode="tozero", range=[0, cao + 0.4])
+    return khung_plotly(fig, 220)
+
+
+def _cot_gay_loai(reason, cac_cot) -> set:
+    """Cột làm dòng bị loại (T2.5): tên cột đứng đầu `reason` (VD 'order_id rỗng', 'payment_value = "abc" không hợp lệ…');
+    lý do trùng khóa 'khóa (a=…, b=…) lặp…' thì là các cột khóa. Không xác định được -> rỗng (không tô)."""
+    import re
+    r = str(reason or "").strip()
+    dau = r.split(" ")[0] if r else ""
+    if dau in cac_cot:
+        return {dau}
+    if r.startswith("khóa ("):
+        return {c for c in re.findall(r"(\w+)=", r) if c in cac_cot}
+    return set()
+
+
+def _o_noi_dung_dong(row_json, reason) -> str:
+    """row_data (JSONB) -> các ô nhỏ 'tên cột: giá trị'; rỗng ghi (trống); ô của cột làm dòng bị loại tô đỏ."""
+    import json
+    du_lieu = row_json if isinstance(row_json, dict) else (json.loads(row_json) if row_json else {})
+    loi = _cot_gay_loai(reason, set(du_lieu))
+    o = [f'<span class="kv{" loi" if c in loi else ""}">{esc(c)}: '
+         f'{"(trống)" if v is None or str(v) == "" else esc(v)}</span>' for c, v in du_lieu.items()]
+    return '<div class="kv_wrap">' + "".join(o) + "</div>"
+
+
+def _ten_check(c: str) -> str:
+    """Tên phép kiểm tra tiếng Việt như tiêu đề cột ma trận, rê chuột thấy tên gốc."""
+    return f'<span title="{esc(c)}">{esc(TEN_CHECK[c][1] if c in TEN_CHECK else c)}</span>'
+
+
+def _the_kpi_trang2(df: pd.DataFrame) -> list[str]:
+    if df.empty:
+        rong = chu_day("Chưa có dữ liệu")
+        return [the_kpi("Phép kiểm tra WARN / FAIL", "–", rong, "chanh"), the_kpi("Dòng bị loại vào dq", "–", rong, "tim"),
+                the_kpi("dbt test không đạt", "–", rong), the_kpi("Lần FAILED do dbt", "–", rong),
+                the_kpi("Lần FAILED do nạp staging", "–", rong, "den")]
+    k = q.kpi_trang2(df)
+    return [
+        the_kpi("Phép kiểm tra WARN / FAIL", so_vn(k["check_warn"] + k["check_fail"]),
+                mini("WARN", so_vn(k["check_warn"])) + mini("FAIL", so_vn(k["check_fail"])) + mini("Khâu", "Mage"), "chanh"),
+        the_kpi("Dòng bị loại vào dq", so_vn(k["dong_loai"]), mini("Lưu tại", "dq.rejected_rows"), "tim"),
+        the_kpi("dbt test không đạt", so_vn(k["dbt_test_fail"]), mini("Test WARN", so_vn(k["dbt_test_warn"])), "trang",
+                mau_so="xau" if k["dbt_test_fail"] else ""),
+        the_kpi("Lần FAILED do dbt", so_vn(k["failed_dbt"]), chu_day("dbt báo lỗi sau khi staging đã nạp xong"), "trang",
+                mau_so="xau" if k["failed_dbt"] else ""),
+        the_kpi("Lần FAILED do nạp staging", so_vn(k["failed_staging"]), mini("Bị ngắt hoặc khác", so_vn(k["failed_khac"])), "den")]
 
 
 def trang_chat_luong(bl: q.BoLoc, bay_gio: pd.Timestamp) -> None:
@@ -865,31 +1136,18 @@ def trang_chat_luong(bl: q.BoLoc, bay_gio: pd.Timestamp) -> None:
     if df.empty:
         st.markdown('<div class="hop_ghi">Không có lần chạy nào khớp bộ lọc (hoặc <b>etl_log</b> còn trống). Nới bộ lọc ở thanh bên.</div>',
                     unsafe_allow_html=True)
-        hang_kpi([the_kpi("Phép kiểm tra WARN / FAIL", "–", "chưa có dữ liệu", "chanh"),
-                  the_kpi("Dòng bị loại vào dq", "–", "chưa có dữ liệu", "tim"),
-                  the_kpi("dbt test không đạt", "–", "chưa có dữ liệu", "trang"),
-                  the_kpi("Lần FAILED do dbt", "–", "chưa có dữ liệu", "trang"),
-                  the_kpi("Lần FAILED do nạp staging", "–", "chưa có dữ liệu", "den")])
+        hang_kpi(_the_kpi_trang2(df))
         return
-    k = q.kpi_trang2(df)
-    n_loi = k["check_warn"] + k["check_fail"]
-    hang_kpi([
-        the_kpi("Phép kiểm tra WARN / FAIL", so_vn(n_loi), f'{so_vn(k["check_warn"])} WARN · {so_vn(k["check_fail"])} FAIL (Mage)', "chanh"),
-        the_kpi("Dòng bị loại vào dq", so_vn(k["dong_loai"]), "không nạp được vào staging, nội dung nằm ở dq.rejected_rows", "tim"),
-        the_kpi("dbt test không đạt", so_vn(k["dbt_test_fail"]), f'{so_vn(k["dbt_test_warn"])} test WARN thêm', "trang",
-                mau_so="xau" if k["dbt_test_fail"] else ""),
-        the_kpi("Lần FAILED do dbt", so_vn(k["failed_dbt"]), "dbt build báo lỗi sau khi staging đã nạp xong", "trang",
-                mau_so="xau" if k["failed_dbt"] else ""),
-        the_kpi("Lần FAILED do nạp staging", so_vn(k["failed_staging"]),
-                f'file thiếu cột, sai batch… · bị ngắt / khác: {so_vn(k["failed_khac"])}', "den")])
+    hang_kpi(_the_kpi_trang2(df))
     batches = _tien_do(bl.luot).batch_id.tolist()
 
     tieu_de("Mage", "Kiểm tra chất lượng khi nạp staging")
     c = the_ve("ma_tran", "Batch × phép kiểm tra",
-               "Màu = kết quả tệ nhất trong các lần chạy đã lọc: xanh PASS · vàng WARN (loại dòng, vẫn nạp) · đỏ FAIL (dừng cả batch). Ô xám: chưa có dữ liệu.")
+               "Màu = kết quả tệ nhất trong các lần chạy đã lọc: xanh PASS; vàng WARN (loại dòng, vẫn nạp); "
+               "đỏ FAIL (dừng cả batch). Ô xám: chưa có dữ liệu.")
     mt = _ma_tran(bl)
     if mt.empty:
-        trong(c, "Chưa có kết quả kiểm tra chất lượng nào trong bộ lọc này.")
+        trong_dong(c, "Chưa có kết quả kiểm tra chất lượng nào trong bộ lọc này.", ok=False)
     else:
         ve(c, _bieu_do_ma_tran(mt, batches), "bd_ma_tran")
 
@@ -898,51 +1156,66 @@ def trang_chat_luong(bl: q.BoLoc, bay_gio: pd.Timestamp) -> None:
         c = the_ve("dong_loai", "Dòng bị loại theo bảng và lý do", "Gom từ dq.rejected_rows của các lần chạy đã lọc.")
         dl = _dong_loai(bl)
         if dl.empty:
-            trong(c, "Không có dòng nào bị loại trong bộ lọc này.")
+            trong(c, "Không có dòng nào bị loại trong các lần chạy đã lọc.")
         else:
-            c.dataframe(pd.DataFrame({"Bảng": dl.table_name, "Phép kiểm tra": dl.check_name, "Lý do": dl.reason,
-                                      "Số dòng": so_cot(dl.so_dong)}),
-                        hide_index=True, width="stretch",
-                        column_config={"Bảng": st.column_config.TextColumn(width=105), "Phép kiểm tra": st.column_config.TextColumn(width=110),
-                                       "Lý do": st.column_config.TextColumn(width=140),
-                                       "Số dòng": st.column_config.TextColumn(width=65)})
+            lon = max(int(dl.so_dong.max()), 1)
+            hang = [[(esc(r.table_name), ""), (_ten_check(r.check_name), ""),
+                     (f'<span class="cat" style="max-width:150px" title="{esc(r.reason)}">{esc(r.reason)}</span>', ""),
+                     (f'<span class="thanh_so"><i style="width:{max(6, r.so_dong / lon * 60):.0f}px"></i>'
+                      f'<b>{so_vn(r.so_dong)}</b></span>', "r")] for r in dl.itertuples()]
+            so_lan = int((df.rows_rejected > 0).sum())
+            c.markdown('<div class="gian">' + bang_html([("Bảng", ""), ("Phép kiểm tra", ""), ("Lý do", ""), ("Số dòng", "r")], hang)
+                       + f'<div class="tong_ket">Tổng <b>{so_vn(dl.so_dong.sum())}</b> dòng bị loại, '
+                         f'<b>{so_vn(dl.table_name.nunique())}</b> bảng, <b>{so_vn(so_lan)}</b> lần chạy.</div></div>',
+                       unsafe_allow_html=True)
     with c2:
-        c = the_ve("dbt_lan", "dbt test không đạt theo lần chạy", "Mỗi cột là một lần chạy có chạy dbt. Không có cột nào = mọi test đạt.")
         d = df[df.dbt_n_node > 0]
+        co_bd = not d.empty and (d.dbt_test_fail + d.dbt_test_warn).sum() > 0
+        muc = [("Test FAIL hoặc ERROR", DO)] + ([("Test WARN", VANG)] if co_bd and d.dbt_test_warn.sum() else [])
+        c = the_ve("dbt_lan", "dbt test không đạt theo lần chạy",
+                   "Mỗi cột là một lần chạy có chạy dbt; không có cột nghĩa là mọi test đều đạt.", chu_giai(muc) if co_bd else "")
         if d.empty:
-            trong(c, "Chưa có lần chạy nào có kết quả dbt trong bộ lọc này.")
-        elif (d.dbt_test_fail + d.dbt_test_warn).sum() == 0:
+            trong(c, "Chưa có lần chạy nào có kết quả dbt trong bộ lọc này.", ok=False)
+        elif not co_bd:
             trong(c, f"{so_vn(len(d))} lần chạy có dbt, mọi test đều đạt.")
         else:
             ve(c, _bieu_do_dbt_theo_lan(df), "bd_dbt_lan")
 
     tieu_de("Dòng lỗi", "Chi tiết dòng lỗi")
-    c = the_ve("mau_loai", "Mẫu dòng bị loại (dq.rejected_rows)", "Tối đa 50 dòng mới nhất; row_data cắt ngắn 200 ký tự.")
+    c = the_ve("mau_loai", "Mẫu dòng bị loại (dq.rejected_rows)",
+               "Tối đa 50 dòng mới nhất. Ô tô đỏ trong cột “Nội dung dòng” là cột làm dòng bị loại.")
     ml = _mau_loai(bl)
     if ml.empty:
-        trong(c, "Không có dòng bị loại.")
+        trong_dong(c, "Không có dòng bị loại.")
     else:
-        c.dataframe(pd.DataFrame({"Run": ml.run_id, "Bảng": ml.table_name, "Phép kiểm tra": ml.check_name,
-                                  "Bản ghi số": so_cot(ml.source_row), "Lý do": ml.reason, "Nội dung dòng": ml.row_data,
-                                  "Lúc loại": [gio(t) for t in ml.rejected_at]}), hide_index=True, width="stretch")
+        hang = [[(f"<b>{r.run_id}</b>", ""), (esc(r.table_name), ""), (_ten_check(r.check_name), ""), o_so(r.source_row),
+                 (f'<span class="cat" style="max-width:180px" title="{esc(r.reason)}">{esc(r.reason)}</span>', ""),
+                 (_o_noi_dung_dong(r.row_json, r.reason), "go"), (gio(r.rejected_at), "")] for r in ml.itertuples()]
+        c.markdown(bang_html([("Run", ""), ("Bảng", ""), ("Phép kiểm tra", ""), ("Bản ghi số", "r"), ("Lý do", ""),
+                              ("Nội dung dòng", ""), ("Lúc loại", "")], hang), unsafe_allow_html=True)
+
     c = the_ve("dbt_loi", "Danh sách dbt test không đạt",
-               "relation_name = bảng trong schema dq chứa các dòng vi phạm (SELECT * FROM … để xem).")
+               "Dòng vi phạm nằm trong bảng ở cột cuối; rê chuột để xem tên đầy đủ của test và bảng.")
     dt = _dbt_loi(bl)
     if dt.empty:
-        trong(c, "Không có dbt test nào fail / error / warn trong bộ lọc này.")
+        trong_dong(c, "Không có dbt test nào fail, error hoặc warn trong bộ lọc này.")
     else:
-        c.dataframe(style_bang(pd.DataFrame({"Run": dt.run_id, "Batch": dt.batch_id, "Kích hoạt": dt.triggered_by,
-                                             "Test": dt.node_name, "Trạng thái": dt.status.str.upper(),
-                                             "Dòng vi phạm": so_cot(dt.failures), "Bảng chứa dòng lỗi": dt.relation_name,
-                                             "Thông báo": dt.message}), ["Trạng thái"], dbt=True), hide_index=True, width="stretch")
+        hang = [[(f"<b>{r.run_id}</b>", ""), (esc(r.batch_id), ""), (esc(r.triggered_by), ""),
+                 (f'<span class="mono cat" style="max-width:420px" title="{esc(r.node_name)}">{esc(ten_test_ngan(r.node_name))}</span>', ""),
+                 (chip_dbt(r.status, str(r.status).upper()), ""), o_so(r.failures),
+                 (f'<span class="mono cat" style="max-width:240px" title="{esc(r.relation_name)}">{esc(r.relation_name)}</span>', "")]
+                for r in dt.itertuples()]
+        c.markdown(bang_html([("Run", ""), ("Batch", ""), ("Kích hoạt", ""), ("Test", ""), ("Trạng thái", ""),
+                              ("Dòng vi phạm", "r"), ("Bảng chứa dòng lỗi", "")], hang), unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
 # Trang 3 - Chi tiết một lần chạy
 # ---------------------------------------------------------------------------
-MAU_KHAU = {"Mage": "#D5D8DE", "Nạp staging": CHANH_BAR, "dbt khởi động": TIM_NHAT, "dbt build": TIM}
+MAU_KHAU = {"Mage": MAU_MAGE, "Nạp staging": CHANH_BAR, "dbt khởi động": TIM_NHAT, "dbt build": TIM}
 # bước thời gian đẹp (mili giây) để chọn dtick của trục Gantt: không bao giờ lặp nhãn giờ khi lần chạy chỉ dài vài giây
 BUOC_DTICK = (100, 200, 500, 1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000, 600000)
+KHAU_LOI = {"dbt": "dbt", "staging": "nạp staging", "bi_ngat": "bị ngắt", "khac": "khác"}
 
 
 def _dtick_gantt(buoc: pd.DataFrame) -> tuple[int, str]:
@@ -952,7 +1225,14 @@ def _dtick_gantt(buoc: pd.DataFrame) -> tuple[int, str]:
     return dtick, ("%H:%M:%S.%L" if dtick < 1000 else "%H:%M:%S")
 
 
+def _ten_buoc(b: str) -> str:
+    """Tên hàng Gantt ngắn (T3.5): 'staging.customers' -> 'customers', 'Mage (ghi log)' -> 'Mage ghi log'."""
+    return (str(b).replace("staging.", "").replace(" / parse", "")
+            .replace("Mage (khởi động)", "Mage khởi động").replace("Mage (ghi log)", "Mage ghi log"))
+
+
 def _bieu_do_gantt(buoc: pd.DataFrame):
+    buoc = buoc.assign(buoc=buoc.buoc.map(_ten_buoc))
     fig = go.Figure()
     for khau in ("Mage", "Nạp staging", "dbt khởi động", "dbt build"):
         d = buoc[buoc.khau == khau]
@@ -960,24 +1240,152 @@ def _bieu_do_gantt(buoc: pd.DataFrame):
             continue
         mau = [MAU_TT["FAILED"] if t == "FAILED" else MAU_TT["RUNNING"] if t == "RUNNING" else MAU_KHAU[khau] for t in d.trang_thai]
         giay = (d.ket_thuc - d.bat_dau).dt.total_seconds().clip(lower=0.2)
-        fig.add_trace(go.Bar(y=d.buoc, x=giay * 1000, base=d.bat_dau, orientation="h", name=khau, marker_color=mau, width=0.6,
-                             customdata=[[thoi_luong(v), t] for v, t in zip(giay, d.trang_thai)],
-                             hovertemplate="<b>%{y}</b><br>%{customdata[1]} · %{customdata[0]}<extra></extra>"))
+        fig.add_trace(go.Bar(y=d.buoc, x=giay * 1000, base=d.bat_dau, orientation="h", name=khau, marker_color=mau, width=0.58,
+                             customdata=[[khau, thoi_luong(v), t] for v, t in zip(giay, d.trang_thai)],
+                             hovertemplate="<b>%{y}</b><br>%{customdata[0]}, %{customdata[2]}<br>%{customdata[1]}<extra></extra>"))
     dtick, dinh_dang = _dtick_gantt(buoc)
-    fig.update_yaxes(type="category", autorange="reversed", categoryorder="array", categoryarray=buoc.buoc.tolist(), title=None)
-    fig.update_xaxes(type="date", title=None, tickformat=dinh_dang, dtick=dtick)
-    fig.update_layout(barmode="overlay", showlegend=True)
-    return khung_plotly(fig, max(220, 28 * len(buoc) + 60))
+    fig.update_yaxes(type="category", autorange="reversed", categoryorder="array", categoryarray=buoc.buoc.tolist())
+    fig.update_xaxes(type="date", tickformat=dinh_dang, dtick=dtick)
+    fig.update_layout(barmode="overlay")
+    return khung_plotly(fig, max(200, 24 * len(buoc) + 50))
 
 
 def _vao_staging(t: str) -> str:
-    return {"SUCCESS": "có", "FAILED": "không – đã hoàn tác (rollback)", "RUNNING": "đang nạp"}.get(t, t)
+    return {"SUCCESS": "Có", "FAILED": "Không, đã hoàn tác", "RUNNING": "Đang nạp"}.get(t, t)
+
+
+def _rel_ngan(rel, n: int) -> str:
+    """Tên bảng dq cắt ngắn, rê chuột thấy tên đầy đủ."""
+    r = str(rel or "")
+    hien = r if len(r) <= n else r[:n] + "…"
+    return f'<span class="mono" title="{esc(r)}">{esc(hien)}</span>'
+
+
+def _khung_loi(run, tl: pd.DataFrame, dbt: pd.DataFrame) -> str:
+    """Khung lỗi 3 tầng (T3.3): (1) 1 câu tóm tắt từ số trong v_run; (2) mỗi node dbt / bảng staging lỗi 1 dòng, tối đa 3;
+    (3) thông báo gốc thu trong <details>, bấm mới mở."""
+    dong, nhan_goc = [], "Xem thông báo gốc của dbt"
+    if run.failed_stage == "dbt":
+        phan = []
+        if run.dbt_model_error:
+            phan.append(f"{so_vn(run.dbt_model_error)} model lỗi")
+        if run.dbt_test_fail:
+            phan.append(f"{so_vn(run.dbt_test_fail)} test không đạt")
+        if run.dbt_n_skipped:
+            phan.append(f"{so_vn(run.dbt_n_skipped)} node bị bỏ qua")
+        dat = f" ({so_vn(run.dbt_n_ok)}/{so_vn(run.dbt_n_node)} node đạt)" if run.dbt_n_node else ""
+        tom = f"dbt build lỗi: {', '.join(phan) if phan else 'dbt không chạy được'}{dat}."
+        xau = dbt[dbt.status.map(q.la_loi_dbt)] if len(dbt) else dbt
+        for x in xau.itertuples():
+            ten = f'<span class="mono" title="{esc(x.node_name)}">{esc(ten_test_ngan(x.node_name))}</span>'
+            if x.resource_type == "test" and pd.notna(x.failures):
+                dong.append(f"{ten}: {so_vn(x.failures)} dòng vi phạm, xem bảng {_rel_ngan(x.relation_name, 32)}")
+            else:
+                dong.append(f"{ten}: {esc(tom_tat_model(x.message))}")
+    elif run.failed_stage == "staging":
+        # bảng gây lỗi = bảng FAILED có lỗi thật; các bảng đã MERGE xong chỉ bị hoàn tác theo ("Đã hoàn tác (rollback)…")
+        loi = tl[tl.status == "FAILED"] if len(tl) else tl
+        that = loi[~loi.error_message.fillna("").str.startswith("Đã hoàn tác")] if len(loi) else loi
+        loi = that if len(that) else loi
+        bang = ", ".join(loi.table_name) if len(loi) else ""
+        tom = (f"Nạp staging lỗi ở bảng {bang}" if bang else "Nạp staging lỗi") + "; cả batch đã hoàn tác (rollback)."
+        dong = [f'<span class="mono">{esc(t.table_name)}</span>: {esc(rut_gon(t.error_message, 120))}'
+                for t in loi.itertuples() if pd.notna(t.error_message)]
+        nhan_goc = "Xem thông báo lỗi gốc"
+    elif run.failed_stage == "bi_ngat":
+        tom = "Lần chạy bị ngắt giữa chừng (container tắt hoặc pipeline dừng đột ngột)."
+        nhan_goc = "Xem thông báo lỗi gốc"
+    else:
+        tom = "Lần chạy bị lỗi."
+        nhan_goc = "Xem thông báo lỗi gốc"
+    them = f"<li>và {len(dong) - 3} lỗi khác</li>" if len(dong) > 3 else ""
+    ds = ("<ul>" + "".join(f"<li>{d}</li>" for d in dong[:3]) + them + "</ul>") if dong else ""
+    return (f'<div class="hop_loi"><p class="tom">{esc(tom)}</p>{ds}'
+            f'<details><summary>{nhan_goc}</summary><div class="goc mono">{esc(run.error_message)}</div></details></div>')
+
+
+def _ma_tran_run(qc: pd.DataFrame, tl: pd.DataFrame) -> str:
+    """Ma trận bảng x phép kiểm tra của 1 lần chạy (T3.7), cùng kiểu ô với ma trận trang 2; rê chuột thấy số dòng vi phạm + detail."""
+    thu_tu_bang = list(dict.fromkeys(list(tl.table_name) + list(qc.table_name)))
+    bang = [b for b in thu_tu_bang if b in set(qc.table_name)]
+    cot = [c for c in q.THU_TU_CHECK if c in set(qc.check_name)] + sorted(set(qc.check_name) - set(q.THU_TU_CHECK))
+    tra = {(r.table_name, r.check_name): r for r in qc.itertuples()}
+    h = "<div></div>" + "".join(f'<div class="hd">{esc(TEN_CHECK[c][1] if c in TEN_CHECK else c)}</div>' for c in cot)
+    for b in bang:
+        h += f'<div class="rh">{esc(b)}</div>'
+        for c in cot:
+            r = tra.get((b, c))
+            if r is None:
+                h += '<div class="o NA" title="Không có phép kiểm tra này"></div>'
+                continue
+            chu = r.status if r.status == "PASS" or not r.failed_rows else f"{r.status} {so_vn(r.failed_rows)}"
+            goi_y = (f"{b}, {TEN_CHECK[c][1] if c in TEN_CHECK else c}: {r.status}, {so_vn(r.failed_rows)} dòng vi phạm"
+                     + (f". {r.detail}" if pd.notna(r.detail) and r.detail else ""))
+            h += f'<div class="o {esc(r.status)}" title="{esc(goi_y)}">{esc(chu)}</div>'
+    return f'<div class="mt" style="grid-template-columns:auto repeat({len(cot)}, minmax(0,1fr))">{h}</div>'
+
+
+def _dau_lan_chay(run, tl, dbt, bay_gio) -> str:
+    """Thẻ thông tin lần chạy (T3.2): mỗi ô một thông tin, lưới 4 cột x 3 hàng; kèm khung lỗi 3 tầng nếu có lỗi."""
+    kt = run.finished_at
+    thoi_gian = thoi_luong(run.duration_s) if pd.notna(run.duration_s) else f"Đang chạy {thoi_luong(run.elapsed_s)}"
+    lset = "Từ đầu dữ liệu" if pd.isna(run.lset) else f"{pd.Timestamp(run.lset):%d/%m/%Y}"
+    cet = "Hết dữ liệu (batch cuối)" if pd.isna(run.cet) else f"{pd.Timestamp(run.cet):%d/%m/%Y}"
+    khau_dang = {"staging": "nạp staging", "dbt": "dbt", "ghi_log": "ghi log"}
+    tieu = (f'<div class="dau_tieu"><span class="so_run">Lần chạy #{run.run_id}</span>{chip(run.status)}'
+            + (f'<span class="chip" style="background:#FDE3E0;color:#B8382B;font-weight:600;letter-spacing:0">'
+               f'Lỗi ở khâu {esc(KHAU_LOI.get(run.failed_stage, run.failed_stage))}</span>' if run.status == "FAILED" else "")
+            + (f'<span class="chip" style="background:#E4E8FD;color:#3A47C4;font-weight:600;letter-spacing:0">'
+               f'Đang ở khâu {esc(khau_dang.get(run.phase, run.phase))}</span>' if run.status == "RUNNING" and run.phase else "")
+            + (f'<span class="chip" style="background:#FDE3E0;color:#B8382B">Nghi kẹt &gt; {q.PHUT_KET} phút</span>' if run.is_stuck else "")
+            + "</div>")
+    o = [("Pipeline", esc(run.pipeline_name)), ("Batch", esc(run.batch_id)), ("Loại nạp", esc(run.load_type)),
+         ("Kích hoạt", esc(run.triggered_by)), ("Lượt nạp", so_vn(run.cycle_no)), ("Lần thử của batch", so_vn(run.attempt_no)),
+         ("LSET (thời gian mô phỏng)", lset), ("CET (thời gian mô phỏng)", cet),
+         ("Bắt đầu", gio(run.started_at)), ("Kết thúc", gio(kt) if pd.notna(kt) else "Chưa kết thúc"),
+         ("Thời lượng", thoi_gian),
+         ("Khâu gây lỗi", esc(KHAU_LOI.get(run.failed_stage, run.failed_stage)) if run.status == "FAILED" else "Không có")]
+    luoi = '<div class="dau_run">' + "".join(f'<div><div class="k">{k}</div><div class="v">{v}</div></div>' for k, v in o) + "</div>"
+    loi = _khung_loi(run, tl, dbt) if pd.notna(run.error_message) and run.error_message else ""
+    return tieu + luoi + loi
+
+
+def _the_kpi_trang3(run) -> list[str]:
+    """5 thẻ KPI trang 3 (T3.4)."""
+    rollback = int(run.rows_inserted_rollback + run.rows_updated_rollback)
+    t1 = the_kpi("Dòng đọc từ file", so_vn(run.rows_source),
+                 mini("Số bảng, đã hoàn tác" if run.n_bang_loi else "Số bảng staging được nạp", so_vn(run.n_bang)), "chanh")
+    t2 = the_chia("Dòng đã vào staging", [("Thêm mới", so_vn(run.rows_inserted)), ("Cập nhật", so_vn(run.rows_updated))],
+                  chu_day(f"Đã hoàn tác {so_vn(run.rows_inserted_rollback)} thêm mới, "
+                          f"{so_vn(run.rows_updated_rollback)} cập nhật", "xau") if rollback
+                  else chu_day("Đã commit"), "tim")
+    t3 = the_chia("Dòng bị loại và xóa mềm", [("Bị loại vào dq", so_vn(run.rows_rejected)), ("Đơn xóa mềm", so_vn(run.rows_deleted))],
+                  chu_day("Bị loại lưu ở dq.rejected_rows"))
+    t4 = the_kpi("Kiểm tra chất lượng", f"{so_vn(run.n_check_pass)}/{so_vn(run.n_check)}",
+                 mini("PASS", so_vn(run.n_check_pass)) + mini("WARN", so_vn(run.n_check_warn))
+                 + mini("FAIL", so_vn(run.n_check_fail), "xau" if run.n_check_fail else ""))
+    t5 = the_kpi("Node dbt", f"{so_vn(run.dbt_n_ok)}/{so_vn(run.dbt_n_node)}",
+                 mini("Đạt", so_vn(run.dbt_n_ok)) + mini("Lỗi", so_vn(run.dbt_n_fail), "xau" if run.dbt_n_fail else "")
+                 + mini("Bỏ qua", so_vn(run.dbt_n_skipped)), "den")
+    return [t1, t2, t3, t4, t5]
+
+
+def _dong_dbt_xau(x) -> str:
+    """1 node dbt lỗi / cảnh báo trong thẻ 'Test hoặc model lỗi, cảnh báo' (T3.8)."""
+    ten = f'<span class="mono" title="{esc(x.node_name)}">{esc(ten_test_ngan(x.node_name))}</span>'
+    if x.resource_type == "test" and pd.notna(x.failures):
+        chi_tiet = f"{so_vn(x.failures)} dòng vi phạm, xem bảng {_rel_ngan(x.relation_name, 40)}"
+    else:
+        chi_tiet = esc(tom_tat_model(x.message))
+    canh = " canh" if x.status == "warn" else ""
+    return (f'<div class="mot_loi{canh}" title="{esc(x.message)}"><b>{esc(x.resource_type)}</b> {chip_dbt(x.status)} '
+            f'{ten}<br>{chi_tiet}</div>')
 
 
 def trang_chi_tiet(bay_gio: pd.Timestamp) -> None:
     ds = _ds_run()
     if ds.empty:
-        st.markdown('<div class="hop_ghi">etl_log đang trống – chưa có lần chạy nào để xem. Chạy pipeline <b>full_load</b> trước.</div>',
+        st.markdown('<div class="hop_ghi">etl_log đang trống, chưa có lần chạy nào để xem. Chạy pipeline <b>full_load</b> trước.</div>',
                     unsafe_allow_html=True)
         return
     ids = ds.run_id.astype(int).tolist()
@@ -986,7 +1394,8 @@ def trang_chi_tiet(bay_gio: pd.Timestamp) -> None:
         if rc is not None:   # VD ?run_id=9999: báo rõ rồi mới về lần chạy gần nhất
             st.warning(f"Không tìm thấy lần chạy #{rc}. Đang hiện lần chạy gần nhất (#{ids[0]}).")
         st.session_state.run_chon = ids[0]
-    nhan = {int(r.run_id): f"#{r.run_id} · {r.batch_id} · {r.triggered_by} · {r.status} · {gio(r.started_at)}" for r in ds.itertuples()}
+    nhan = {int(r.run_id): f"#{r.run_id}, batch {r.batch_id}, {r.triggered_by}, {r.status}, {gio(r.started_at)}"
+            for r in ds.itertuples()}
     run_id = st.selectbox("Chọn lần chạy", ids, format_func=lambda v: nhan[v], key="run_chon")
     st.query_params["run_id"] = str(run_id)
     run, tl, qc, dbt = _chi_tiet(run_id)
@@ -994,52 +1403,12 @@ def trang_chi_tiet(bay_gio: pd.Timestamp) -> None:
         st.warning(f"Không tìm thấy lần chạy #{run_id}.")
         return
 
-    kt = run.finished_at
-    mo_ta_thoi_gian = (thoi_luong(run.duration_s) if pd.notna(run.duration_s)
-                       else f"đang chạy {thoi_luong(run.elapsed_s)}")
-    lset = "từ đầu dữ liệu" if pd.isna(run.lset) else f"{pd.Timestamp(run.lset):%d/%m/%Y}"
-    cet = "hết dữ liệu (batch cuối)" if pd.isna(run.cet) else f"{pd.Timestamp(run.cet):%d/%m/%Y}"
-    # đang ở khâu dbt: dbt_result chỉ được ghi khi dbt build xong nên chưa biết thời gian từng đoạn
-    dang_dbt = run.status == "RUNNING" and run.phase == "dbt"
-    dbt_txt = f"đang chạy ({thoi_luong(run.mage_s)})" if dang_dbt else thoi_luong(run.dbt_s)
-    mage_txt = "–" if dang_dbt else thoi_luong(run.mage_s)
-    khau_loi = {"dbt": "dbt", "staging": "nạp staging", "bi_ngat": "bị ngắt", "khac": "khác"}
-    khau_dang = {"staging": "nạp staging", "dbt": "dbt", "ghi_log": "ghi log"}
-    c = st.container(key="the_dau_run")
-    c.markdown(
-        f'<div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap"><span style="font-size:22px;font-weight:700">'
-        f'Lần chạy #{run.run_id}</span><span style="font-size:15px">{chip(run.status)}</span>'
-        + (f'<span class="chip" style="background:#FDE3E0;color:#B8382B">lỗi ở khâu {esc(khau_loi.get(run.failed_stage, run.failed_stage))}</span>'
-           if run.status == "FAILED" else "")
-        + (f'<span class="chip" style="background:#E4E8FD;color:#3A47C4">đang ở khâu {esc(khau_dang.get(run.phase, run.phase))}</span>'
-           if run.status == "RUNNING" and run.phase else "")
-        + (f'<span class="chip" style="background:#FDE3E0;color:#B8382B">nghi kẹt &gt; {q.PHUT_KET} phút</span>' if run.is_stuck else "")
-        + '</div><div class="dau_run">'
-        f'<div><div class="k">Pipeline</div><div class="v">{esc(run.pipeline_name)}</div></div>'
-        f'<div><div class="k">Batch · loại nạp</div><div class="v">{esc(run.batch_id)} · {esc(run.load_type)}</div></div>'
-        f'<div><div class="k">LSET → CET (thời gian mô phỏng)</div><div class="v">{lset} → {cet}</div></div>'
-        f'<div><div class="k">Kích hoạt · lượt nạp · lần thử</div><div class="v">{esc(run.triggered_by)} · lượt {run.cycle_no} · lần {run.attempt_no}</div></div>'
-        f'<div><div class="k">Bắt đầu</div><div class="v">{gio(run.started_at)}</div></div>'
-        f'<div><div class="k">Kết thúc</div><div class="v">{gio(kt) if pd.notna(kt) else "chưa kết thúc"}</div></div>'
-        f'<div><div class="k">Thời lượng</div><div class="v">{mo_ta_thoi_gian}</div></div>'
-        f'<div><div class="k">Nạp staging · dbt khởi động · dbt · Mage</div><div class="v">'
-        f'{thoi_luong(run.staging_s)} · {thoi_luong(run.dbt_prep_s)} · {dbt_txt} · {mage_txt}</div></div></div>'
-        + (f'<div class="hop_loi"><b>Thông báo lỗi đầy đủ:</b><br>{esc(run.error_message)}</div>' if pd.notna(run.error_message) and run.error_message else ""),
-        unsafe_allow_html=True)
-
-    rollback = int(run.rows_inserted_rollback + run.rows_updated_rollback)
-    hang_kpi([
-        the_kpi("Dòng đọc từ file", so_vn(run.rows_source), (f"{so_vn(run.n_bang)} bảng – đã hoàn tác" if run.n_bang_loi else f"{so_vn(run.n_bang)} bảng staging được nạp"), "chanh"),
-        the_kpi("INSERT · UPDATE (đã vào staging)", f"{so_vn(run.rows_inserted)} · {so_vn(run.rows_updated)}",
-                (f"đã hoàn tác (rollback) {so_vn(run.rows_inserted_rollback)} · {so_vn(run.rows_updated_rollback)} – KHÔNG vào staging"
-                 if rollback else "dòng thêm mới · dòng cập nhật, đã commit"), "tim"),
-        the_kpi("Bị loại · xóa mềm", f"{so_vn(run.rows_rejected)} · {so_vn(run.rows_deleted)}", "vào dq.rejected_rows · đơn bị đánh dấu xóa", "trang"),
-        the_kpi("Kiểm tra chất lượng", f"{so_vn(run.n_check_pass)}/{so_vn(run.n_check)}", f"PASS · {so_vn(run.n_check_warn)} WARN · {so_vn(run.n_check_fail)} FAIL", "trang"),
-        the_kpi("Node dbt", f"{so_vn(run.dbt_n_ok)}/{so_vn(run.dbt_n_node)}", f"đạt · {so_vn(run.dbt_n_fail)} lỗi · {so_vn(run.dbt_n_skipped)} bỏ qua", "den")])
+    st.container(key="the_dau_run").markdown(_dau_lan_chay(run, tl, dbt, bay_gio), unsafe_allow_html=True)
+    hang_kpi(_the_kpi_trang3(run))
 
     # thông báo cho lần chạy thiếu dữ liệu
     if run.status == "RUNNING":
-        st.markdown('<div class="hop_ghi">Lần chạy đang diễn ra – bảng và kết quả dbt sẽ hiện dần khi từng bước xong '
+        st.markdown('<div class="hop_ghi">Lần chạy đang diễn ra: bảng và kết quả dbt sẽ hiện dần khi từng bước xong '
                     '(bật “Tự làm mới 30 giây” ở thanh bên để theo dõi). Kết quả dbt chỉ được ghi một lần khi dbt build xong.</div>',
                     unsafe_allow_html=True)
     if tl.empty:
@@ -1050,63 +1419,80 @@ def trang_chi_tiet(bay_gio: pd.Timestamp) -> None:
                     '(BS-34) hoặc bước dbt bị bỏ qua.</div>', unsafe_allow_html=True)
     elif dbt.empty and run.status == "FAILED":
         st.markdown('<div class="hop_ghi" style="margin-top:8px">Lần chạy này không có kết quả dbt: pipeline dừng trước khi dbt chạy '
-                    '(lỗi ở khâu nạp staging) hoặc dbt không chạy được – xem thông báo lỗi ở trên.</div>', unsafe_allow_html=True)
+                    '(lỗi ở khâu nạp staging) hoặc dbt không chạy được; xem thông báo lỗi ở trên.</div>', unsafe_allow_html=True)
 
     tieu_de("Các bước", "Dòng thời gian từng bước")
     buoc = q.gantt_cac_buoc(run, tl, dbt, bay_gio)
-    c = the_ve("gantt", "Gantt: Mage khởi động, nạp từng bảng staging, dbt, Mage ghi log",
-               "Xám = Mage (khởi động block, ghi log) · xanh chanh = nạp staging · tím nhạt = dbt khởi động / parse project · tím = dbt build · đỏ = bước lỗi · tím đậm = đang chạy.")
+    dang_dbt = run.status == "RUNNING" and run.phase == "dbt"   # dbt_result chỉ có khi dbt build xong
+    def giay(x):
+        return f"{so_vn(x, 1)} giây" if x is not None and pd.notna(x) else "–"
+    muc = [("Mage", MAU_MAGE, "–" if dang_dbt else giay(run.mage_s)), ("Nạp staging", CHANH_BAR, giay(run.staging_s)),
+           ("dbt khởi động", TIM_NHAT, giay(run.dbt_prep_s)),
+           ("dbt build", TIM, f"đang chạy {thoi_luong(run.mage_s)}" if dang_dbt else giay(run.dbt_s)), ("Bước lỗi", DO)]
+    if run.status == "RUNNING":
+        muc.append(("Đang chạy", TIM_DAM))
+    c = the_ve("gantt", "Các bước của lần chạy", "Thanh đỏ là bước bị lỗi; rê chuột vào thanh để xem thời gian.", chu_giai(muc))
     if buoc.empty:
-        trong(c, "Chưa có bước nào để vẽ.")
+        trong_dong(c, "Chưa có bước nào để vẽ.", ok=False)
     else:
         ve(c, _bieu_do_gantt(buoc), "bd_gantt")
 
     tieu_de("Bảng", "Nạp staging (table_load)")
     c = the_ve("table_load", "Kết quả nạp từng bảng")
     if tl.empty:
-        trong(c, "Không có dòng table_load.")
+        trong_dong(c, "Không có dòng table_load.", ok=False)
     else:
-        if (tl.status == "FAILED").any():
-            c.markdown('<div class="hop_loi" style="margin:0">Lần chạy này bị lỗi ở khâu nạp: cả batch đã được <b>hoàn tác (rollback)</b>. '
-                       'Số INSERT / UPDATE bên dưới là số đã xử lý trước khi lỗi, <b>KHÔNG nằm trong staging</b>.</div>', unsafe_allow_html=True)
-        c.dataframe(style_bang(pd.DataFrame({
-            "Bảng": tl.table_name, "Dòng đọc": so_cot(tl.rows_source), "INSERT": so_cot(tl.rows_inserted),
-            "UPDATE": so_cot(tl.rows_updated), "Bị loại": so_cot(tl.rows_rejected), "Xóa mềm": so_cot(tl.rows_deleted),
-            "Bắt đầu": [gio(t, False) for t in tl.started_at], "Xong": [gio(t, False) for t in tl.finished_at],
-            "Trạng thái": tl.status, "Vào staging": [_vao_staging(t) for t in tl.status],
-            "Lỗi": [rut_gon(e, 140) for e in tl.error_message.fillna("")]}), ["Trạng thái"]),
-            hide_index=True, width="stretch")
-    c = the_ve("quality", "Kiểm tra chất lượng (quality_check)")
+        co_loi = (tl.status == "FAILED").any()
+        if co_loi:
+            c.markdown('<div class="hop_loi" style="margin:0 0 6px">Lần chạy này bị lỗi ở khâu nạp: cả batch đã được <b>hoàn tác (rollback)</b>. '
+                       'Số thêm mới và cập nhật bên dưới là số đã xử lý trước khi lỗi, <b>không nằm trong staging</b>.</div>',
+                       unsafe_allow_html=True)
+        cot = [("Bảng", ""), ("Dòng đọc", "r"), ("Thêm mới", "r"), ("Cập nhật", "r"), ("Bị loại", "r"), ("Xóa mềm", "r"),
+               ("Bắt đầu", ""), ("Xong", ""), ("Trạng thái", ""), ("Vào staging", "")] + ([("Lỗi", "")] if co_loi else [])
+        hang = []
+        for t in tl.itertuples():
+            h = [(esc(t.table_name), ""), o_so(t.rows_source), o_so(t.rows_inserted), o_so(t.rows_updated), o_so(t.rows_rejected),
+                 o_so(t.rows_deleted), (gio(t.started_at, False), ""), (gio(t.finished_at, False), ""), (chip(t.status), ""),
+                 (_vao_staging(t.status), "")]
+            if co_loi:
+                e = t.error_message if pd.notna(t.error_message) else ""
+                h.append((f'<span class="cat" style="max-width:200px;color:#B8382B" title="{esc(e)}">{esc(e)}</span>', ""))
+            hang.append(h)
+        c.markdown(bang_html(cot, hang), unsafe_allow_html=True)
     if qc.empty:
-        trong(c, "Lần chạy này không có phép kiểm tra chất lượng nào được ghi.")
+        c = the_ve("quality", "Kiểm tra chất lượng (quality_check)")
+        trong_dong(c, "Lần chạy này không có phép kiểm tra chất lượng nào được ghi.", ok=False)
     else:
-        c.dataframe(style_bang(pd.DataFrame({
-            "Bảng": qc.table_name, "Phép kiểm tra": qc.check_name, "Trạng thái": qc.status, "Dòng vi phạm": so_cot(qc.failed_rows),
-            "Chi tiết": qc.detail.fillna("")}), ["Trạng thái"]), hide_index=True, width="stretch", height=min(420, 38 + 35 * len(qc)))
+        c = the_ve("quality", "Kiểm tra chất lượng (quality_check)",
+                   f"{so_vn(run.n_check)} phép kiểm tra: {so_vn(run.n_check_pass)} PASS, {so_vn(run.n_check_warn)} WARN, "
+                   f"{so_vn(run.n_check_fail)} FAIL. Rê chuột vào ô để xem chi tiết.")
+        c.markdown(_ma_tran_run(qc, tl), unsafe_allow_html=True)
 
     tieu_de("dbt", "Kết quả dbt build")
     if dbt.empty:
-        trong(st, "Chưa có kết quả dbt cho lần chạy này.")
+        trong_dong(st, "Chưa có kết quả dbt cho lần chạy này.", ok=False)
         return
     c1, c2 = st.columns([2, 3])
     with c1:
         c = the_ve("dbt_dem", "Số node theo loại và trạng thái")
         dem = dbt.groupby(["resource_type", "status"]).size().reset_index(name="so_node")
-        c.dataframe(style_bang(pd.DataFrame({"Loại": dem.resource_type, "Trạng thái": dem.status, "Số node": so_cot(dem.so_node)}),
-                               ["Trạng thái"], dbt=True), hide_index=True, width="stretch")
+        c.markdown(bang_html([("Loại", ""), ("Trạng thái", ""), ("Số node", "r")],
+                             [[(esc(r.resource_type), ""), (chip_dbt(r.status), ""), o_so(r.so_node)] for r in dem.itertuples()]),
+                   unsafe_allow_html=True)
+        xau = dbt[dbt.status.map(lambda s: s == "warn" or q.la_loi_dbt(s))]
+        c = the_ve("dbt_test_loi", "Test hoặc model lỗi, cảnh báo", "Dòng vi phạm của test nằm trong bảng thuộc schema dq.")
+        if xau.empty:
+            trong(c, "Không có node nào lỗi hoặc cảnh báo.")
+        else:
+            c.markdown('<div class="ds_loi">' + "".join(_dong_dbt_xau(x) for x in xau.itertuples()) + "</div>",
+                       unsafe_allow_html=True)
     with c2:
-        c = the_ve("dbt_cham", "10 model / seed chạy lâu nhất")
+        c = the_ve("dbt_cham", "10 model và seed chạy lâu nhất")
         md = dbt[dbt.resource_type.isin(["model", "seed"])].sort_values("execution_time", ascending=False).head(10)
-        c.dataframe(pd.DataFrame({"Node": md.node_name, "Loại": md.resource_type, "Giây": [so_vn(v, 2) for v in md.execution_time],
-                                  "Số dòng": so_cot(md.rows_affected), "Bảng đích": md.relation_name}), hide_index=True, width="stretch")
-    xau = dbt[dbt.status.map(lambda s: s == "warn" or q.la_loi_dbt(s))]
-    c = the_ve("dbt_test_loi", "Test / model lỗi hoặc cảnh báo", "Test fail: relation_name là bảng trong schema dq chứa dòng vi phạm.")
-    if xau.empty:
-        trong(c, "Không có node nào fail / error / warn.")
-    else:
-        c.dataframe(style_bang(pd.DataFrame({"Loại": xau.resource_type, "Node": xau.node_name, "Trạng thái": xau.status.str.upper(),
-                                             "Dòng vi phạm": so_cot(xau.failures), "Bảng chứa dòng lỗi": xau.relation_name,
-                                             "Thông báo": xau.message}), ["Trạng thái"], dbt=True), hide_index=True, width="stretch")
+        hang = [[(esc(r.node_name), ""), (esc(r.resource_type), ""), o_so(r.execution_time, 2), o_so(r.rows_affected),
+                 (f'<span class="mono" style="color:{CHU2}">{esc(r.relation_name)}</span>', "")] for r in md.itertuples()]
+        c.markdown(bang_html([("Node", ""), ("Loại", ""), ("Giây", "r"), ("Số dòng", "r"), ("Bảng đích", "")], hang),
+                   unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1171,8 +1557,7 @@ st.session_state.setdefault("trang", 1)
 try:
     lc = _lua_chon()
 except psycopg.OperationalError:
-    st.sidebar.markdown('<div class="sb_logo"><span class="lg"><i style="height:6px"></i><i style="height:10px"></i>'
-                        '<i style="height:14px"></i></span>Olist BI · Theo dõi ETL</div>', unsafe_allow_html=True)
+    st.sidebar.markdown(LOGO_THANH_BEN, unsafe_allow_html=True)
     _bao_loi_ket_noi()
     st.stop()
 except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):

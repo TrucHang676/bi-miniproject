@@ -300,11 +300,13 @@ def dong_bi_loai(bl: BoLoc) -> pd.DataFrame:
 
 
 def mau_dong_bi_loai(bl: BoLoc, gioi_han: int = 50) -> pd.DataFrame:
+    """Mẫu dòng bị loại. row_data = chuỗi cắt 200 ký tự (như cũ); row_json = nguyên dòng (JSONB -> dict) để app tách
+    thành từng ô 'cột: giá trị' (chỉ thêm cột hiển thị, không đổi số liệu)."""
     dk, tham_so = _run_trong_loc(bl)
     tham_so["gh"] = gioi_han
     return db.truy_van(f"""
         SELECT run_id, table_name, check_name, source_row, reason,
-               left(row_data::text, 200) AS row_data, rejected_at
+               left(row_data::text, 200) AS row_data, row_data AS row_json, rejected_at
         FROM dq.rejected_rows WHERE {dk}
         ORDER BY run_id DESC, rejected_id LIMIT %(gh)s""", tham_so)
 
