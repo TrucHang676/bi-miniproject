@@ -85,3 +85,9 @@ docs/03.docx
 
 # File mockup dashboard (bản riêng, không đưa lên Git)
 mockup_dashboard_3_trang.html
+
+# Loi tat skill Streamlit tu tao khi chay app (tro vao thu muc Python tren tung may)
+**/skills/developing-with-streamlit
+
+# Log moi lan hoi AI (ai/outputs/). Log da commit lam bang chung van giu; muon them log moi thi git add -f
+ai/outputs/*.json
