@@ -4,7 +4,7 @@
 > Công thức từng cột: [docs/source_to_target_mapping.md](../docs/source_to_target_mapping.md) · thiết kế kho: [docs/dw_design.md](../docs/dw_design.md).
 > **Quy tắc, mẫu code, số liệu nghiệm thu cho người viết model: [docs/dbt_rules.md](../docs/dbt_rules.md).**
 > Khởi tạo 23/10/2026: cấu hình, kết nối, nguồn, seed. Model BS-28 → BS-31 làm xong 24/10/2026: 20 model, 155 test (mục 4 – 6); đã chạy đủ 6 kịch bản kiểm thử B7 (mục 4). Từ 24/10/2026 (BS-34) pipeline Mage tự gọi `dbt build` sau mỗi lần nạp (mục 1).
-> Đối soát số liệu kho `dds` sau khi chạy: [sql/checks/02_dds_checks.sql](../sql/checks/02_dds_checks.sql) · xem test đang lỗi, demo test FAIL, kiểm khóa giữa 2 lần build: [sql/checks/03_dbt_test_demo.sql](../sql/checks/03_dbt_test_demo.sql).
+> Đối soát số liệu kho `dds` sau khi chạy: [sql/checks/02_dds_checks.sql](../sql/checks/02_dds_checks.sql) · xem test đang lỗi, demo test FAIL, kiểm khóa giữa 2 lần build: [sql/checks/03_dbt_test_demo.sql](../sql/checks/03_dbt_test_demo.sql) · 13 lỗi mẫu (3 nhóm) chạy trên bản sao `olist_dw_demo` cho báo cáo mục 6.2.4: [sql/checks/04_dbt_test_bad_data.sql](../sql/checks/04_dbt_test_bad_data.sql).
 
 ## 1. Chạy dbt
 
