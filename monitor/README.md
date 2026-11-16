@@ -22,7 +22,7 @@ etl_log.pipeline_run ─┬─ table_load ─ quality_check        dq.rejected_r
                       └─ dbt_result                              │
    │                                                             │
    ▼  sql/init/06_etl_monitor.sql (view, không lưu dữ liệu)      │
-etl_log.v_run · v_batch_progress · v_quality_issue  ◄────────────┘
+etl_log.v_run, v_batch_progress, v_quality_issue  ◄──────────────┘
    │
    ▼
 monitor/app.py (Streamlit, http://localhost:8502)  ◄── đọc thêm mage/.../triggers.yaml (lịch bật / tắt)
@@ -143,7 +143,7 @@ Chọn lần chạy ở ô trên cùng (`#100, batch 2018-02, schedule, FAILED, 
 | Dòng bị loại | Đếm thẳng `dq.rejected_rows` theo `run_id` | Gồm cả dòng bị loại của file `deleted_orders` (không có dòng `table_load` tương ứng) |
 | Lượt nạp (`cycle_no`) | Mỗi Full Load có ≥ 1 bảng commit mở lượt mới; 1 lượt = 10 batch | Full Load làm lại staging từ đầu; Full Load lỗi ở khâu nạp đã rollback nên staging vẫn của lượt cũ |
 | Số lần thử (`attempt_no`) | Thứ tự lần chạy trong các lần cùng batch, cùng lượt | Thấy batch nào phải chạy lại |
-| Thời gian 4 khâu | Nạp staging = bảng đầu → bảng cuối · dbt khởi động = bảng cuối → node dbt đầu (~15–20 giây dbt đọc / parse project) · dbt build = node đầu → node cuối · Mage = phần còn lại (khởi động block, ghi log) | `dbt_result` chỉ có thời gian từng node |
+| Thời gian 4 khâu | Nạp staging = bảng đầu → bảng cuối; dbt khởi động = bảng cuối → node dbt đầu (~15–20 giây dbt đọc / parse project); dbt build = node đầu → node cuối; Mage = phần còn lại (khởi động block, ghi log) | `dbt_result` chỉ có thời gian từng node |
 | Khâu gây lỗi (`failed_stage`) | `bi_ngat` (lỗi "Bị ngắt giữa chừng") → `staging` (có `table_load` FAILED) → `dbt` (có node dbt lỗi) → `khac` | Biết ngay hỏng ở đâu mà không phải đọc thông báo lỗi |
 | Trạng thái dbt | Ngoài `success` / `pass` / `warn` / `skipped` đều tính là **lỗi** | Bản dbt sau có thể thêm trạng thái mới – thà báo lỗi nhầm còn hơn bỏ sót |
 | Đã nạp hết batch | Batch cuối `2018-09+` của lượt đã nạp | |
@@ -182,7 +182,7 @@ Giờ hiển thị là giờ Việt Nam (cột log đã lưu giờ VN). Lần ch
 
 Bài học: script tự kiểm ban đầu **không** bắt được lỗi rollback vì nó cộng số dòng giống hệt cách dashboard cộng. Câu đối chiếu phải viết theo định nghĩa nghiệp vụ, độc lập với code dashboard.
 
-**Log dùng để kiểm và chụp ảnh** (`olist_dw` máy Yến, lượt nạp 5): run 97 FULL tay · 98 `2018-01` tay · 99, 100 `2018-02` theo lịch FAILED (dbt test `accepted_values` fail – 1 dòng `payment_type = pix` cố ý) · 101 tự phục hồi sau khi trả file đúng · 102 `2018-03` SUCCESS + 2 WARN, 1 dòng `dq` (1 dòng giả thiếu `order_id` cố ý) · 103–108 theo lịch (cron tạm `*/3`) · 109 `rerun_last` tay để chụp lúc đang chạy. File batch và `triggers.yaml` đã trả về gốc; md5 9 bảng `dds` + 8 bảng staging giống hệt trước đợt chạy → số Power BI không đổi.
+**Log dùng để kiểm và chụp ảnh** (`olist_dw` máy Yến, lượt nạp 5): run 97 FULL tay; 98 `2018-01` tay; 99, 100 `2018-02` theo lịch FAILED (dbt test `accepted_values` fail – 1 dòng `payment_type = pix` cố ý); 101 tự phục hồi sau khi trả file đúng; 102 `2018-03` SUCCESS + 2 WARN, 1 dòng `dq` (1 dòng giả thiếu `order_id` cố ý); 103–108 theo lịch (cron tạm `*/3`); 109 `rerun_last` tay để chụp lúc đang chạy. File batch và `triggers.yaml` đã trả về gốc; md5 9 bảng `dds` + 8 bảng staging giống hệt trước đợt chạy → số Power BI không đổi.
 
 ## 8. Lỗi thường gặp
 

@@ -73,7 +73,7 @@ Hai cột chỉ để hiển thị, không có trong `dds`; công thức đầy 
 
 99 measure trong bảng `_Measures` (đếm lại 05/11/2026 sau khi thêm 2 measure trang 3 theo yêu cầu mục 3.1.3):
 - 33 measure ở thư mục chính `0 Phụ`, `1 Tổng quan`, `2 Giao hàng`, `3 Người bán` – liệt kê ở bảng dưới, trừ `Điểm TB toàn sàn` (K8 bỏ lọc trạng thái giao hàng, đường TB sàn trang 2);
-- 3 measure ở thư mục `Hỏi AI` (`Link hỏi AI trang 1..3` – link của robot Trợ lý AI, xem `ai/README.md`);
+- 3 measure ở thư mục `Hỏi AI` (`Link hỏi AI trang 1..3` – link của nút trợ lý AI trên header, mục Nút trợ lý AI bên dưới);
 - 63 measure hiển thị ở thư mục con `Thẻ KPI` (số và dòng phụ trên thẻ, dạng chữ), `Định dạng` (màu theo ngưỡng) và `Tiêu đề` (câu kết luận Q5, Q6 – còn trong model nhưng không gắn vào biểu đồ). Không dùng trong công thức khác.
 
 Mô tả đầy đủ nằm ở ô *Description* của từng measure; định nghĩa nghiệp vụ: [business_questions.md](../docs/business_questions.md) mục 6.
@@ -153,131 +153,68 @@ Mô tả đầy đủ nằm ở ô *Description* của từng measure; định n
 
 ## Dashboard
 
-> Câu hỏi, KPI và measure: [docs/business_questions.md](../docs/business_questions.md) mục 5–6.
-> Số trên thẻ KPI trong phác thảo là số kiểm chứng sơ bộ trên CSV gốc (01/2017 – 08/2018), chỉ để minh họa.
+> Câu hỏi, KPI và measure: [docs/business_questions.md](../docs/business_questions.md) mục 5–6. Phân tích và trả lời từng câu hỏi: báo cáo Chương 7.
 
-**Nguyên tắc bố cục (áp dụng cho cả 3 trang)**
-- Khung 16:9. Từ trên xuống: tiêu đề + slicer → hàng thẻ KPI → 2 câu hỏi, mỗi câu 1 hàng gồm 2 biểu đồ đặt cạnh nhau.
-- Biểu đồ trái = **hiện tượng**, biểu đồ phải = **giải thích / khoanh vùng**; tiêu đề mỗi hàng ghi câu hỏi (Q1…).
-- 1 màu chính cho mọi biểu đồ; **đỏ chỉ dùng cho cảnh báo** (vượt ngưỡng); xám cho đường tham chiếu/ngưỡng.
-- Slicer dùng chung cho cả trang; click vào 1 biểu đồ sẽ lọc chéo các biểu đồ còn lại.
+File gồm 3 trang chính và 1 trang ẩn. Toàn báo cáo lọc `dim_date[is_analysis_period] = TRUE`, nên mọi số liệu thuộc giai đoạn 01/2017 – 08/2018.
+
+**Nguyên tắc bố cục chung**
+- Khung 16:9 gồm header (tên trang, kỳ phân tích, ảnh động trợ lý AI), thanh bên trái (3 nút chuyển trang và slicer), hàng thẻ KPI, 2 hàng biểu đồ; mỗi hàng biểu đồ trả lời 1 câu hỏi.
+- Dòng phụ dưới thẻ KPI so với cùng kỳ (trang 1) hoặc với mục tiêu, ngưỡng cảnh báo (trang 2, 3); chữ và màu dòng phụ lấy từ measure.
+- Màu theo `theme_olist.json`: vàng chanh, tím nhạt, đen là màu chính; đỏ chỉ dùng cho phần vượt ngưỡng cảnh báo; xám cho đường tham chiếu.
+- Slicer Năm, Tháng đồng bộ cả 3 trang (`syncGroup`), chọn được nhiều giá trị. Bấm vào một biểu đồ sẽ lọc chéo các biểu đồ còn lại, trừ các cặp được tắt có chủ đích (ghi ở từng trang).
+- Trục thời gian nhiều tầng Năm → Quý → Tháng, mặc định cấp Tháng, bấm ↑ để lên cấp Quý, Năm. Nút "Go to the next level" được ẩn vì nút này gộp cùng một tháng của hai năm thành một điểm.
 
 ### Trang 1 – Tổng quan kinh doanh (Descriptive)
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ TỔNG QUAN KINH DOANH                     [Năm ▼] [Tháng ▼] [Vùng ▼] [Bang ▼] │
-├──────────────┬──────────────┬──────────────┬──────────────┬─────────────────┤
-│ DOANH THU    │ SỐ ĐƠN       │ GIÁ TRỊ ĐƠN TB│ SỐ KHÁCH HÀNG│ KHÁCH MUA LẠI   │
-│ 13,45 tr BRL │ 97.905       │ 137 BRL      │ 94.707       │ 2,3%            │
-│ ▲ x% cùng kỳ │ ▲ x% cùng kỳ │              │              │                 │
-├──────────────┴──────────────┴──────────────┴──────────────┴─────────────────┤
-│ Q1. Doanh thu tăng bao nhiêu so với cùng kỳ, và tăng nhờ số đơn hay giá trị đơn?│
-├──────────────────────────────────────┬──────────────────────────────────────┤
-│ (1) Doanh thu theo tháng 2018 vs 2017│ (2) Số đơn (cột) và AOV (đường)       │
-│  tr│        2017 ·····  2018 ────    │  đơn│              ▄█▄ ▄▄█▄▄▄▄▄  ─ 137 │
-│ 1,0│  ───────────╮      ·            │     │        ▄▄▄██████████████  BRL  │
-│ 0,5│             ╰──  ····╮          │     │ ─────────────────────────────  │
-│    │ ·····                ·····      │     │ ▄▄▄██████████████████████████  │
-│    └─1──2──3──4──5──6──7──8──9─...12 │     └─T1/17 ─────────────── T8/18  │
-├──────────────────────────────────────┴──────────────────────────────────────┤
-│ Q2. Danh mục và bang nào đóng góp doanh thu nhiều nhất?                      │
-├──────────────────────────────────────┬──────────────────────────────────────┤
-│ (1) Top 10 danh mục theo doanh thu   │ (2) Doanh thu theo bang              │
-│ health_beauty   ██████████ 9,3%      │          ░░▒▒                        │
-│ watches_gifts   █████████  8,9%      │         ▒▒▓▓█  <- SP 38%             │
-│ bed_bath_table  ████████   7,7%      │          ▒▓▓                         │
-│ ...                                  │   (click 1 bang → (1) lọc theo bang) │
-└──────────────────────────────────────┴──────────────────────────────────────┘
-```
+![Trang Tổng quan](../docs/images/dashboard_overview.png)
+
+Slicer: Năm, Tháng, Vùng, Bang (nơi nhận hàng). Thẻ KPI: K1 Doanh thu, K2 Số đơn, K3 Giá trị đơn TB, K4 Số khách hàng, K5 Tỉ lệ khách mua lại; dòng phụ so 01–08/2018 với cùng kỳ 2017 (xanh khi tăng, đỏ khi giảm).
 
 | Câu | Biểu đồ | Visual Power BI | Trục / giá trị |
 |---|---|---|---|
-| Q1 | (1) | Line chart | X = tháng (1–12), Legend = năm, Y = Doanh thu; tooltip: % YoY |
-| Q1 | (2) | Line and clustered column chart | X = tháng (01/2017 – 08/2018), cột = Số đơn, đường = AOV (trục phụ) |
-| Q2 | (1) | Clustered bar chart | Y = danh mục (Top N = 10), X = Doanh thu; nhãn = % tổng doanh thu |
-| Q2 | (2) | Filled map (hoặc bar chart theo bang nếu map lỗi) | Location = bang, Color saturation = Doanh thu; hierarchy Vùng → Bang |
+| Q1 | Doanh thu theo tháng | Area chart | X = Năm → Quý → Tháng, Y = Doanh thu |
+| Q1 | Số đơn và giá trị đơn trung bình theo tháng | Line and clustered column chart | X = Năm → Quý → Tháng; cột = Số đơn, đường = Giá trị đơn TB (trục phải) |
+| Q2 | Top 10 theo doanh thu | Clustered bar chart | Y = Danh mục → Mã sản phẩm (drill), X = `% tổng doanh thu`; Top 10 bằng measure `Lọc top 10 sản phẩm`; 3 danh mục đầu tô vàng chanh; phụ đề `Phụ đề top 10 danh mục` ("10 danh mục dẫn đầu chiếm 62,4% doanh thu toàn sàn") |
+| Q2 | Doanh thu theo bang | Shape map (`maps/brazil_states.json`) và clustered bar chart "Top 5 theo doanh thu" | Bản đồ tô theo 5 nhóm tỉ trọng (`Nhóm tỉ trọng bang`); thanh Top 5 theo Vùng → Bang → Thành phố, mặc định cấp Bang, Top 5 bằng measure `Lọc top 5 địa lý`, phụ đề `Phụ đề top 5 bang` (73,9%) |
+
+Top N làm bằng measure trả về giá trị trống ngoài nhóm dẫn đầu, không dùng bộ lọc Top N của visual: bộ lọc mức visual được tính ở cấp thấp nhất của trục drill, nên ở cấp Bang chỉ cộng doanh thu của 5 thành phố đầu (São Paulo ra 18,0% thay vì 38,3%). Biểu đồ 1 và 2 cùng trục tháng nên không lọc nhau.
 
 ### Trang 2 – Giao hàng & trải nghiệm khách hàng (Diagnostic)
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ GIAO HÀNG & TRẢI NGHIỆM KHÁCH HÀNG                [Năm ▼] [Tháng ▼] [Vùng ▼] │
-├───────────────────┬───────────────────┬───────────────────┬─────────────────┤
-│ TỈ LỆ GIAO TRỄ    │ THỜI GIAN GIAO TB │ ĐIỂM ĐÁNH GIÁ TB  │ ĐÁNH GIÁ 1–2 ★  │
-│ 6,8%              │ 12,5 ngày         │ 4,09 ★            │ 14,6%           │
-├───────────────────┴───────────────────┴───────────────────┴─────────────────┤
-│ Q3. Tháng nào giao trễ vượt 10%, bang nào trễ nhiều nhất?                    │
-├──────────────────────────────────────┬──────────────────────────────────────┤
-│ (1) Tỉ lệ giao trễ theo tháng        │ (2) Tỉ lệ giao trễ theo bang         │
-│  % │                 ● 19%           │ AL  ███████████ 21,5%  (đỏ > 10%)    │
-│ 10 │- - - - - -●- - - - - - ngưỡng   │ MA  █████████   17,5%                │
-│  5 │ ──────╯ ╰─╯  ╰─────╮ ╭─         │ SE  ████████    15,4%                │
-│    └─T1/17 ──────────────── T8/18    │ ... (click tháng ở (1) → lọc (2))    │
-├──────────────────────────────────────┴──────────────────────────────────────┤
-│ Q4. Giao trễ làm điểm đánh giá giảm bao nhiêu?                               │
-├──────────────────────────────────────┬──────────────────────────────────────┤
-│ (1) Điểm TB theo mức giao trễ        │ (2) Tỉ lệ trễ và điểm TB theo tháng   │
-│ ★ ███ 4,3  - - - - - - TB sàn 4,09   │  % │      ╭╮   ╭─╮    ── tỉ lệ trễ  ★ │
-│   ███ ███ 3,3                        │    │ ─────╯╰───╯ ╰──── ·· điểm TB    │
-│   ███ ███ ███ 2,1 ▄▄▄ 1,7 ▄▄▄ 1,7    │    │ ·····╮╭···╮ ╭···· (đi ngược    │
-│   Đúng 1–3 4–7  8–14   >14 ngày      │    │      ╰╯   ╰─╯     nhau)        │
-│   hạn                                │    └─T1/17 ──────────────── T8/18    │
-└──────────────────────────────────────┴──────────────────────────────────────┘
-```
+![Trang Giao hàng](../docs/images/dashboard_delivery.png)
+
+Slicer: Năm, Tháng, Vùng. Thẻ KPI: K6 Tỉ lệ giao trễ (mục tiêu ≤ 5%, cảnh báo > 10%), K7 Thời gian giao TB, K8 Điểm đánh giá TB (mục tiêu ≥ 4,0★, cảnh báo < 3,5★), K9 Tỉ lệ đánh giá 1–2★ (mục tiêu ≤ 10%, cảnh báo > 20%).
 
 | Câu | Biểu đồ | Visual Power BI | Trục / giá trị |
 |---|---|---|---|
-| Q3 | (1) | Line chart + constant line 10% | X = tháng, Y = Tỉ lệ giao trễ |
-| Q3 | (2) | Clustered bar chart, sắp giảm dần | Y = bang, X = Tỉ lệ giao trễ; conditional formatting đỏ khi > 10% |
-| Q4 | (1) | Clustered column chart + constant line | X = nhóm số ngày trễ, Y = Điểm TB |
-| Q4 | (2) | Line chart 2 trục | X = tháng, Y = Tỉ lệ giao trễ, Secondary Y = Điểm TB |
+| Q3 | Tỉ lệ giao trễ theo tháng | Area chart và đường ngưỡng 10% | X = Năm → Quý → Tháng, Y = K6; tooltip ghi số đơn trễ trên số đơn đã giao (`Nhãn kỳ`) |
+| Q3 | 10 bang giao trễ nhiều nhất | Stacked bar chart | Y = bang, X = `Giao trễ đến 10%` (tím) và `Giao trễ vượt 10%` (đỏ) xếp chồng, nhãn = tỉ lệ đầy đủ; Top N = 10 trên visual (biểu đồ không có drill) |
+| Q4 | Điểm đánh giá theo mức trễ | Clustered column chart và đường điểm TB toàn sàn | X = Kết quả giao → Nhóm số ngày trễ (mặc định cấp nhóm), Y = K8; đường `Điểm TB toàn sàn`; phụ đề `Phụ đề điểm theo mức trễ` (chênh 2,02★); tooltip `Số lượt đánh giá` |
+| Q4 | Tỉ lệ giao trễ và điểm đánh giá theo tháng | Line and clustered column chart | X = Năm → Quý → Tháng; cột = K6 (đỏ ở tháng vượt 10%), đường = K8 (trục phải) |
+
+Lọc chéo tắt có chủ đích: biểu đồ điểm theo mức trễ không lọc biểu đồ khác (bấm cột "Trễ 4–7 ngày" sẽ làm thẻ K6 thành 100%); hai biểu đồ theo tháng không lọc nhau. Địa lý dừng ở cấp Bang (chọn vùng bằng slicer) vì tên thành phố chưa thống nhất và mỗi thành phố có ít đơn.
 
 ### Trang 3 – Người bán & vận chuyển (Diagnostic)
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ NGƯỜI BÁN & VẬN CHUYỂN       [Năm ▼] [Tháng ▼] [Vùng NB ▼] [Bang NB ▼]       │
-├───────────────────┬───────────────────┬───────────────────┬─────────────────┤
-│ NGƯỜI BÁN H.ĐỘNG  │ DT TB / NGƯỜI BÁN │ NB BÀN GIAO TRỄ   │ TOP 10% NB      │
-│ 3.029             │ 4.440 BRL         │ 8,9%              │ 67,3% doanh thu │
-├───────────────────┴───────────────────┴───────────────────┴─────────────────┤
-│ Q5. Giao trễ do người bán bàn giao chậm hay do vận chuyển?                    │
-├──────────────────────────────────────┬──────────────────────────────────────┤
-│ (1) Tỉ lệ giao trễ theo khâu bàn giao│ (2) Bàn giao trễ và thời gian vận     │
-│  % │       ▓ nội bang  ░ liên bang   │     chuyển theo tháng                 │
-│ 21 │              ▓▓ ░░              │  % │ ── NB bàn giao trễ   ·· ngày VC  │
-│  7 │        ░░    ▓▓ ░░              │ 12 │ ─────────────────── (đi ngang)  │
-│  3 │     ▓▓ ░░    ▓▓ ░░              │    │      ···    ·····  13 ngày      │
-│    └ Bàn giao     Bàn giao           │    │ ·····   ····     ···· (tăng vọt │
-│      đúng hạn     trễ                │    └─T1/17 ──────── T8/18  02–03/18) │
-├──────────────────────────────────────┴──────────────────────────────────────┤
-│ Q6. Người bán nào cần ưu tiên xử lý?                                         │
-├──────────────────────────────────────┬──────────────────────────────────────┤
-│ (1) Người bán ≥ 30 đơn               │ (2) Top 10 NB vượt ngưỡng theo DT     │
-│ ★ 5 │ ○ ○○ ○  ┊                      │ NB #1    ██████████                  │
-│     │ ○○○ ○   ┊   ○                  │ NB #2    ████████                    │
-│ 3,5 │- - - - -┼- - - - -             │ NB #3    ███████                     │
-│     │    ○    ┊ ●  ● <- cần xử lý    │ ...                                  │
-│   1 └─────────┴──────── % bàn giao trễ│ (chuột phải → Chi tiết người bán)    │
-│       0%     10%                     │                                      │
-└──────────────────────────────────────┴──────────────────────────────────────┘
-```
+![Trang Người bán](../docs/images/dashboard_seller.png)
+
+Slicer: Năm, Tháng (đồng bộ với trang 1, 2), **Vùng người bán** (`dim_seller[seller_region]`), **Bang người bán** (`seller_state`); chọn vùng thì ô Bang chỉ còn các bang của vùng đó. Hai slicer địa lý lọc theo nơi người bán đặt cửa hàng, khác trang 1, 2 vốn lọc theo nơi khách nhận hàng. Thẻ KPI: K10 Người bán hoạt động (so cùng kỳ), K11 Doanh thu TB mỗi người bán (kèm trung vị), K12 Tỉ lệ người bán bàn giao trễ (so mục tiêu 5%), K13 Tỉ trọng doanh thu của top 10% người bán.
 
 | Câu | Biểu đồ | Visual Power BI | Trục / giá trị |
 |---|---|---|---|
-| Q5 | (1) | Clustered column chart | X = người bán bàn giao đúng hạn / trễ (`handover_status`), Legend = nội bang / liên bang (`route_type`), Y = Tỉ lệ giao trễ |
-| Q5 | (2) | Line and clustered column chart – "Bàn giao trễ, thời gian xử lý và vận chuyển theo tháng" | X = Năm → Quý → Tháng (mặc định mở tới Tháng, bấm ↑ ra Quý; ẩn nút "Go to the next level" như trang 1, 2), cột = Tỉ lệ bàn giao trễ (K12, đỏ ở kỳ có K6 > 10%), đường liền = Thời gian vận chuyển TB (M4), đường nét đứt xám = Thời gian xử lý TB (cùng trục phải, đơn vị ngày); tooltip `Nhãn kỳ` + Số lượt bàn giao trễ + K6 |
-| Q6 | (1) | Scatter chart + 2 constant line (10%, 3,5) | Values = `seller_label`, X = Tỉ lệ bàn giao trễ, Y = Điểm TB, Size = Doanh thu; filter visual: Số đơn ≥ 30; màu chấm = `Màu người bán` (M5 = 1 đỏ) |
-| Q6 | (2) | Table (thay bar chart trong phác thảo) | Cột: người bán (`seller_label`), Vượt ngưỡng (`Cảnh báo người bán`), Doanh thu (data bar); Top N = 10 theo `Doanh thu NB cần xử lý` |
+| Q5 | Tỉ lệ giao trễ theo khâu bàn giao | Clustered column chart | X = người bán bàn giao đúng hạn / trễ (`handover_status`), Legend = nội bang / liên bang (`route_type`), Y = Tỉ lệ giao trễ |
+| Q5 | Bàn giao trễ, thời gian xử lý và vận chuyển theo tháng | Line and clustered column chart | X = Năm → Quý → Tháng; cột = Tỉ lệ bàn giao trễ (K12, đỏ ở kỳ có K6 > 10%); đường liền = Thời gian vận chuyển TB (M4), đường nét đứt xám = Thời gian xử lý TB (cùng trục phải, đơn vị ngày); tooltip `Nhãn kỳ`, `Số lượt bàn giao trễ`, K6 |
+| Q6 | Người bán có ≥ 30 đơn | Scatter chart và 2 đường ngưỡng (10%, 3,5) | Values = `seller_label`, X = Tỉ lệ bàn giao trễ, Y = Điểm TB, Size = Doanh thu; bộ lọc visual Số đơn ≥ 30; màu chấm = `Màu người bán` (M5 = 1 tô đỏ) |
+| Q6 | 10 người bán cần xử lý trước | Table | Cột người bán (`seller_label`), Vượt ngưỡng (`Cảnh báo người bán`), Doanh thu (data bar); Top N = 10 theo `Doanh thu NB cần xử lý` |
 
-Slicer trang 3: Năm, Tháng (đồng bộ với trang 1, 2) + **Vùng người bán** (`dim_seller[seller_region]`, thêm 05/11/2026) + **Bang người bán** (`seller_state`) – 2 ô xổ xuống riêng, xếp giống Vùng / Bang của trang 1; chọn vùng thì ô Bang chỉ còn các bang của vùng đó. Đường drill địa lý: Vùng → Bang (slicer) → Người bán (chuột phải → Drill through). Không làm cấp Thành phố: tên thành phố người bán chưa chuẩn hóa hết và mỗi thành phố ít người bán; `seller_label` đã ghi thành phố – bang.
+Đường drill địa lý: Vùng → Bang (slicer) → Người bán (chuột phải → Drill through). Không làm cấp Thành phố vì tên thành phố của người bán chưa chuẩn hóa hết và mỗi thành phố có ít người bán; `seller_label` đã ghi kèm thành phố – bang.
 
-**Trang ẩn "Chi tiết người bán"** (drill-through theo `seller_label`, chuột phải 1 người bán ở scatter hoặc bảng top 10; không tính vào 3 trang chính):
-nút Quay lại, 4 thẻ (doanh thu, số đơn, điểm TB, tỉ lệ bàn giao trễ) của người bán đó + combo bàn giao trễ / điểm TB theo tháng (trục Năm → Quý → Tháng)
-+ cột tỉ lệ giao trễ theo khâu bàn giao + bảng danh mục (`category_name_vi`) người bán đó đang bán.
+### Trang ẩn – Chi tiết người bán (drill-through)
 
-## Ảnh chụp
-![Overview](../docs/images/dashboard_overview.png)
-![Giao hàng](../docs/images/dashboard_delivery.png)
-![Người bán & vận chuyển](../docs/images/dashboard_seller.png)
+![Trang Chi tiết người bán](../docs/images/dashboard_seller_detail.png)
+
+Mở bằng cách chuột phải vào một người bán ở biểu đồ phân tán hoặc bảng 10 người bán của trang 3, chọn **Drill through → Chi tiết người bán** (trường drill-through: `seller_label`). Trang gồm nút Quay lại; 4 thẻ của người bán đó (tỉ lệ bàn giao trễ, số đơn, điểm TB, doanh thu); biểu đồ kết hợp bàn giao trễ và điểm TB theo tháng (trục Năm → Quý → Tháng); cột tỉ lệ giao trễ theo khâu bàn giao; bảng danh mục người bán đang bán (`category_name_vi`). Ảnh trên là người bán `7c67e1` (Itaquaquecetuba – SP), người duy nhất trong top 10 vượt cả hai ngưỡng.
+
+### Nút trợ lý AI
+
+Header của cả 3 trang có ảnh động trợ lý AI; phủ lên ảnh là một nút trong suốt có hành động **Web URL** lấy từ measure `Link hỏi AI trang 1..3`. Measure ghép địa chỉ ứng dụng với mã biểu đồ và giá trị slicer đang chọn (chỉ thêm tham số khi slicer chọn đúng một giá trị), ví dụ `http://localhost:8501/?bieu_do=Q5_1&nam=2018&thang=3`, nên ứng dụng mở đúng trang, đúng bộ lọc. Trong Power BI Desktop phải giữ **Ctrl** khi bấm. Ứng dụng phải được bật trước: [ai/README.md](../ai/README.md).

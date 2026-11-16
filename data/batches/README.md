@@ -109,5 +109,5 @@ Sau khi ghi, script đọc lại các file (như Mage sẽ đọc), phát lại 
    | `sellers` / `products` / `category_translation` | `seller_id` / `product_id` / `product_category_name` |
 
 3. **Số liệu mong đợi trong `etl_log.table_load`** khi nạp lần đầu theo đúng thứ tự: `rows_source` = số dòng trong manifest; `orders`: `rows_inserted` = `orders_new`, `rows_updated` = `orders_resent`; các bảng khác: `rows_inserted` = số dòng, `rows_updated` = 0. *Chạy lại* một batch đã nạp thì mọi dòng đều đã có khóa trong staging → 0 INSERT; số UPDATE = số dòng nếu MERGE cập nhật mọi dòng khớp khóa (hoặc 0 nếu chỉ cập nhật khi giá trị khác) – đúng, không phải lỗi.
-4. Sau batch cuối `2018-09+`, staging phải **khớp 100% `data/raw/`** (D8) – nên có query đối soát trong `sql/checks/`.
+4. Sau batch cuối `2018-09+`, staging phải **khớp 100% `data/raw/`** (D8). Số dòng 8 bảng staging đối chiếu bằng câu Q5 của [`sql/checks/01_pipeline_demo.sql`](../../sql/checks/01_pipeline_demo.sql); nội dung từng cột đã được script kiểm khi phát lại 10 batch (mục 6, kiểm tra số 9).
 5. Trạng thái trung gian trong batch là **dữ liệu mô phỏng** suy từ các mốc ngày (D8) – báo cáo và video demo phải nói rõ.

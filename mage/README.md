@@ -98,7 +98,7 @@ Kiểm thử (24/10/2026, máy Hằng, DB tạm `olist_test` đã xóa sau khi t
 
 | # | Kịch bản | Kết quả |
 |---|---|---|
-| 10 | `full_load` + 9 lần `incremental_load` trên DB trống | 10/10 `SUCCESS`, lần nào dbt cũng `PASS=177`. Số dòng 3 fact sau từng batch khớp bảng kịch bản 3 của [dbt/README.md](../dbt/README.md) mục 4 (FULL 46.418 · 45.394 · 42.867 → 2018-09+ 101.953 · 100.010 · 100.568); `02_dds_checks.sql` khớp mọi số mong đợi (doanh thu 01/2017 – 08/2018 13.449.529,68; K6 6,77%; K12 9,02%; K8 4,09; K5 2,27%) |
+| 10 | `full_load` + 9 lần `incremental_load` trên DB trống | 10/10 `SUCCESS`, lần nào dbt cũng `PASS=177`. Số dòng 3 fact sau từng batch khớp bảng kịch bản 3 của [dbt/README.md](../dbt/README.md) mục 4 (FULL 46.418 / 45.394 / 42.867 → 2018-09+ 101.953 / 100.010 / 100.568); `02_dds_checks.sql` khớp mọi số mong đợi (doanh thu 01/2017 – 08/2018 13.449.529,68; K6 6,77%; K12 9,02%; K8 4,09; K5 2,27%) |
 | – | Chạy thêm khi đã nạp hết | Dừng "đã nạp hết batch", block `dbt_build` bỏ qua (không chạy dbt), không ghi `pipeline_run` |
 | 12 | `full_load` mà dbt không chạy được (biến `DBT_PROFILES_DIR` trỏ vào thư mục không có) | `FAILED`, `error_message` = lỗi của dbt (`Invalid value for '--profiles-dir'`); 8 bảng `table_load` `SUCCESS`; `dbt_result` 0 dòng |
 | 13 | Ngay sau đó chạy `incremental_load` (thường và `rerun_last = true`) | Cả hai bị chặn: "Full Load run_id 11 đã làm lại staging từ đầu nhưng chưa xong…", không mở lần chạy mới. Chạy lại `full_load` → `SUCCESS`, `dds` về đúng số batch FULL; Incremental kế tiếp chọn lại `2018-01` |

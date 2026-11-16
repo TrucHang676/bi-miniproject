@@ -1,10 +1,10 @@
 # dbt – Data Transformation
 
 > Project dbt `olist_dw`: biến đổi schema `staging` (Mage nạp) thành kho `dds` (Galaxy schema) cho Power BI.
-> Công thức từng cột: [docs/source_to_target_mapping.md](../docs/source_to_target_mapping.md) · thiết kế kho: [docs/dw_design.md](../docs/dw_design.md).
+> Công thức từng cột: [docs/source_to_target_mapping.md](../docs/source_to_target_mapping.md); thiết kế kho: [docs/dw_design.md](../docs/dw_design.md).
 > **Quy tắc, mẫu code, số liệu nghiệm thu cho người viết model: [docs/dbt_rules.md](../docs/dbt_rules.md).**
 > Khởi tạo 23/10/2026: cấu hình, kết nối, nguồn, seed. Model BS-28 → BS-31 làm xong 24/10/2026: 20 model, 155 test (mục 4 – 6); đã chạy đủ 6 kịch bản kiểm thử B7 (mục 4). Từ 24/10/2026 (BS-34) pipeline Mage tự gọi `dbt build` sau mỗi lần nạp (mục 1).
-> Đối soát số liệu kho `dds` sau khi chạy: [sql/checks/02_dds_checks.sql](../sql/checks/02_dds_checks.sql) · xem test đang lỗi, demo test FAIL, kiểm khóa giữa 2 lần build: [sql/checks/03_dbt_test_demo.sql](../sql/checks/03_dbt_test_demo.sql) · 13 lỗi mẫu (3 nhóm) chạy trên bản sao `olist_dw_demo` cho báo cáo mục 6.2.4: [sql/checks/04_dbt_test_bad_data.sql](../sql/checks/04_dbt_test_bad_data.sql).
+> Đối soát số liệu kho `dds` sau khi chạy: [sql/checks/02_dds_checks.sql](../sql/checks/02_dds_checks.sql); xem test đang lỗi, demo test FAIL, kiểm khóa giữa 2 lần build: [sql/checks/03_dbt_test_demo.sql](../sql/checks/03_dbt_test_demo.sql); 13 lỗi mẫu (3 nhóm) chạy trên bản sao `olist_dw_demo` cho báo cáo mục 6.2.4: [sql/checks/04_dbt_test_bad_data.sql](../sql/checks/04_dbt_test_bad_data.sql).
 
 ## 1. Chạy dbt
 
@@ -44,7 +44,7 @@ Các lệnh dưới đây dùng khi sửa model / gỡ lỗi (không chạy tron
 | dbt test | | table | `dq` | `store_failures`: dòng vi phạm của mỗi test vào 1 bảng, ghi đè ở mỗi lần chạy |
 
 `staging` (Mage) và `dds` (Power BI) giữ đúng vai trò; view trung gian của dbt nằm riêng ở `dbt_stg`, `dbt_int` (dbt tự tạo 2 schema này).
-Cấu hình: [dbt_project.yml](dbt_project.yml) · kết nối: [profiles.yml.example](profiles.yml.example) · package: [packages.yml](packages.yml).
+Cấu hình: [dbt_project.yml](dbt_project.yml); kết nối: [profiles.yml.example](profiles.yml.example); package: [packages.yml](packages.yml).
 
 ## 3. Nguồn, seed, package
 
@@ -75,18 +75,18 @@ Kết quả 6 kịch bản kiểm thử ([dbt_rules.md](../docs/dbt_rules.md) B7
 
 Kịch bản 3 – khóa được cấp qua từng batch ở 2 dimension incremental, và số dòng fact sau mỗi lần build:
 
-| Batch | Khách mới → khóa | Thành phố mới → khóa | `fact_sales` · `fact_delivery` · `fact_review` |
-|---|---|---|---|
-| FULL | 44.034 → 1 … 44.034 | 3.413 → 1 … 3.413 | 46.418 · 45.394 · 42.867 |
-| 2018-01 | 7.025 → 44.035 … 51.059 | 184 → 3.414 … 3.597 | 53.901 · 52.727 · 49.224 |
-| 2018-02 | 6.451 → 51.060 … 57.510 | 151 → 3.598 … 3.748 | 60.704 · 59.473 · 55.390 |
-| 2018-03 | 6.965 → 57.511 … 64.475 | 142 → 3.749 … 3.890 | 68.101 · 66.754 · 63.115 |
-| 2018-04 | 6.711 → 64.476 … 71.186 | 108 → 3.891 … 3.998 | 75.317 · 73.823 · 70.863 |
-| 2018-05 | 6.622 → 71.187 … 77.808 | 85 → 3.999 … 4.083 | 82.414 · 80.790 · 78.512 |
-| 2018-06 | 5.940 → 77.809 … 83.748 | 67 → 4.084 … 4.150 | 88.803 · 87.064 · 84.991 |
-| 2018-07 | 6.071 → 83.749 … 89.819 | 85 → 4.151 … 4.235 | 95.255 · 93.438 · 90.904 |
-| 2018-08 | 6.271 → 89.820 … 96.090 | 74 → 4.236 … 4.309 | 101.952 · 100.009 · 99.869 |
-| 2018-09+ | 6 → 96.091 … 96.096 | 0 (`INSERT 0 0`) | 101.953 · 100.010 · 100.568 |
+| Batch | Khách mới → khóa | Thành phố mới → khóa | `fact_sales` | `fact_delivery` | `fact_review` |
+|---|---|---|---|---|---|
+| FULL | 44.034 → 1 … 44.034 | 3.413 → 1 … 3.413 | 46.418 | 45.394 | 42.867 |
+| 2018-01 | 7.025 → 44.035 … 51.059 | 184 → 3.414 … 3.597 | 53.901 | 52.727 | 49.224 |
+| 2018-02 | 6.451 → 51.060 … 57.510 | 151 → 3.598 … 3.748 | 60.704 | 59.473 | 55.390 |
+| 2018-03 | 6.965 → 57.511 … 64.475 | 142 → 3.749 … 3.890 | 68.101 | 66.754 | 63.115 |
+| 2018-04 | 6.711 → 64.476 … 71.186 | 108 → 3.891 … 3.998 | 75.317 | 73.823 | 70.863 |
+| 2018-05 | 6.622 → 71.187 … 77.808 | 85 → 3.999 … 4.083 | 82.414 | 80.790 | 78.512 |
+| 2018-06 | 5.940 → 77.809 … 83.748 | 67 → 4.084 … 4.150 | 88.803 | 87.064 | 84.991 |
+| 2018-07 | 6.071 → 83.749 … 89.819 | 85 → 4.151 … 4.235 | 95.255 | 93.438 | 90.904 |
+| 2018-08 | 6.271 → 89.820 … 96.090 | 74 → 4.236 … 4.309 | 101.952 | 100.009 | 99.869 |
+| 2018-09+ | 6 → 96.091 … 96.096 | 0 (`INSERT 0 0`) | 101.953 | 100.010 | 100.568 |
 
 Mỗi lần build, dbt báo `dim_customer` `INSERT` lại **toàn bộ** khách (VD `INSERT 0 51059` sau batch 2018-01): mẫu SCD 1 tính lại thuộc tính của mọi khách rồi `delete+insert`, khóa vẫn lấy lại từ bảng cũ. Batch 2018-09+ chỉ có 20 đơn mới nhưng `fact_review` vẫn tăng 699 dòng: đánh giá đến theo tháng khách **trả lời** (D8), nhiều đơn tháng 8 được trả lời sang tháng 9.
 Cách so khóa trước / sau 1 lần build (dùng lại khi demo nạp từng batch): [sql/checks/03_dbt_test_demo.sql](../sql/checks/03_dbt_test_demo.sql) câu Q4.

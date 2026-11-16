@@ -1,12 +1,14 @@
 # Generative AI – AI-Assisted Analytics
 
+> Thiết kế và lý do lựa chọn: [docs/generative_ai.md](../docs/generative_ai.md); báo cáo Chương 8. Hướng dẫn chạy từng bước cho thành viên: [HUONG_DAN_CHAY.md](HUONG_DAN_CHAY.md).
+
 ## Mô hình & cách tích hợp
 - **LLM / Dịch vụ:** Google Gemini (gói free của Google AI Studio, mặc định `gemini-3.5-flash`, quá tải thì
   `gemini-3.5-flash-lite`); dự phòng Groq
   (gói free, `llama-3.3-70b-versatile`) khi Gemini hết lượt hoặc lỗi. Nhóm chọn dịch vụ miễn phí; Ollama chạy
   trên máy cũng gắn được (biến `OLLAMA_MODEL`) nhưng máy không có card đồ họa rời nên chậm, trả lời yếu hơn.
-- **Cách tích hợp:** app Streamlit đi kèm Power BI. Mỗi trang dashboard có nút "Hỏi AI" mở app với đúng biểu đồ
-  và bộ lọc đang xem; app lấy số liệu của biểu đồ đó từ `dds` rồi mới gửi cho LLM. Copilot trong Power BI cần
+- **Cách tích hợp:** app Streamlit đi kèm Power BI. Header mỗi trang dashboard có ảnh động trợ lý AI; bấm vào sẽ mở
+  app với đúng trang và bộ lọc đang xem; app lấy số liệu của biểu đồ đó từ `dds` rồi mới gửi cho LLM. Copilot trong Power BI cần
   Fabric capacity trả phí nên không dùng. Gemini, Groq, Ollama đều có cổng tương thích OpenAI nên `llm.py` dùng
   chung thư viện `openai`; đổi dịch vụ / model chỉ sửa `.env`.
 
@@ -39,14 +41,14 @@ chấp nhận được, nhưng không gõ thông tin cá nhân vào ô chat.
 > Hướng dẫn từng bước + cách dùng app + lỗi thường gặp: **[HUONG_DAN_CHAY.md](HUONG_DAN_CHAY.md)**.
 
 App chạy **trên máy mỗi người** (`localhost:8501`), đọc kho `dds` trong Postgres Docker của chính máy đó – không
-deploy lên mạng. Robot "Trợ lý AI" trong Power BI mở link `http://localhost:8501/...`, nên phải mở app trước khi bấm robot.
+deploy lên mạng. Ảnh trợ lý AI trên header Power BI mở link `http://localhost:8501/...`, nên phải mở app trước khi bấm.
 
 1. `git pull`, Postgres đang chạy (`docker compose up -d`) và `dds` đã nạp đủ 10 batch (như khi mở Power BI).
 2. Lần đầu: `pip install -r ai/requirements.txt`; lấy key Gemini miễn phí ở `aistudio.google.com/apikey`
    (Create API key, **không** bấm Set up billing), điền vào dòng `GEMINI_API_KEY=` trong `.env` (mẫu ở `.env.example`).
    Mỗi người dùng key của mình, không gửi key qua chat / Git.
 3. Bấm đúp `ai/chay_app.bat` (hoặc `streamlit run ai/app.py` từ gốc repo). Trình duyệt mở `http://localhost:8501`.
-4. Mở Power BI, bấm robot ở góc trên → app mở đúng trang + bộ lọc đang xem.
+4. Mở Power BI, giữ Ctrl và bấm ảnh trợ lý AI ở góc trên → app mở đúng trang và bộ lọc đang xem.
 
 Cổng 8501 đang bị app khác chiếm thì Streamlit báo lỗi (file `.bat` cố định cổng 8501 để khớp link trong Power BI) –
 tắt cửa sổ Streamlit cũ rồi chạy lại.
@@ -66,7 +68,7 @@ mà key hiện có dùng được.
 
 `kiem_tra_so_lieu.py` phải ra toàn ✓ (04/11/2026: 50/50) thì số gửi cho AI mới khớp dashboard.
 
-Link mở thẳng 1 biểu đồ (nút "Hỏi AI" trong Power BI sẽ ghép link này theo bộ lọc đang chọn):
+Link mở thẳng 1 biểu đồ (measure `Link hỏi AI trang 1..3` trong Power BI ghép link này theo bộ lọc đang chọn):
 `http://localhost:8501/?bieu_do=Q5_2&nam=2018&thang=3`
 
 | Tham số | Giá trị |
